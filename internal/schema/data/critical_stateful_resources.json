@@ -1,0 +1,16 @@
+{
+  "_comment": "AWS resource types considered stateful/critical: they should carry lifecycle { prevent_destroy = true } to avoid accidental data loss.",
+  "resource_types": [
+    "aws_db_instance",
+    "aws_rds_cluster",
+    "aws_ebs_volume",
+    "aws_elasticache_cluster",
+    "aws_elasticache_replication_group",
+    "aws_dynamodb_table",
+    "aws_s3_bucket",
+    "aws_efs_file_system",
+    "aws_docdb_cluster",
+    "aws_redshift_cluster",
+    "aws_kms_key"
+  ]
+}

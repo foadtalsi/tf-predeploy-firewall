@@ -1,0 +1,88 @@
+{
+  "_comment": "Curated allow-list of known top-level attributes per AWS resource type. Used to flag attributes that don't exist in the real provider schema (likely AI hallucination). Resource types NOT listed here are skipped by rule a (unknown-attr) to avoid false positives. Extend this file as coverage grows.",
+  "aws_instance": [
+    "ami", "instance_type", "availability_zone", "subnet_id", "vpc_security_group_ids",
+    "security_groups", "key_name", "iam_instance_profile", "user_data", "user_data_base64",
+    "tags", "root_block_device", "ebs_block_device", "associate_public_ip_address",
+    "monitoring", "tenancy", "ebs_optimized", "disable_api_termination", "instance_initiated_shutdown_behavior",
+    "private_ip", "source_dest_check", "credit_specification", "metadata_options", "lifecycle",
+    "depends_on", "count", "for_each", "provider", "volume_tags"
+  ],
+  "aws_s3_bucket": [
+    "bucket", "bucket_prefix", "force_destroy", "tags", "lifecycle", "depends_on",
+    "count", "for_each", "provider", "object_lock_enabled"
+  ],
+  "aws_db_instance": [
+    "allocated_storage", "engine", "engine_version", "instance_class", "identifier",
+    "username", "password", "manage_master_user_password", "parameter_group_name",
+    "db_subnet_group_name", "vpc_security_group_ids", "skip_final_snapshot",
+    "final_snapshot_identifier", "multi_az", "storage_type", "storage_encrypted",
+    "kms_key_id", "backup_retention_period", "backup_window", "maintenance_window",
+    "publicly_accessible", "tags", "lifecycle", "depends_on", "count", "for_each",
+    "provider", "apply_immediately", "deletion_protection", "port", "iops", "license_model"
+  ],
+  "aws_security_group": [
+    "name", "name_prefix", "description", "vpc_id", "ingress", "egress", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider", "revoke_rules_on_delete"
+  ],
+  "aws_security_group_rule": [
+    "type", "from_port", "to_port", "protocol", "cidr_blocks", "ipv6_cidr_blocks",
+    "security_group_id", "source_security_group_id", "self", "description",
+    "prefix_list_ids", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_iam_role": [
+    "name", "name_prefix", "assume_role_policy", "path", "description",
+    "permissions_boundary", "force_detach_policies", "max_session_duration",
+    "tags", "inline_policy", "managed_policy_arns", "lifecycle", "depends_on",
+    "count", "for_each", "provider"
+  ],
+  "aws_iam_policy": [
+    "name", "name_prefix", "path", "description", "policy", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_lambda_function": [
+    "function_name", "role", "handler", "runtime", "filename", "s3_bucket",
+    "s3_key", "s3_object_version", "source_code_hash", "timeout", "memory_size",
+    "environment", "vpc_config", "layers", "tags", "publish", "architectures",
+    "lifecycle", "depends_on", "count", "for_each", "provider", "image_uri", "package_type"
+  ],
+  "aws_vpc": [
+    "cidr_block", "instance_tenancy", "enable_dns_support", "enable_dns_hostnames",
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_subnet": [
+    "vpc_id", "cidr_block", "availability_zone", "availability_zone_id",
+    "map_public_ip_on_launch", "tags", "lifecycle", "depends_on", "count",
+    "for_each", "provider", "ipv6_cidr_block", "assign_ipv6_address_on_creation"
+  ],
+  "aws_ebs_volume": [
+    "availability_zone", "size", "type", "iops", "throughput", "encrypted",
+    "kms_key_id", "snapshot_id", "tags", "lifecycle", "depends_on", "count",
+    "for_each", "provider", "multi_attach_enabled", "final_snapshot"
+  ],
+  "aws_elasticache_cluster": [
+    "cluster_id", "engine", "engine_version", "node_type", "num_cache_nodes",
+    "parameter_group_name", "port", "subnet_group_name", "security_group_ids",
+    "az_mode", "availability_zone", "maintenance_window", "snapshot_window",
+    "snapshot_retention_limit", "tags", "apply_immediately", "lifecycle",
+    "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_dynamodb_table": [
+    "name", "billing_mode", "hash_key", "range_key", "read_capacity",
+    "write_capacity", "attribute", "ttl", "stream_enabled", "stream_view_type",
+    "server_side_encryption", "point_in_time_recovery", "tags", "lifecycle",
+    "depends_on", "count", "for_each", "provider", "table_class"
+  ],
+  "aws_route53_record": [
+    "zone_id", "name", "type", "ttl", "records", "alias", "set_identifier",
+    "weighted_routing_policy", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_iam_user": [
+    "name", "path", "permissions_boundary", "force_destroy", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_kms_key": [
+    "description", "deletion_window_in_days", "enable_key_rotation", "policy",
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider", "key_usage", "customer_master_key_spec"
+  ]
+}

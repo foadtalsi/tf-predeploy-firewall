@@ -1,0 +1,31 @@
+name: "TF Pre-Deploy Firewall"
+description: "Scans changed Terraform files in a PR for AI-hallucination and risk patterns before terraform apply."
+author: "foadtalsi"
+
+inputs:
+  base-ref:
+    description: "Git ref to diff against (the PR base branch)."
+    required: false
+    default: ${{ github.event.pull_request.base.ref }}
+  block-threshold:
+    description: "Minimum severity (low|medium|high|critical) that fails the check. Overrides config/default.yml."
+    required: false
+    default: ""
+  github-token:
+    description: "Token used to post the PR comment. Defaults to the workflow's GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "--base-ref"
+    - "origin/${{ inputs.base-ref }}"
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
+
+branding:
+  icon: "shield"
+  color: "red"
