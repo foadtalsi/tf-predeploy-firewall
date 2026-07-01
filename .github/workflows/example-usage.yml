@@ -1,0 +1,28 @@
+# Example: how a CONSUMER repo would wire up TF Pre-Deploy Firewall.
+# Copy this file (with path adjustments) into your own repo's
+# .github/workflows/ to activate the scan on every Terraform PR.
+
+name: tf-predeploy-firewall
+on:
+  pull_request:
+    paths: ["**/*.tf"]
+
+permissions:
+  pull-requests: write   # required to post/update the PR comment
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 ensures the base branch ref is available for git diff
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: foadtalsi/tf-predeploy-firewall@v0
+        with:
+          # Set to 'critical' to only block on credentials-in-code / ForceNew on prod DB.
+          # Set to 'medium' to also block on missing prevent_destroy.
+          block-threshold: high
+          github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,2 +1,3 @@
 /tf-predeploy-firewall
 *.test
+.env
