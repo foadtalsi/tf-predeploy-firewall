@@ -129,3 +129,24 @@ func TestMissingLifecycleRule(t *testing.T) {
 		t.Errorf("expected finding on aws_db_instance.unprotected, got %s", findings[0].Resource)
 	}
 }
+
+func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
+	aws := mustLoadSchema(t)
+	in := FileInput{Path: "nested_block_cidr.tf", HeadResources: mustParseFixture(t, "nested_block_cidr.tf")}
+
+	findings := TutorialPatternRule{}.Check(in, aws)
+
+	var cidrFindings []report.Finding
+	for _, f := range findings {
+		if f.Category == report.CategoryTutorialPattern && f.Severity == report.SeverityHigh {
+			cidrFindings = append(cidrFindings, f)
+		}
+	}
+	if len(cidrFindings) == 0 {
+		t.Fatal("expected a CIDR finding inside the ingress nested block, got none")
+	}
+	if cidrFindings[0].Resource != "aws_security_group.wide_open" {
+		t.Errorf("unexpected resource: %s", cidrFindings[0].Resource)
+	}
+}
+

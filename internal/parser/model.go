@@ -16,9 +16,23 @@ type Resource struct {
 	// Attributes maps top-level attribute name -> its value/location.
 	Attributes map[string]*Attribute
 
+	// Blocks holds non-lifecycle nested blocks (ingress, egress,
+	// root_block_device, environment, vpc_config, …) so rules can
+	// inspect attributes inside them (e.g. cidr_blocks in ingress).
+	Blocks []*NestedBlock
+
 	HasLifecycleBlock   bool
 	PreventDestroyValue *bool // nil if prevent_destroy is absent or not a literal bool
 	PreventDestroyRange hcl.Range
+}
+
+// NestedBlock is a named sub-block inside a resource body
+// (e.g. `ingress { … }`, `root_block_device { … }`).
+type NestedBlock struct {
+	Type       string
+	Labels     []string
+	Range      hcl.Range
+	Attributes map[string]*Attribute
 }
 
 // Attribute is a top-level attribute inside a resource block.

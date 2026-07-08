@@ -11,6 +11,7 @@
     "aws_efs_file_system",
     "aws_docdb_cluster",
     "aws_redshift_cluster",
-    "aws_kms_key"
+    "aws_kms_key",
+    "aws_secretsmanager_secret"
   ]
 }

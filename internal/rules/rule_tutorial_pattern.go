@@ -64,26 +64,45 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 
 func checkOpenCIDR(path string, res *parser.Resource) []report.Finding {
 	var findings []report.Finding
+
+	// Top-level cidr attributes (aws_security_group_rule, etc.)
 	for name, attr := range res.Attributes {
-		if !attr.IsLiteral {
-			continue
-		}
-		if !strings.Contains(strings.ToLower(name), "cidr") {
+		if !attr.IsLiteral || !strings.Contains(strings.ToLower(name), "cidr") {
 			continue
 		}
 		if strings.Contains(attr.RawValue, openCIDR) {
-			findings = append(findings, report.Finding{
-				File:     path,
-				Line:     attr.Range.Start.Line,
-				Category: report.CategoryTutorialPattern,
-				Severity: report.SeverityHigh,
-				Resource: res.Address(),
-				Message: fmt.Sprintf(
-					"%q includes %s (open to the entire internet) — common tutorial copy-paste, narrow this range", name, openCIDR),
-			})
+			findings = append(findings, cidrFinding(path, res.Address(), name, attr.Range.Start.Line))
 		}
 	}
+
+	// Nested blocks: ingress/egress inside aws_security_group, etc.
+	for _, blk := range res.Blocks {
+		if blk.Type != "ingress" && blk.Type != "egress" {
+			continue
+		}
+		for name, attr := range blk.Attributes {
+			if !attr.IsLiteral || !strings.Contains(strings.ToLower(name), "cidr") {
+				continue
+			}
+			if strings.Contains(attr.RawValue, openCIDR) {
+				label := fmt.Sprintf("%s (inside %s block)", name, blk.Type)
+				findings = append(findings, cidrFinding(path, res.Address(), label, attr.Range.Start.Line))
+			}
+		}
+	}
+
 	return findings
+}
+
+func cidrFinding(path, resource, label string, line int) report.Finding {
+	return report.Finding{
+		File:     path,
+		Line:     line,
+		Category: report.CategoryTutorialPattern,
+		Severity: report.SeverityHigh,
+		Resource: resource,
+		Message:  fmt.Sprintf("%q includes %s (open to the entire internet) — common tutorial copy-paste, narrow this range", label, openCIDR),
+	}
 }
 
 func checkGenericNaming(path string, res *parser.Resource) []report.Finding {

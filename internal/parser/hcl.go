@@ -51,17 +51,27 @@ func blockToResource(filename string, block *hclsyntax.Block) *Resource {
 	}
 
 	for _, nested := range block.Body.Blocks {
-		if nested.Type != "lifecycle" {
+		if nested.Type == "lifecycle" {
+			r.HasLifecycleBlock = true
+			if pdAttr, ok := nested.Body.Attributes["prevent_destroy"]; ok {
+				r.PreventDestroyRange = pdAttr.SrcRange
+				if v, diags := pdAttr.Expr.Value(nil); !diags.HasErrors() && v.Type() == cty.Bool {
+					b := v.True()
+					r.PreventDestroyValue = &b
+				}
+			}
 			continue
 		}
-		r.HasLifecycleBlock = true
-		if pdAttr, ok := nested.Body.Attributes["prevent_destroy"]; ok {
-			r.PreventDestroyRange = pdAttr.SrcRange
-			if v, diags := pdAttr.Expr.Value(nil); !diags.HasErrors() && v.Type() == cty.Bool {
-				b := v.True()
-				r.PreventDestroyValue = &b
-			}
+		nb := &NestedBlock{
+			Type:       nested.Type,
+			Labels:     nested.Labels,
+			Range:      nested.DefRange(),
+			Attributes: map[string]*Attribute{},
 		}
+		for name, attr := range nested.Body.Attributes {
+			nb.Attributes[name] = attrToAttribute(name, attr)
+		}
+		r.Blocks = append(r.Blocks, nb)
 	}
 
 	return r

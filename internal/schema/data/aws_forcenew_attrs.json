@@ -1,13 +1,21 @@
 {
   "_comment": "Curated map of resource_type -> attributes that are ForceNew in the AWS provider schema (changing them triggers destroy+recreate). Extend as coverage grows.",
-  "aws_db_instance": ["identifier", "identifier_prefix", "engine", "username", "availability_zone", "storage_type", "license_model", "allocated_storage_type", "snapshot_identifier"],
+  "aws_db_instance": ["identifier", "identifier_prefix", "engine", "username", "availability_zone", "storage_type", "license_model", "snapshot_identifier"],
+  "aws_rds_cluster": ["cluster_identifier", "engine", "engine_mode", "master_username", "database_name", "availability_zones", "storage_encrypted", "kms_key_id"],
   "aws_instance": ["ami", "availability_zone", "subnet_id", "tenancy", "user_data", "user_data_base64"],
-  "aws_ebs_volume": ["availability_zone", "snapshot_id", "encrypted", "size"],
+  "aws_ebs_volume": ["availability_zone", "snapshot_id", "encrypted"],
   "aws_elasticache_cluster": ["cluster_id", "engine", "node_type", "subnet_group_name", "az_mode"],
+  "aws_elasticache_replication_group": ["replication_group_id", "engine", "at_rest_encryption_enabled", "transit_encryption_enabled", "kms_key_id"],
   "aws_s3_bucket": ["bucket", "bucket_prefix"],
   "aws_dynamodb_table": ["name", "hash_key", "range_key"],
   "aws_vpc": ["cidr_block", "instance_tenancy"],
   "aws_subnet": ["vpc_id", "cidr_block", "availability_zone", "availability_zone_id"],
   "aws_security_group": ["name", "name_prefix", "vpc_id"],
-  "aws_kms_key": ["customer_master_key_spec", "key_usage"]
+  "aws_kms_key": ["customer_master_key_spec", "key_usage", "multi_region"],
+  "aws_efs_file_system": ["creation_token", "availability_zone_name", "encrypted", "kms_key_id", "performance_mode"],
+  "aws_eks_cluster": ["name", "role_arn"],
+  "aws_ecr_repository": ["name"],
+  "aws_cloudwatch_log_group": ["name", "name_prefix"],
+  "aws_sqs_queue": ["name", "name_prefix", "fifo_queue"],
+  "aws_secretsmanager_secret": ["name", "name_prefix"]
 }

@@ -21,6 +21,16 @@
     "publicly_accessible", "tags", "lifecycle", "depends_on", "count", "for_each",
     "provider", "apply_immediately", "deletion_protection", "port", "iops", "license_model"
   ],
+  "aws_rds_cluster": [
+    "cluster_identifier", "engine", "engine_version", "engine_mode", "database_name",
+    "master_username", "master_password", "manage_master_user_password",
+    "vpc_security_group_ids", "db_subnet_group_name", "availability_zones",
+    "backup_retention_period", "preferred_backup_window", "preferred_maintenance_window",
+    "skip_final_snapshot", "final_snapshot_identifier", "deletion_protection",
+    "storage_encrypted", "kms_key_id", "port", "apply_immediately", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider", "copy_tags_to_snapshot",
+    "enabled_cloudwatch_logs_exports", "serverlessv2_scaling_configuration"
+  ],
   "aws_security_group": [
     "name", "name_prefix", "description", "vpc_id", "ingress", "egress", "tags",
     "lifecycle", "depends_on", "count", "for_each", "provider", "revoke_rules_on_delete"
@@ -40,20 +50,27 @@
     "name", "name_prefix", "path", "description", "policy", "tags",
     "lifecycle", "depends_on", "count", "for_each", "provider"
   ],
+  "aws_iam_user": [
+    "name", "path", "permissions_boundary", "force_destroy", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
   "aws_lambda_function": [
     "function_name", "role", "handler", "runtime", "filename", "s3_bucket",
     "s3_key", "s3_object_version", "source_code_hash", "timeout", "memory_size",
     "environment", "vpc_config", "layers", "tags", "publish", "architectures",
-    "lifecycle", "depends_on", "count", "for_each", "provider", "image_uri", "package_type"
+    "lifecycle", "depends_on", "count", "for_each", "provider", "image_uri", "package_type",
+    "dead_letter_config", "tracing_config", "file_system_config", "reserved_concurrent_executions"
   ],
   "aws_vpc": [
     "cidr_block", "instance_tenancy", "enable_dns_support", "enable_dns_hostnames",
-    "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider",
+    "assign_generated_ipv6_cidr_block", "ipv6_cidr_block"
   ],
   "aws_subnet": [
     "vpc_id", "cidr_block", "availability_zone", "availability_zone_id",
     "map_public_ip_on_launch", "tags", "lifecycle", "depends_on", "count",
-    "for_each", "provider", "ipv6_cidr_block", "assign_ipv6_address_on_creation"
+    "for_each", "provider", "ipv6_cidr_block", "assign_ipv6_address_on_creation",
+    "private_dns_hostname_type_on_launch"
   ],
   "aws_ebs_volume": [
     "availability_zone", "size", "type", "iops", "throughput", "encrypted",
@@ -67,22 +84,124 @@
     "snapshot_retention_limit", "tags", "apply_immediately", "lifecycle",
     "depends_on", "count", "for_each", "provider"
   ],
+  "aws_elasticache_replication_group": [
+    "replication_group_id", "description", "node_type", "num_cache_clusters",
+    "num_node_groups", "replicas_per_node_group", "engine_version", "port",
+    "subnet_group_name", "security_group_ids", "parameter_group_name",
+    "automatic_failover_enabled", "multi_az_enabled", "at_rest_encryption_enabled",
+    "transit_encryption_enabled", "kms_key_id", "auth_token", "maintenance_window",
+    "snapshot_window", "snapshot_retention_limit", "apply_immediately", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
   "aws_dynamodb_table": [
     "name", "billing_mode", "hash_key", "range_key", "read_capacity",
     "write_capacity", "attribute", "ttl", "stream_enabled", "stream_view_type",
     "server_side_encryption", "point_in_time_recovery", "tags", "lifecycle",
-    "depends_on", "count", "for_each", "provider", "table_class"
+    "depends_on", "count", "for_each", "provider", "table_class", "global_secondary_index",
+    "local_secondary_index", "replica"
   ],
   "aws_route53_record": [
     "zone_id", "name", "type", "ttl", "records", "alias", "set_identifier",
-    "weighted_routing_policy", "lifecycle", "depends_on", "count", "for_each", "provider"
-  ],
-  "aws_iam_user": [
-    "name", "path", "permissions_boundary", "force_destroy", "tags",
-    "lifecycle", "depends_on", "count", "for_each", "provider"
+    "weighted_routing_policy", "lifecycle", "depends_on", "count", "for_each", "provider",
+    "latency_routing_policy", "geolocation_routing_policy", "failover_routing_policy",
+    "health_check_id", "allow_overwrite"
   ],
   "aws_kms_key": [
     "description", "deletion_window_in_days", "enable_key_rotation", "policy",
-    "tags", "lifecycle", "depends_on", "count", "for_each", "provider", "key_usage", "customer_master_key_spec"
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider",
+    "key_usage", "customer_master_key_spec", "is_enabled", "multi_region"
+  ],
+  "aws_ecs_cluster": [
+    "name", "setting", "configuration", "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_ecs_service": [
+    "name", "cluster", "task_definition", "desired_count", "launch_type",
+    "platform_version", "network_configuration", "load_balancer", "iam_role",
+    "deployment_controller", "deployment_minimum_healthy_percent",
+    "deployment_maximum_percent", "health_check_grace_period_seconds",
+    "enable_execute_command", "force_new_deployment", "propagate_tags",
+    "scheduling_strategy", "capacity_provider_strategy", "ordered_placement_strategy",
+    "placement_constraints", "service_registries", "tags", "lifecycle",
+    "depends_on", "count", "for_each", "provider", "wait_for_steady_state"
+  ],
+  "aws_ecs_task_definition": [
+    "family", "container_definitions", "task_role_arn", "execution_role_arn",
+    "network_mode", "requires_compatibilities", "cpu", "memory",
+    "volume", "placement_constraints", "runtime_platform", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider", "skip_destroy"
+  ],
+  "aws_eks_cluster": [
+    "name", "role_arn", "vpc_config", "version", "enabled_cluster_log_types",
+    "kubernetes_network_config", "encryption_config", "tags", "lifecycle",
+    "depends_on", "count", "for_each", "provider", "access_config"
+  ],
+  "aws_eks_node_group": [
+    "cluster_name", "node_group_name", "node_role_arn", "subnet_ids", "scaling_config",
+    "instance_types", "ami_type", "disk_size", "capacity_type", "release_version",
+    "version", "launch_template", "remote_access", "taint", "labels", "update_config",
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_lb": [
+    "name", "name_prefix", "internal", "load_balancer_type", "security_groups",
+    "subnets", "subnet_mapping", "enable_deletion_protection", "enable_cross_zone_load_balancing",
+    "enable_http2", "idle_timeout", "ip_address_type", "drop_invalid_header_fields",
+    "desync_mitigation_mode", "preserve_host_header", "access_logs", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_lb_listener": [
+    "load_balancer_arn", "port", "protocol", "ssl_policy", "certificate_arn",
+    "default_action", "alpn_policy", "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_lb_target_group": [
+    "name", "name_prefix", "port", "protocol", "vpc_id", "target_type",
+    "deregistration_delay", "health_check", "stickiness", "connection_termination",
+    "lambda_multi_value_headers_enabled", "proxy_protocol_v2", "slow_start",
+    "load_balancing_algorithm_type", "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_autoscaling_group": [
+    "name", "name_prefix", "min_size", "max_size", "desired_capacity",
+    "vpc_zone_identifier", "availability_zones", "launch_configuration",
+    "launch_template", "mixed_instances_policy", "health_check_type",
+    "health_check_grace_period", "termination_policies", "target_group_arns",
+    "enabled_metrics", "default_cooldown", "protect_from_scale_in",
+    "service_linked_role_arn", "capacity_rebalance", "instance_refresh",
+    "tag", "tags", "lifecycle", "depends_on", "count", "for_each", "provider",
+    "wait_for_capacity_timeout", "force_delete"
+  ],
+  "aws_cloudwatch_log_group": [
+    "name", "name_prefix", "retention_in_days", "kms_key_id", "tags",
+    "lifecycle", "depends_on", "count", "for_each", "provider", "skip_destroy"
+  ],
+  "aws_sqs_queue": [
+    "name", "name_prefix", "visibility_timeout_seconds", "message_retention_seconds",
+    "max_message_size", "delay_seconds", "receive_wait_time_seconds", "policy",
+    "redrive_policy", "redrive_allow_policy", "fifo_queue", "content_based_deduplication",
+    "kms_master_key_id", "kms_data_key_reuse_period_seconds", "sqs_managed_sse_enabled",
+    "deduplication_scope", "fifo_throughput_limit", "tags", "lifecycle",
+    "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_sns_topic": [
+    "name", "name_prefix", "display_name", "policy", "delivery_policy",
+    "application_success_feedback_role_arn", "application_failure_feedback_role_arn",
+    "http_success_feedback_role_arn", "http_failure_feedback_role_arn",
+    "lambda_success_feedback_role_arn", "lambda_failure_feedback_role_arn",
+    "sqs_success_feedback_role_arn", "sqs_failure_feedback_role_arn",
+    "kms_master_key_id", "fifo_topic", "content_based_deduplication",
+    "signature_version", "tracing_config", "tags", "lifecycle",
+    "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_ecr_repository": [
+    "name", "image_tag_mutability", "encryption_configuration", "image_scanning_configuration",
+    "force_delete", "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_secretsmanager_secret": [
+    "name", "name_prefix", "description", "kms_key_id", "policy",
+    "recovery_window_in_days", "force_overwrite_replica_secret", "replica",
+    "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
+  ],
+  "aws_efs_file_system": [
+    "creation_token", "encrypted", "kms_key_id", "performance_mode",
+    "provisioned_throughput_in_mibps", "throughput_mode", "availability_zone_name",
+    "lifecycle_policy", "tags", "lifecycle", "depends_on", "count", "for_each", "provider"
   ]
 }
