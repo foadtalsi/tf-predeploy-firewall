@@ -6,9 +6,9 @@ import "encoding/json"
 // Spec: https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
 
 type sarifLog struct {
-	Version string      `json:"version"`
-	Schema  string      `json:"$schema"`
-	Runs    []sarifRun  `json:"runs"`
+	Version string     `json:"version"`
+	Schema  string     `json:"$schema"`
+	Runs    []sarifRun `json:"runs"`
 }
 
 type sarifRun struct {
@@ -21,18 +21,18 @@ type sarifTool struct {
 }
 
 type sarifDriver struct {
-	Name            string      `json:"name"`
-	Version         string      `json:"version"`
-	InformationURI  string      `json:"informationUri"`
-	Rules           []sarifRule `json:"rules"`
+	Name           string      `json:"name"`
+	Version        string      `json:"version"`
+	InformationURI string      `json:"informationUri"`
+	Rules          []sarifRule `json:"rules"`
 }
 
 type sarifRule struct {
-	ID               string                `json:"id"`
-	Name             string                `json:"name"`
-	ShortDescription sarifMessage          `json:"shortDescription"`
-	HelpURI          string                `json:"helpUri,omitempty"`
-	Properties       sarifRuleProperties   `json:"properties"`
+	ID               string              `json:"id"`
+	Name             string              `json:"name"`
+	ShortDescription sarifMessage        `json:"shortDescription"`
+	HelpURI          string              `json:"helpUri,omitempty"`
+	Properties       sarifRuleProperties `json:"properties"`
 }
 
 type sarifRuleProperties struct {
@@ -109,8 +109,8 @@ func RenderSARIF(findings []Finding) ([]byte, error) {
 	results := make([]sarifResult, 0, len(findings))
 	for _, f := range findings {
 		results = append(results, sarifResult{
-			RuleID: string(f.Category),
-			Level:  severityToSarifLevel[f.Severity],
+			RuleID:  string(f.Category),
+			Level:   severityToSarifLevel[f.Severity],
 			Message: sarifMessage{Text: f.Message},
 			Locations: []sarifLocation{{
 				PhysicalLocation: sarifPhysicalLocation{

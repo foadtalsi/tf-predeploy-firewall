@@ -25,8 +25,8 @@ var genericNamePattern = regexp.MustCompile(`(?i)^(example|test|demo|foo|bar|my[
 // formats embedded in any string literal, regardless of the attribute name.
 // These are ordered cheapest-to-most-specific; first match wins for message.
 var credentialValuePatterns = []struct {
-	re      *regexp.Regexp
-	label   string
+	re    *regexp.Regexp
+	label string
 }{
 	// AWS access key ID
 	{regexp.MustCompile(`AKIA[A-Z0-9]{16}`), "AWS access key ID (AKIA…)"},

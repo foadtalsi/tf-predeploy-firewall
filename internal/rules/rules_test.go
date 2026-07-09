@@ -187,4 +187,3 @@ func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
 		t.Errorf("unexpected resource: %s", cidrFindings[0].Resource)
 	}
 }
-

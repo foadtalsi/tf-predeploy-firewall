@@ -36,10 +36,10 @@ const (
 
 // Finding is a single risk detected in a Terraform diff.
 type Finding struct {
-	File        string
-	Line        int
-	Category    Category
-	Severity    Severity
-	Resource    string // "type.name" address, for context
-	Message     string
+	File     string
+	Line     int
+	Category Category
+	Severity Severity
+	Resource string // "type.name" address, for context
+	Message  string
 }

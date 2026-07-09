@@ -42,7 +42,7 @@ type Attribute struct {
 	// RawValue holds the literal string form of the expression when it could
 	// be statically evaluated (string/number/bool/list of these). Empty if
 	// the expression depends on a variable/reference and can't be evaluated.
-	RawValue string
+	RawValue  string
 	IsLiteral bool
 }
 
