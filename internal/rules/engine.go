@@ -6,10 +6,17 @@ import (
 	"fmt"
 
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/diff"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/ignore"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 )
+
+// RunOptions configures optional behaviour of the scan engine.
+type RunOptions struct {
+	// GlobalIgnore is a list of categories to suppress across all files.
+	GlobalIgnore []report.Category
+}
 
 // FileInput is what each Rule sees for one changed .tf file.
 type FileInput struct {
@@ -40,12 +47,17 @@ func DefaultRules() []Rule {
 }
 
 // Run parses every changed file and executes all rules against it,
-// returning the combined findings. A parse error on one file is recorded
-// as its own informational finding rather than aborting the whole scan.
-func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule) ([]report.Finding, error) {
+// returning the combined findings after applying ignore directives.
+// A parse error on one file is recorded as its own informational finding
+// rather than aborting the whole scan.
+func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOptions) ([]report.Finding, error) {
 	var findings []report.Finding
+	inlineByFile := make(map[string]map[int]map[report.Category]bool)
 
 	for _, f := range files {
+		// Collect inline ignore directives from the head revision source.
+		inlineByFile[f.Path] = ignore.ParseComments(f.HeadContent)
+
 		headResources, err := parser.ParseFile(f.Path, f.HeadContent)
 		if err != nil {
 			findings = append(findings, report.Finding{
@@ -75,5 +87,5 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule) ([]report.Fi
 		}
 	}
 
-	return findings, nil
+	return ignore.Apply(findings, inlineByFile, opts.GlobalIgnore), nil
 }

@@ -20,7 +20,8 @@ import (
 )
 
 type config struct {
-	BlockThreshold report.Severity `yaml:"block_threshold"`
+	BlockThreshold report.Severity   `yaml:"block_threshold"`
+	IgnoreRules    []report.Category `yaml:"ignore_rules"`
 }
 
 func main() {
@@ -29,6 +30,7 @@ func main() {
 	headRef := flag.String("head-ref", "HEAD", "git ref containing the proposed changes")
 	configPath := flag.String("config", envOr("SCANNER_CONFIG", "config/default.yml"), "path to YAML config")
 	postComment := flag.Bool("post-comment", os.Getenv("GITHUB_TOKEN") != "", "post/update a PR comment with the results")
+	sarifOut := flag.String("sarif-output", "", "write SARIF 2.1.0 JSON to this file (for GitHub Code Scanning)")
 	flag.Parse()
 
 	cfg, err := loadConfig(*configPath)
@@ -49,7 +51,9 @@ func main() {
 		os.Exit(2)
 	}
 
-	findings, err := rules.Run(changed, aws, rules.DefaultRules())
+	findings, err := rules.Run(changed, aws, rules.DefaultRules(), rules.RunOptions{
+		GlobalIgnore: cfg.IgnoreRules,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 		os.Exit(2)
@@ -62,6 +66,15 @@ func main() {
 	if *postComment {
 		if err := postToPR(body); err != nil {
 			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to post PR comment: %v\n", err)
+		}
+	}
+
+	if *sarifOut != "" {
+		sarifBytes, err := report.RenderSARIF(findings)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to render SARIF: %v\n", err)
+		} else if err := os.WriteFile(*sarifOut, sarifBytes, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to write SARIF file: %v\n", err)
 		}
 	}
 

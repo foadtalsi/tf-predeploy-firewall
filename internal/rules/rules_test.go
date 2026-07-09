@@ -130,6 +130,44 @@ func TestMissingLifecycleRule(t *testing.T) {
 	}
 }
 
+func TestTutorialPatternRule_CredentialValuePatterns(t *testing.T) {
+	aws := mustLoadSchema(t)
+	in := FileInput{Path: "credential_values.tf", HeadResources: mustParseFixture(t, "credential_values.tf")}
+
+	findings := TutorialPatternRule{}.Check(in, aws)
+
+	var criticals []report.Finding
+	for _, f := range findings {
+		if f.Severity == report.SeverityCritical {
+			criticals = append(criticals, f)
+		}
+	}
+	if len(criticals) == 0 {
+		t.Fatal("expected critical findings for AWS key and JWT embedded in literal values, got none")
+	}
+}
+
+func TestTutorialPatternRule_BoolAttrsNotFlagged(t *testing.T) {
+	aws := mustLoadSchema(t)
+	src := []byte(`
+resource "aws_db_instance" "x" {
+  manage_master_user_password = true
+  password = "changeme"
+}`)
+	resources, err := parser.ParseFile("test.tf", src)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	in := FileInput{Path: "test.tf", HeadResources: resources}
+	findings := TutorialPatternRule{}.Check(in, aws)
+
+	for _, f := range findings {
+		if f.Line == 3 {
+			t.Errorf("line 3 (bool attr) should not be flagged, got: %s", f.Message)
+		}
+	}
+}
+
 func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
 	aws := mustLoadSchema(t)
 	in := FileInput{Path: "nested_block_cidr.tf", HeadResources: mustParseFixture(t, "nested_block_cidr.tf")}

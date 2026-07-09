@@ -8,8 +8,9 @@ on:
     paths: ["**/*.tf"]
 
 permissions:
-  pull-requests: write   # required to post/update the PR comment
+  pull-requests: write        # post/update the PR comment
   contents: read
+  security-events: write      # upload SARIF to GitHub Code Scanning
 
 jobs:
   scan:
@@ -26,3 +27,11 @@ jobs:
           # Set to 'medium' to also block on missing prevent_destroy.
           block-threshold: high
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          sarif-output: tf-firewall.sarif
+
+      # Upload findings to GitHub Code Scanning for inline PR annotations.
+      # Runs even when the scan step fails (blocked PR) so findings are visible.
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tf-firewall.sarif

@@ -1,13 +1,24 @@
 {
-  "_comment": "Curated map of resource_type -> attributes that are ForceNew in the AWS provider schema (changing them triggers destroy+recreate). Extend as coverage grows.",
+  "_comment": "resource_type -> ForceNew spec. Two formats supported: simple array (top-level only) or object {top_level: [], nested_blocks: {block_type: [attrs]}}.",
   "aws_db_instance": ["identifier", "identifier_prefix", "engine", "username", "availability_zone", "storage_type", "license_model", "snapshot_identifier"],
   "aws_rds_cluster": ["cluster_identifier", "engine", "engine_mode", "master_username", "database_name", "availability_zones", "storage_encrypted", "kms_key_id"],
-  "aws_instance": ["ami", "availability_zone", "subnet_id", "tenancy", "user_data", "user_data_base64"],
+  "aws_instance": {
+    "top_level": ["ami", "availability_zone", "subnet_id", "tenancy", "user_data", "user_data_base64"],
+    "nested_blocks": {
+      "root_block_device": ["volume_type", "encrypted", "kms_key_id"],
+      "ebs_block_device": ["device_name", "snapshot_id", "encrypted", "kms_key_id"]
+    }
+  },
   "aws_ebs_volume": ["availability_zone", "snapshot_id", "encrypted"],
   "aws_elasticache_cluster": ["cluster_id", "engine", "node_type", "subnet_group_name", "az_mode"],
   "aws_elasticache_replication_group": ["replication_group_id", "engine", "at_rest_encryption_enabled", "transit_encryption_enabled", "kms_key_id"],
   "aws_s3_bucket": ["bucket", "bucket_prefix"],
-  "aws_dynamodb_table": ["name", "hash_key", "range_key"],
+  "aws_dynamodb_table": {
+    "top_level": ["name", "hash_key", "range_key"],
+    "nested_blocks": {
+      "server_side_encryption": ["enabled"]
+    }
+  },
   "aws_vpc": ["cidr_block", "instance_tenancy"],
   "aws_subnet": ["vpc_id", "cidr_block", "availability_zone", "availability_zone_id"],
   "aws_security_group": ["name", "name_prefix", "vpc_id"],

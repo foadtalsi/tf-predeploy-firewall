@@ -46,9 +46,9 @@ func TestLoad_AllowedAttrsNotEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	for rt, attrs := range aws.ResourceSchemas {
-		if len(attrs) == 0 {
-			t.Errorf("ResourceSchemas[%s] has an empty attribute list", rt)
+	for rt, schema := range aws.ResourceSchemas {
+		if len(schema.TopLevel) == 0 {
+			t.Errorf("ResourceSchemas[%s] has an empty top-level attribute list", rt)
 		}
 	}
 }

@@ -4,3 +4,8 @@
 # Minimum severity that blocks the PR (exit code 1).
 # One of: low, medium, high, critical
 block_threshold: high
+
+# Categories to suppress globally (across all files, all resources).
+# Valid values: unknown_attribute, tutorial_pattern, force_new_change, missing_lifecycle
+# Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
+ignore_rules: []

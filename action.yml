@@ -15,6 +15,10 @@ inputs:
     description: "Token used to post the PR comment. Defaults to the workflow's GITHUB_TOKEN."
     required: false
     default: ${{ github.token }}
+  sarif-output:
+    description: "Path to write a SARIF 2.1.0 file for upload to GitHub Code Scanning. Leave empty to skip."
+    required: false
+    default: ""
 
 runs:
   using: "docker"
@@ -22,6 +26,8 @@ runs:
   args:
     - "--base-ref"
     - "origin/${{ inputs.base-ref }}"
+    - "--sarif-output"
+    - "${{ inputs.sarif-output }}"
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}

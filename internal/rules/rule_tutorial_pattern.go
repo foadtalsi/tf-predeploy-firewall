@@ -15,23 +15,39 @@ import (
 // wide-open CIDR ranges, and placeholder/generic naming.
 type TutorialPatternRule struct{}
 
-var credentialAttrNames = regexp.MustCompile(`(?i)^(password|secret|secret_key|access_key|api_key|token|private_key|client_secret)$`)
-
-// Values that mean "this is intentionally a variable/reference, not a
-// hardcoded secret" never reach here because Attribute.IsLiteral is false
-// for non-literal expressions (e.g. var.password, data.foo.bar). We only
-// look at literal strings.
-var placeholderSecretValues = regexp.MustCompile(`(?i)^(changeme|password123?|secret|todo|fixme|xxx+)$`)
+var credentialAttrNames = regexp.MustCompile(`(?i)^(password|secret|secret_key|access_key|api_key|token|private_key|client_secret|auth_token|master_password)$`)
 
 var openCIDR = "0.0.0.0/0"
 
 var genericNamePattern = regexp.MustCompile(`(?i)^(example|test|demo|foo|bar|my[-_]?bucket|my[-_]?app|sample|tmp|temp|placeholder)([-_].*)?$`)
+
+// credentialValuePatterns detects high-entropy or well-known credential
+// formats embedded in any string literal, regardless of the attribute name.
+// These are ordered cheapest-to-most-specific; first match wins for message.
+var credentialValuePatterns = []struct {
+	re      *regexp.Regexp
+	label   string
+}{
+	// AWS access key ID
+	{regexp.MustCompile(`AKIA[A-Z0-9]{16}`), "AWS access key ID (AKIA…)"},
+	// AWS secret access key: 40-char base64url
+	{regexp.MustCompile(`(?i)[a-z0-9/+]{40}`), "possible AWS secret key (40-char base64)"},
+	// PEM private key header
+	{regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----`), "PEM private key"},
+	// JWT (3 base64url segments separated by dots)
+	{regexp.MustCompile(`^ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`), "JWT token"},
+	// GitHub PAT (classic ghp_ or fine-grained github_pat_)
+	{regexp.MustCompile(`^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$`), "GitHub personal access token"},
+	// Generic high-entropy hex string (32+ chars: MD5/SHA/UUID-ish secrets)
+	{regexp.MustCompile(`^[0-9a-f]{32,}$`), "high-entropy hex string (possible secret)"},
+}
 
 func (TutorialPatternRule) Check(in FileInput, aws *schema.AWS) []report.Finding {
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
 		findings = append(findings, checkHardcodedCredentials(in.Path, res)...)
+		findings = append(findings, checkCredentialValues(in.Path, res)...)
 		findings = append(findings, checkOpenCIDR(in.Path, res)...)
 		findings = append(findings, checkGenericNaming(in.Path, res)...)
 	}
@@ -42,7 +58,9 @@ func (TutorialPatternRule) Check(in FileInput, aws *schema.AWS) []report.Finding
 func checkHardcodedCredentials(path string, res *parser.Resource) []report.Finding {
 	var findings []report.Finding
 	for name, attr := range res.Attributes {
-		if !attr.IsLiteral || attr.RawValue == "" {
+		// Only flag string literals: bools (manage_master_user_password = true)
+		// and numbers are never credentials.
+		if !attr.IsLiteral || attr.RawValue == "" || attr.RawValue == "true" || attr.RawValue == "false" {
 			continue
 		}
 		if !credentialAttrNames.MatchString(name) {
@@ -55,9 +73,49 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 			Severity: report.SeverityCritical,
 			Resource: res.Address(),
 			Message: fmt.Sprintf(
-				"%q is a hardcoded literal value, not a variable/secret reference — credentials should never be committed in plain text",
+				"%q is a hardcoded string literal, not a variable or secret reference — credentials must not be committed in plain text",
 				name),
 		})
+	}
+	return findings
+}
+
+// checkCredentialValues scans ALL literal string attributes for known
+// credential patterns regardless of the attribute name. This catches cases
+// like `user_data = "AKIAIOSFODNN7EXAMPLE..."` or a PEM key embedded in
+// an arbitrary field.
+func checkCredentialValues(path string, res *parser.Resource) []report.Finding {
+	var findings []report.Finding
+	checkAttrs := func(attrs map[string]*parser.Attribute, locationPrefix string) {
+		for name, attr := range attrs {
+			if !attr.IsLiteral || len(attr.RawValue) < 16 {
+				continue
+			}
+			// Skip attrs already caught by checkHardcodedCredentials to avoid
+			// duplicate findings on the same line.
+			if credentialAttrNames.MatchString(name) {
+				continue
+			}
+			for _, pat := range credentialValuePatterns {
+				if pat.re.MatchString(attr.RawValue) {
+					findings = append(findings, report.Finding{
+						File:     path,
+						Line:     attr.Range.Start.Line,
+						Category: report.CategoryTutorialPattern,
+						Severity: report.SeverityCritical,
+						Resource: res.Address(),
+						Message: fmt.Sprintf(
+							"%s%q value matches pattern: %s — remove from source and use a secret reference",
+							locationPrefix, name, pat.label),
+					})
+					break // one match per attribute is enough
+				}
+			}
+		}
+	}
+	checkAttrs(res.Attributes, "")
+	for _, blk := range res.Blocks {
+		checkAttrs(blk.Attributes, fmt.Sprintf("(inside %s block) ", blk.Type))
 	}
 	return findings
 }
