@@ -6,6 +6,12 @@
 block_threshold: high
 
 # Categories to suppress globally (across all files, all resources).
-# Valid values: unknown_attribute, tutorial_pattern, force_new_change, missing_lifecycle
+# Valid values: unknown_attribute, tutorial_pattern, force_new_change, missing_lifecycle,
+# confirmed_replace, unexpected_drift, large_blast_radius
 # Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
 ignore_rules: []
+
+# --- Phase 2: terraform plan analysis (only active with --plan-json) ---
+# Number of destroy/replace actions in a single plan that triggers a
+# large_blast_radius finding. Set to 0 to disable.
+plan_blast_radius_threshold: 10

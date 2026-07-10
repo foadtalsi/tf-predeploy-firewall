@@ -22,6 +22,9 @@ var categoryLabel = map[Category]string{
 	CategoryTutorialPattern:  "Tutorial-copy pattern",
 	CategoryForceNewChange:   "ForceNew change on stateful resource",
 	CategoryMissingLifecycle: "Missing prevent_destroy",
+	CategoryConfirmedReplace: "Confirmed destroy/replace (from terraform plan)",
+	CategoryUnexpectedDrift:  "Unexpected drift (from terraform plan)",
+	CategoryLargeBlastRadius: "Large blast radius (from terraform plan)",
 }
 
 // RenderMarkdown builds the full PR comment body for a set of findings.

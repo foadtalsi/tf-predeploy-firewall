@@ -19,6 +19,15 @@ inputs:
     description: "Path to write a SARIF 2.1.0 file for upload to GitHub Code Scanning. Leave empty to skip."
     required: false
     default: ""
+  plan-json:
+    description: >
+      Phase 2 (optional): path to the output of `terraform show -json <planfile>`,
+      run earlier in your own job with your own cloud credentials. This action never
+      runs terraform or touches the cloud itself — it only reads this file, if given,
+      to add confirmed-replace, unexpected-drift, and large-blast-radius findings on
+      top of the static .tf scan. Leave empty to run phase 1 only.
+    required: false
+    default: ""
 
 runs:
   using: "docker"
@@ -28,6 +37,8 @@ runs:
     - "origin/${{ inputs.base-ref }}"
     - "--sarif-output"
     - "${{ inputs.sarif-output }}"
+    - "--plan-json"
+    - "${{ inputs.plan-json }}"
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}

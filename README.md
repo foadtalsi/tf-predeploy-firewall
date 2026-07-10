@@ -37,6 +37,40 @@ jobs:
 `block-threshold` (`low|medium|high|critical`) sets the minimum severity
 that fails the check; defaults to `high` via [config/default.yml](config/default.yml).
 
+## Phase 2: analyzing a real `terraform plan` (optional)
+
+Phase 1 above is a pure static scan — no cloud credentials, no state. If your
+pipeline already runs `terraform plan` with real credentials elsewhere, you
+can feed its output to this action for three additional checks that a static
+diff can't make:
+
+- **Confirmed replace** — Terraform's own plan, not a heuristic, says a
+  stateful/critical resource will be destroyed or destroyed+recreated.
+- **Unexpected drift** — a sensitive attribute is changing in the plan even
+  though this PR's `.tf` diff never touched it (state drift, a provider
+  default shifting, an out-of-band edit).
+- **Large blast radius** — the plan destroys/replaces more resources than
+  `plan_blast_radius_threshold` (default 10) — a sign of an unintended module
+  move or provider upgrade side-effect.
+
+This action never runs `terraform` or touches your cloud provider. You run
+`terraform plan` yourself, convert it to JSON, and pass the path:
+
+```yaml
+      - run: |
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -json tfplan > plan.json
+        # ... your own AWS/cloud credentials go here, not this action's
+
+      - uses: foadtalsi/tf-predeploy-firewall@v0
+        with:
+          block-threshold: high
+          plan-json: plan.json
+```
+
+Leave `plan-json` empty (the default) to run phase 1 only.
+
 ## Extending AWS coverage
 
 All provider-specific knowledge lives in `internal/schema/data/*.json`:

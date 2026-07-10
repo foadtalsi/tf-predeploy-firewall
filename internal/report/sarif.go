@@ -94,6 +94,24 @@ var sarifRules = []sarifRule{
 		ShortDescription: sarifMessage{Text: "Stateful resource missing lifecycle { prevent_destroy = true }"},
 		Properties:       sarifRuleProperties{Tags: []string{"terraform", "data-safety"}, Severity: "warning"},
 	},
+	{
+		ID:               string(CategoryConfirmedReplace),
+		Name:             "ConfirmedReplace",
+		ShortDescription: sarifMessage{Text: "terraform plan confirms a destroy or destroy+recreate on a stateful resource"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "plan", "data-safety"}, Severity: "error"},
+	},
+	{
+		ID:               string(CategoryUnexpectedDrift),
+		Name:             "UnexpectedDrift",
+		ShortDescription: sarifMessage{Text: "terraform plan changes a sensitive attribute not touched by this PR's .tf diff"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "plan", "drift"}, Severity: "warning"},
+	},
+	{
+		ID:               string(CategoryLargeBlastRadius),
+		Name:             "LargeBlastRadius",
+		ShortDescription: sarifMessage{Text: "terraform plan destroys/replaces an unusually large number of resources"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "plan", "blast-radius"}, Severity: "warning"},
+	},
 }
 
 var severityToSarifLevel = map[Severity]string{

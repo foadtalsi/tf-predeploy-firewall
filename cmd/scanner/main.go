@@ -13,6 +13,7 @@ import (
 
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/diff"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/githubpr"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/planjson"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/rules"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
@@ -20,8 +21,9 @@ import (
 )
 
 type config struct {
-	BlockThreshold report.Severity   `yaml:"block_threshold"`
-	IgnoreRules    []report.Category `yaml:"ignore_rules"`
+	BlockThreshold           report.Severity   `yaml:"block_threshold"`
+	IgnoreRules              []report.Category `yaml:"ignore_rules"`
+	PlanBlastRadiusThreshold int               `yaml:"plan_blast_radius_threshold"`
 }
 
 func main() {
@@ -31,6 +33,7 @@ func main() {
 	configPath := flag.String("config", envOr("SCANNER_CONFIG", "config/default.yml"), "path to YAML config")
 	postComment := flag.Bool("post-comment", os.Getenv("GITHUB_TOKEN") != "", "post/update a PR comment with the results")
 	sarifOut := flag.String("sarif-output", "", "write SARIF 2.1.0 JSON to this file (for GitHub Code Scanning)")
+	planJSONPath := flag.String("plan-json", "", "path to `terraform show -json <planfile>` output (phase 2: adds confirmed-replace, drift, and blast-radius findings). Optional — this tool never runs terraform or touches cloud credentials itself.")
 	flag.Parse()
 
 	cfg, err := loadConfig(*configPath)
@@ -51,12 +54,26 @@ func main() {
 		os.Exit(2)
 	}
 
-	findings, err := rules.Run(changed, aws, rules.DefaultRules(), rules.RunOptions{
+	result, err := rules.Run(changed, aws, rules.DefaultRules(), rules.RunOptions{
 		GlobalIgnore: cfg.IgnoreRules,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 		os.Exit(2)
+	}
+	findings := result.Findings
+
+	if *planJSONPath != "" {
+		pf, err := planjson.Load(*planJSONPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+			os.Exit(2)
+		}
+		planFindings := rules.RunPlanRules(*planJSONPath, pf, result.ChangedAttrs, aws, rules.PlanRuleConfig{
+			BlastRadiusThreshold: cfg.PlanBlastRadiusThreshold,
+			GlobalIgnore:         cfg.IgnoreRules,
+		})
+		findings = append(findings, planFindings...)
 	}
 
 	blocked := blockedBy(findings, cfg.BlockThreshold)
@@ -93,7 +110,7 @@ func blockedBy(findings []report.Finding, threshold report.Severity) bool {
 }
 
 func loadConfig(path string) (config, error) {
-	cfg := config{BlockThreshold: report.SeverityHigh}
+	cfg := config{BlockThreshold: report.SeverityHigh, PlanBlastRadiusThreshold: 10}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -101,6 +118,9 @@ func loadConfig(path string) (config, error) {
 		}
 		return cfg, fmt.Errorf("reading config %s: %w", path, err)
 	}
+	// PlanBlastRadiusThreshold keeps its default of 10 unless the YAML
+	// explicitly sets plan_blast_radius_threshold (yaml.Unmarshal only
+	// overwrites fields present in the document).
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return cfg, fmt.Errorf("parsing config %s: %w", path, err)
 	}

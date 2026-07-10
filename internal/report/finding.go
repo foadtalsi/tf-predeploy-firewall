@@ -32,6 +32,13 @@ const (
 	CategoryTutorialPattern  Category = "tutorial_pattern"
 	CategoryForceNewChange   Category = "force_new_change"
 	CategoryMissingLifecycle Category = "missing_lifecycle"
+
+	// Phase 2 categories: require a `terraform show -json` plan supplied
+	// via --plan-json. Unlike the categories above, these are derived from
+	// Terraform's own diff engine, not a heuristic over the .tf source.
+	CategoryConfirmedReplace Category = "confirmed_replace"
+	CategoryUnexpectedDrift  Category = "unexpected_drift"
+	CategoryLargeBlastRadius Category = "large_blast_radius"
 )
 
 // Finding is a single risk detected in a Terraform diff.
