@@ -33,3 +33,30 @@ func RunPlanRules(planPath string, pf *planjson.PlanFile, changedAttrs map[strin
 	// config-level ignore list applies here.
 	return ignore.Apply(findings, nil, cfg.GlobalIgnore)
 }
+
+// DeduplicateForceNewAgainstPlan drops phase-1 ForceNewChangeRule findings
+// (a heuristic guess from a curated attribute list) for any resource that
+// phase-2's ConfirmedReplaceRule already reported from the real plan. Both
+// rules fire for the same underlying problem — "this attribute change
+// destroys and recreates the resource" — and once a plan confirms it,
+// repeating the heuristic guess is just noise on top of a certainty.
+func DeduplicateForceNewAgainstPlan(staticFindings, planFindings []report.Finding) []report.Finding {
+	confirmed := make(map[string]bool)
+	for _, f := range planFindings {
+		if f.Category == report.CategoryConfirmedReplace {
+			confirmed[bareResourceAddress(f.Resource)] = true
+		}
+	}
+	if len(confirmed) == 0 {
+		return staticFindings
+	}
+
+	out := make([]report.Finding, 0, len(staticFindings))
+	for _, f := range staticFindings {
+		if f.Category == report.CategoryForceNewChange && confirmed[bareResourceAddress(f.Resource)] {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}

@@ -1,0 +1,49 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "resource_changes": [
+    {
+      "address": "module.db.aws_db_instance.primary",
+      "module_address": "module.db",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "primary",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": { "identifier": "prod-db" },
+        "after": { "identifier": "prod-db-renamed" },
+        "before_sensitive": {},
+        "after_sensitive": {}
+      }
+    },
+    {
+      "address": "aws_kms_key.secret",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_kms_key",
+      "name": "secret",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": { "customer_master_key_spec": "SYMMETRIC_DEFAULT" },
+        "after": { "customer_master_key_spec": "s3cr3t-value-here" },
+        "before_sensitive": { "customer_master_key_spec": true },
+        "after_sensitive": { "customer_master_key_spec": true }
+      }
+    },
+    {
+      "address": "data.aws_db_instance.lookup",
+      "module_address": "",
+      "mode": "data",
+      "type": "aws_db_instance",
+      "name": "lookup",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": { "identifier": "some-db" },
+        "after": { "identifier": "some-other-db" }
+      }
+    }
+  ]
+}

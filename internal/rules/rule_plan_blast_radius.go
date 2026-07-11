@@ -26,6 +26,9 @@ func (r BlastRadiusRule) Check(planPath string, changes []planjson.ResourceChang
 
 	var destructive []string
 	for _, rc := range changes {
+		if !rc.IsManaged() {
+			continue
+		}
 		if rc.Change.IsDestroyOnly() || rc.Change.IsReplace() {
 			destructive = append(destructive, rc.Address)
 		}

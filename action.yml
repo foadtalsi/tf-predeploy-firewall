@@ -28,6 +28,10 @@ inputs:
       top of the static .tf scan. Leave empty to run phase 1 only.
     required: false
     default: ""
+  plan-blast-radius-threshold:
+    description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
+    required: false
+    default: ""
 
 runs:
   using: "docker"
@@ -42,6 +46,7 @@ runs:
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
+    SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
 
 branding:
   icon: "shield"

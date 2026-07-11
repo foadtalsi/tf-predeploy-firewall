@@ -1,6 +1,10 @@
 package rules
 
-import "github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
+import (
+	"strings"
+
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
+)
 
 // ChangedAttrKey identifies one attribute inside the PR's own .tf diff,
 // either top-level ("engine") or inside a nested block
@@ -41,6 +45,35 @@ func changedAttrsForResource(head, base *parser.Resource) map[ChangedAttrKey]boo
 	}
 
 	return changed
+}
+
+// bareResourceAddress strips a terraform plan address down to the bare
+// "type.name" form the HCL parser produces (parser.Resource.Address()).
+// A plan address may carry a module path prefix
+// ("module.vpc.module.subnets.aws_subnet.private") and/or a count/for_each
+// instance key suffix ("aws_instance.web[0]", `aws_instance.web["prod"]`),
+// neither of which the static HCL scan knows about — it only ever sees the
+// resource block's own type and label. Without this normalization, every
+// resource inside a module (the overwhelmingly common real-world layout)
+// or behind count/for_each would fail to match against changedAttrs and be
+// misreported as drift.
+func bareResourceAddress(planAddr string) string {
+	addr := planAddr
+	if idx := strings.IndexByte(addr, '['); idx >= 0 {
+		// An instance key suffix only ever appears on the final segment,
+		// so it's safe to strip before splitting on ".".
+		closeIdx := strings.LastIndexByte(addr, ']')
+		if closeIdx > idx {
+			addr = addr[:idx] + addr[closeIdx+1:]
+		} else {
+			addr = addr[:idx]
+		}
+	}
+	parts := strings.Split(addr, ".")
+	if len(parts) < 2 {
+		return addr
+	}
+	return parts[len(parts)-2] + "." + parts[len(parts)-1]
 }
 
 func diffAttrMaps(head, base map[string]*parser.Attribute, prefix string, out map[ChangedAttrKey]bool) {

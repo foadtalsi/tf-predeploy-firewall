@@ -23,12 +23,17 @@ import (
 type DriftRule struct{}
 
 // ChangedAttrs maps resource address -> attribute keys this PR's .tf diff
-// actually touched (from rules.Result.ChangedAttrs).
+// actually touched (from rules.Result.ChangedAttrs). Keys in changedAttrs
+// use the bare HCL address ("aws_db_instance.prod"); plan addresses that
+// include a module path or a count/for_each index
+// ("module.db.aws_db_instance.prod[0]") are normalized with
+// bareResourceAddress before lookup, since the HCL parser has no concept
+// of module calls or resource instance keys.
 func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, changedAttrs map[string]map[ChangedAttrKey]bool, aws *schema.AWS) []report.Finding {
 	var findings []report.Finding
 
 	for _, rc := range changes {
-		if !rc.Change.IsPureUpdate() {
+		if !rc.IsManaged() || !rc.Change.IsPureUpdate() {
 			continue
 		}
 		spec, known := aws.ForceNewAttrs[rc.Type]
@@ -36,7 +41,7 @@ func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, chang
 			continue
 		}
 
-		touchedByPR := changedAttrs[rc.Address]
+		touchedByPR := changedAttrs[bareResourceAddress(rc.Address)]
 
 		for _, attrName := range spec.TopLevel {
 			before, hasBefore := rc.Change.Before[attrName]
@@ -51,6 +56,11 @@ func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, chang
 				continue // this PR's diff explains the change; not drift
 			}
 
+			beforeStr, afterStr := fmt.Sprint(before), fmt.Sprint(after)
+			if rc.Change.IsSensitiveAttr(attrName) {
+				beforeStr, afterStr = "(sensitive value, redacted)", "(sensitive value, redacted)"
+			}
+
 			findings = append(findings, report.Finding{
 				File:     planPath,
 				Line:     1,
@@ -58,8 +68,8 @@ func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, chang
 				Severity: report.SeverityMedium,
 				Resource: rc.Address,
 				Message: fmt.Sprintf(
-					"terraform plan shows %q changing from %v to %v on %s, but this PR's .tf diff doesn't touch that attribute — the change is coming from elsewhere (state drift, a provider default, or an out-of-band edit); verify before merging",
-					attrName, before, after, rc.Type),
+					"terraform plan shows %q changing from %s to %s on %s, but this PR's .tf diff doesn't touch that attribute — the change is coming from elsewhere (state drift, a provider default, or an out-of-band edit); verify before merging",
+					attrName, beforeStr, afterStr, rc.Type),
 			})
 		}
 	}

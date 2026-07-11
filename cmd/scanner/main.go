@@ -73,6 +73,10 @@ func main() {
 			BlastRadiusThreshold: cfg.PlanBlastRadiusThreshold,
 			GlobalIgnore:         cfg.IgnoreRules,
 		})
+		// A confirmed replace from the real plan supersedes phase 1's
+		// ForceNew heuristic for the same resource — drop the guess once
+		// we have certainty, instead of reporting the same problem twice.
+		findings = rules.DeduplicateForceNewAgainstPlan(findings, planFindings)
 		findings = append(findings, planFindings...)
 	}
 
@@ -129,6 +133,13 @@ func loadConfig(path string) (config, error) {
 	}
 	if env := os.Getenv("SCANNER_BLOCK_THRESHOLD"); env != "" {
 		cfg.BlockThreshold = report.Severity(env)
+	}
+	if env := os.Getenv("SCANNER_PLAN_BLAST_RADIUS_THRESHOLD"); env != "" {
+		n, err := strconv.Atoi(env)
+		if err != nil {
+			return cfg, fmt.Errorf("SCANNER_PLAN_BLAST_RADIUS_THRESHOLD must be an integer, got %q: %w", env, err)
+		}
+		cfg.PlanBlastRadiusThreshold = n
 	}
 	return cfg, nil
 }
