@@ -116,20 +116,22 @@ func blockedBy(findings []report.Finding, threshold report.Severity) bool {
 func loadConfig(path string) (config, error) {
 	cfg := config{BlockThreshold: report.SeverityHigh, PlanBlastRadiusThreshold: 10}
 	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil // fall back to defaults
-		}
+	if err != nil && !os.IsNotExist(err) {
 		return cfg, fmt.Errorf("reading config %s: %w", path, err)
 	}
-	// PlanBlastRadiusThreshold keeps its default of 10 unless the YAML
-	// explicitly sets plan_blast_radius_threshold (yaml.Unmarshal only
-	// overwrites fields present in the document).
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return cfg, fmt.Errorf("parsing config %s: %w", path, err)
-	}
-	if cfg.BlockThreshold == "" {
-		cfg.BlockThreshold = report.SeverityHigh
+	// A missing config file just means "use the defaults above" — env var
+	// overrides below must still apply either way, so this falls through
+	// instead of returning early.
+	if err == nil {
+		// PlanBlastRadiusThreshold keeps its default of 10 unless the YAML
+		// explicitly sets plan_blast_radius_threshold (yaml.Unmarshal only
+		// overwrites fields present in the document).
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
+			return cfg, fmt.Errorf("parsing config %s: %w", path, err)
+		}
+		if cfg.BlockThreshold == "" {
+			cfg.BlockThreshold = report.SeverityHigh
+		}
 	}
 	if env := os.Getenv("SCANNER_BLOCK_THRESHOLD"); env != "" {
 		cfg.BlockThreshold = report.Severity(env)
