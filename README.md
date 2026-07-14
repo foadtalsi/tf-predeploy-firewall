@@ -37,6 +37,33 @@ jobs:
 `block-threshold` (`low|medium|high|critical`) sets the minimum severity
 that fails the check; defaults to `high` via [config/default.yml](config/default.yml).
 
+## Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `base-ref` | PR base branch | Git ref to diff against. |
+| `block-threshold` | `high` (from config) | Minimum severity (`low\|medium\|high\|critical`) that fails the check. |
+| `github-token` | `github.token` | Token used to post/update the PR comment. |
+| `sarif-output` | _(empty, disabled)_ | Path to write a SARIF 2.1.0 file, for upload to GitHub Code Scanning via `github/codeql-action/upload-sarif` — gives inline PR annotations on the exact changed lines, see example below. |
+| `plan-json` | _(empty, phase 1 only)_ | Path to `terraform show -json <planfile>` output — see [Phase 2](#phase-2-analyzing-a-real-terraform-plan-optional) below. |
+| `plan-blast-radius-threshold` | `10` (from config) | Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Only used with `plan-json`. |
+
+### SARIF / GitHub Code Scanning
+
+```yaml
+      - uses: foadtalsi/tf-predeploy-firewall@v0
+        with:
+          block-threshold: high
+          sarif-output: tf-firewall.sarif
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()  # upload findings even when the scan step fails (blocked PR)
+        with:
+          sarif_file: tf-firewall.sarif
+```
+
+This requires `security-events: write` in the workflow's `permissions:` block.
+
 ## Phase 2: analyzing a real `terraform plan` (optional)
 
 Phase 1 above is a pure static scan — no cloud credentials, no state. If your

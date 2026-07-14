@@ -1,0 +1,6 @@
+.git
+.github
+testdata
+*.md
+tf-predeploy-firewall
+tf-predeploy-firewall-test
