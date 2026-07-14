@@ -47,6 +47,7 @@ that fails the check; defaults to `high` via [config/default.yml](config/default
 | `sarif-output` | _(empty, disabled)_ | Path to write a SARIF 2.1.0 file, for upload to GitHub Code Scanning via `github/codeql-action/upload-sarif` — gives inline PR annotations on the exact changed lines, see example below. |
 | `plan-json` | _(empty, phase 1 only)_ | Path to `terraform show -json <planfile>` output — see [Phase 2](#phase-2-analyzing-a-real-terraform-plan-optional) below. |
 | `plan-blast-radius-threshold` | `10` (from config) | Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Only used with `plan-json`. |
+| `license-key` | _(empty, free tool)_ | Optional paid-plan API key — see [Paid plans](#paid-plans-optional) below. |
 
 ### SARIF / GitHub Code Scanning
 
@@ -97,6 +98,28 @@ This action never runs `terraform` or touches your cloud provider. You run
 ```
 
 Leave `plan-json` empty (the default) to run phase 1 only.
+
+## Paid plans (optional)
+
+This action is, and always will be, fully usable for free with zero external
+dependency — nothing above requires an account or a network call outside
+GitHub. A paid plan (Starter/Growth/Scale — see
+[tfpredeployfirewall.com](https://tfpredeployfirewall.com)) only exists for
+teams that want usage tracking across many repos, centralized policy
+management, or an SLA; it adds nothing to what the free tier detects.
+
+```yaml
+      - uses: foadtalsi/tf-predeploy-firewall@v0
+        with:
+          block-threshold: high
+          license-key: ${{ secrets.TFPDF_LICENSE_KEY }}
+```
+
+Setting `license-key` reports each scan's outcome (repo name, finding
+count, whether it blocked) to the billing service, which enforces your
+plan's repo/scan limits. If that service is unreachable, the scan **still
+runs** — a billing outage on our end is never the reason your PR check goes
+red. Leave `license-key` unset (the default) to skip this entirely.
 
 ## Extending AWS coverage
 

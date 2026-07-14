@@ -13,6 +13,7 @@ import (
 
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/diff"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/githubpr"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/licensing"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/planjson"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/rules"
@@ -34,6 +35,8 @@ func main() {
 	postComment := flag.Bool("post-comment", os.Getenv("GITHUB_TOKEN") != "", "post/update a PR comment with the results")
 	sarifOut := flag.String("sarif-output", "", "write SARIF 2.1.0 JSON to this file (for GitHub Code Scanning)")
 	planJSONPath := flag.String("plan-json", "", "path to `terraform show -json <planfile>` output (phase 2: adds confirmed-replace, drift, and blast-radius findings). Optional — this tool never runs terraform or touches cloud credentials itself.")
+	licenseKey := flag.String("license-key", envOr("TFPDF_LICENSE_KEY", ""), "paid-plan API key. Entirely optional — leave unset to run the scanner exactly as the free, open-source tool it has always been. When set, each scan is reported to the billing/usage service for quota enforcement.")
+	licenseAPIBase := flag.String("license-api-base", envOr("TFPDF_LICENSE_API_BASE", licensing.DefaultAPIBase), "control-plane API base URL, override for self-hosted/staging deployments")
 	flag.Parse()
 
 	cfg, err := loadConfig(*configPath)
@@ -81,6 +84,13 @@ func main() {
 	}
 
 	blocked := blockedBy(findings, cfg.BlockThreshold)
+
+	if *licenseKey != "" {
+		if quotaExceeded := reportUsage(*licenseKey, *licenseAPIBase, len(findings), blocked); quotaExceeded {
+			os.Exit(3)
+		}
+	}
+
 	body := report.RenderMarkdown(findings, cfg.BlockThreshold, blocked)
 	fmt.Println(body)
 
@@ -102,6 +112,36 @@ func main() {
 	if blocked {
 		os.Exit(1)
 	}
+}
+
+// reportUsage sends this scan's outcome to the paid-plan licensing service
+// and returns true if the org's quota is exhausted (in which case main
+// should stop before running the PR comment/SARIF steps). It fails open:
+// a licensing-service outage or network error is logged to stderr but does
+// NOT block the scan — a billing hiccup on our end should never be the
+// reason a paying customer's PR check goes red.
+func reportUsage(licenseKey, apiBase string, findingCount int, blocked bool) (quotaExceeded bool) {
+	repoFullName := os.Getenv("GITHUB_REPOSITORY")
+	if repoFullName == "" {
+		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: TFPDF_LICENSE_KEY is set but GITHUB_REPOSITORY is not — skipping usage reporting for this run")
+		return false
+	}
+
+	client := licensing.NewClient(licenseKey, apiBase)
+	allowed, reason, err := client.RecordScan(licensing.ScanResult{
+		RepoFullName: repoFullName,
+		FindingCount: findingCount,
+		Blocked:      blocked,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: usage reporting failed (scan still ran): %v\n", err)
+		return false
+	}
+	if !allowed {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %s\n", reason)
+		return true
+	}
+	return false
 }
 
 func blockedBy(findings []report.Finding, threshold report.Severity) bool {

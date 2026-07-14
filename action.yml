@@ -32,6 +32,15 @@ inputs:
     description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
     required: false
     default: ""
+  license-key:
+    description: >
+      Optional paid-plan API key (from tfpredeployfirewall.com). Entirely opt-in:
+      leave empty to run this action exactly as the free, open-source tool it has
+      always been, with no dependency on any external service. When set, each scan
+      is reported to the billing/usage service for quota enforcement; a billing-service
+      outage never blocks the scan itself (fails open).
+    required: false
+    default: ""
 
 runs:
   using: "docker"
@@ -47,6 +56,7 @@ runs:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
     SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
+    TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
 
 branding:
   icon: "shield"
