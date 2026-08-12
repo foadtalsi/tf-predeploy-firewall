@@ -124,6 +124,106 @@ func TestChangedTerraformFiles_SubdirectoryTF(t *testing.T) {
 	}
 }
 
+func TestAllTerraformFiles_FindsEveryTFFileWithBaseEqualToHead(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "modules", "rds"), 0755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.tf"), []byte("resource \"aws_instance\" \"x\" {}\n"), 0644); err != nil {
+		t.Fatalf("write main.tf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "modules", "rds", "db.tf"), []byte("resource \"aws_db_instance\" \"y\" {}\n"), 0644); err != nil {
+		t.Fatalf("write db.tf: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("not terraform"), 0644); err != nil {
+		t.Fatalf("write README.md: %v", err)
+	}
+	// A .git directory full of non-.tf plumbing must never be walked into.
+	if err := os.MkdirAll(filepath.Join(dir, ".git", "objects"), 0755); err != nil {
+		t.Fatalf("mkdir .git: %v", err)
+	}
+
+	files, err := AllTerraformFiles(dir)
+	if err != nil {
+		t.Fatalf("AllTerraformFiles: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 .tf files, got %d: %v", len(files), files)
+	}
+	for _, f := range files {
+		if string(f.HeadContent) != string(f.BaseContent) {
+			t.Errorf("expected BaseContent == HeadContent for a full-repo audit scan, file %s", f.Path)
+		}
+	}
+}
+
+func TestChangedTerragruntFiles_PicksUpTerragruntHCLNotTF(t *testing.T) {
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=t@t.com",
+			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=t@t.com",
+		)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init", "-b", "main")
+	git("config", "user.email", "t@t.com")
+	git("config", "user.name", "test")
+
+	writeFile(t, filepath.Join(dir, "live", "prod", "terragrunt.hcl"), `inputs = { environment = "base" }`)
+	git("add", ".")
+	git("commit", "-m", "base")
+
+	writeFile(t, filepath.Join(dir, "live", "prod", "terragrunt.hcl"), `inputs = { environment = "prod" }`)
+	git("add", ".")
+	git("commit", "-m", "head")
+
+	files, err := ChangedTerragruntFiles(dir, "HEAD~1", "HEAD")
+	if err != nil {
+		t.Fatalf("ChangedTerragruntFiles: %v", err)
+	}
+	if len(files) != 1 {
+		t.Fatalf("expected 1 changed terragrunt.hcl file, got %d: %v", len(files), files)
+	}
+	if files[0].Path != "live/prod/terragrunt.hcl" {
+		t.Errorf("unexpected path: %s", files[0].Path)
+	}
+	if !strings.Contains(string(files[0].HeadContent), `"prod"`) {
+		t.Errorf("unexpected head content: %s", files[0].HeadContent)
+	}
+}
+
+func TestChangedTerragruntFiles_IgnoresTFFiles(t *testing.T) {
+	dir, base, head := makeRepo(t, "main.tf", baseTF, "main.tf", headTF)
+
+	files, err := ChangedTerragruntFiles(dir, base, head)
+	if err != nil {
+		t.Fatalf("ChangedTerragruntFiles: %v", err)
+	}
+	if len(files) != 0 {
+		t.Errorf("expected .tf-only changes to produce no terragrunt.hcl results, got %v", files)
+	}
+}
+
+func TestAllTerragruntFiles_FindsEveryTerragruntHCL(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "live", "prod", "terragrunt.hcl"), `inputs = {}`)
+	writeFile(t, filepath.Join(dir, "live", "staging", "terragrunt.hcl"), `inputs = {}`)
+	writeFile(t, filepath.Join(dir, "modules", "rds", "main.tf"), `resource "aws_db_instance" "x" {}`)
+
+	files, err := AllTerragruntFiles(dir)
+	if err != nil {
+		t.Fatalf("AllTerragruntFiles: %v", err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 terragrunt.hcl files, got %d: %v", len(files), files)
+	}
+}
+
 func TestChangedTerraformFiles_InvalidRef(t *testing.T) {
 	dir, _, _ := makeRepo(t, "main.tf", baseTF, "main.tf", headTF)
 

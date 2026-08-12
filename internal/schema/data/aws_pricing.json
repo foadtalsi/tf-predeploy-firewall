@@ -1,0 +1,65 @@
+{
+  "_comment": "Curated approximate MONTHLY on-demand cost (USD, us-east-1, ~730h/mo) per resource, for the cost-impact rule. Deliberately coarse: this is an early-warning heuristic to flag 'this PR meaningfully raises the bill', NOT a billing-accurate quote. Each resource type has an optional flat monthly base cost, and optionally a `by_attribute` map keyed on one pricing-driving attribute (e.g. instance_type). When the plan's value isn't in the map, `default` is used. Values are intentionally easy to extend region-by-region / type-by-type later, same as the other data files.",
+
+  "aws_instance": {
+    "attribute": "instance_type",
+    "by_attribute": {
+      "t3.micro": 7.5, "t3.small": 15, "t3.medium": 30, "t3.large": 60,
+      "t3.xlarge": 120, "t3.2xlarge": 240,
+      "t4g.micro": 6, "t4g.small": 12, "t4g.medium": 24, "t4g.large": 49,
+      "m5.large": 70, "m5.xlarge": 140, "m5.2xlarge": 280, "m5.4xlarge": 560,
+      "m6i.large": 70, "m6i.xlarge": 140, "m6i.2xlarge": 280,
+      "c5.large": 62, "c5.xlarge": 124, "c5.2xlarge": 248,
+      "r5.large": 92, "r5.xlarge": 184, "r5.2xlarge": 368,
+      "r6g.large": 74, "r6g.xlarge": 147, "r6g.2xlarge": 294, "r6g.4xlarge": 588,
+      "p3.2xlarge": 2200, "g4dn.xlarge": 380
+    },
+    "default": 50
+  },
+
+  "aws_db_instance": {
+    "attribute": "instance_class",
+    "by_attribute": {
+      "db.t3.micro": 12, "db.t3.small": 25, "db.t3.medium": 50, "db.t3.large": 100,
+      "db.t4g.micro": 11, "db.t4g.small": 23, "db.t4g.medium": 46, "db.t4g.large": 92,
+      "db.m5.large": 125, "db.m5.xlarge": 250, "db.m5.2xlarge": 500, "db.m5.4xlarge": 1000,
+      "db.r5.large": 175, "db.r5.xlarge": 350, "db.r5.2xlarge": 700, "db.r5.4xlarge": 1400,
+      "db.r6g.large": 155, "db.r6g.xlarge": 310, "db.r6g.2xlarge": 620
+    },
+    "default": 100
+  },
+
+  "aws_rds_cluster_instance": {
+    "attribute": "instance_class",
+    "by_attribute": {
+      "db.serverless": 45,
+      "db.r5.large": 210, "db.r5.xlarge": 420, "db.r5.2xlarge": 840,
+      "db.r6g.large": 185, "db.r6g.xlarge": 370, "db.r6g.2xlarge": 740
+    },
+    "default": 200
+  },
+
+  "aws_elasticache_cluster": {
+    "attribute": "node_type",
+    "by_attribute": {
+      "cache.t3.micro": 12, "cache.t3.small": 25, "cache.t3.medium": 50,
+      "cache.m5.large": 125, "cache.m5.xlarge": 250,
+      "cache.r5.large": 165, "cache.r5.xlarge": 330
+    },
+    "default": 100
+  },
+
+  "aws_nat_gateway": { "base": 32 },
+  "aws_lb": { "base": 22 },
+  "aws_eip": { "base": 3.6 },
+  "aws_ebs_volume": { "base": 8 },
+  "aws_eks_cluster": { "base": 73 },
+  "aws_efs_file_system": { "base": 30 },
+  "aws_redshift_cluster": { "base": 180 },
+  "aws_docdb_cluster_instance": { "base": 200 },
+  "aws_elasticsearch_domain": { "base": 100 },
+  "aws_opensearch_domain": { "base": 100 },
+  "aws_kms_key": { "base": 1 },
+  "aws_secretsmanager_secret": { "base": 0.4 },
+  "aws_cloudwatch_log_group": { "base": 0.5 }
+}

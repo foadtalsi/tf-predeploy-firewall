@@ -6,7 +6,9 @@ package diff
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -42,6 +44,107 @@ func ChangedTerraformFiles(repoDir, baseRef, headRef string) ([]ChangedFile, err
 		}
 		base, _ := showFile(repoDir, baseRef, p) // nil is fine: new file
 		files = append(files, ChangedFile{Path: p, HeadContent: head, BaseContent: base})
+	}
+	return files, nil
+}
+
+// ChangedTerragruntFiles returns every terragrunt.hcl file that differs
+// between baseRef and headRef — Terragrunt's own config format (`inputs`,
+// `remote_state`, ...), not a .tf resource file, so it needs its own git
+// pathspec rather than being picked up by ChangedTerraformFiles' *.tf glob.
+func ChangedTerragruntFiles(repoDir, baseRef, headRef string) ([]ChangedFile, error) {
+	if err := validateRefs(repoDir, baseRef, headRef); err != nil {
+		return nil, err
+	}
+
+	paths, err := changedPathsMatching(repoDir, baseRef, headRef, "**/terragrunt.hcl")
+	if err != nil {
+		return nil, err
+	}
+
+	var files []ChangedFile
+	for _, p := range paths {
+		head, err := showFile(repoDir, headRef, p)
+		if err != nil {
+			continue // deleted at head; nothing to scan
+		}
+		files = append(files, ChangedFile{Path: p, HeadContent: head})
+	}
+	return files, nil
+}
+
+// AllTerragruntFiles walks repoDir for every terragrunt.hcl file — the
+// terragrunt.hcl equivalent of AllTerraformFiles, for the scheduled drift
+// audit.
+func AllTerragruntFiles(repoDir string) ([]ChangedFile, error) {
+	var files []ChangedFile
+	err := filepath.WalkDir(repoDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == ".terraform" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.Name() != "terragrunt.hcl" {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+		rel, err := filepath.Rel(repoDir, path)
+		if err != nil {
+			rel = path
+		}
+		files = append(files, ChangedFile{Path: rel, HeadContent: content})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walking %s for terragrunt.hcl files: %w", repoDir, err)
+	}
+	return files, nil
+}
+
+// AllTerraformFiles walks repoDir for every *.tf file and returns it as a
+// ChangedFile with BaseContent set equal to HeadContent — for a scheduled
+// drift audit of code that's already merged, not a PR diff. Setting Base
+// equal to Head means diff-based rules (ForceNew) correctly find nothing
+// "changed" (there's no PR to diff against), while rules that only look at
+// current content (unknown attributes, tutorial patterns, missing
+// prevent_destroy) still run at full strength — this is what catches
+// Terraform that was clean when it merged but is no longer clean because
+// the scanner's own rule/schema coverage grew since then.
+func AllTerraformFiles(repoDir string) ([]ChangedFile, error) {
+	var files []ChangedFile
+	err := filepath.WalkDir(repoDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" || d.Name() == ".terraform" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".tf") {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+		rel, err := filepath.Rel(repoDir, path)
+		if err != nil {
+			rel = path
+		}
+		files = append(files, ChangedFile{Path: rel, HeadContent: content, BaseContent: content})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walking %s for .tf files: %w", repoDir, err)
 	}
 	return files, nil
 }
@@ -92,7 +195,11 @@ func buildRefHint(repoDir, ref string) string {
 }
 
 func changedPaths(repoDir, baseRef, headRef string) ([]string, error) {
-	cmd := exec.Command("git", "-C", repoDir, "diff", "--name-only", baseRef+"..."+headRef, "--", "*.tf")
+	return changedPathsMatching(repoDir, baseRef, headRef, "*.tf")
+}
+
+func changedPathsMatching(repoDir, baseRef, headRef, pathspec string) ([]string, error) {
+	cmd := exec.Command("git", "-C", repoDir, "diff", "--name-only", baseRef+"..."+headRef, "--", pathspec)
 	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr

@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const customCategoryPrefix = "custom:"
+
 // Marker delimits the tool's comment so subsequent runs can find and edit
 // it instead of posting a new comment on every push.
 const Marker = "<!-- tf-predeploy-firewall:report -->"
@@ -25,43 +27,125 @@ var categoryLabel = map[Category]string{
 	CategoryConfirmedReplace: "Confirmed destroy/replace (from terraform plan)",
 	CategoryUnexpectedDrift:  "Unexpected drift (from terraform plan)",
 	CategoryLargeBlastRadius: "Large blast radius (from terraform plan)",
+	CategoryCostImpact:       "Estimated cost impact (from terraform plan)",
 }
 
 // RenderMarkdown builds the full PR comment body for a set of findings.
-// blocked indicates whether the configured severity threshold was breached.
+// blocked indicates whether the configured severity threshold was breached
+// by the ACTIVE (non-waived) findings — a waived finding never contributes
+// to blocked, but still appears in its own section below so accepting one
+// is never silent.
 func RenderMarkdown(findings []Finding, threshold Severity, blocked bool) string {
 	var b strings.Builder
 	b.WriteString(Marker + "\n")
 	b.WriteString("## TF Pre-Deploy Firewall\n\n")
 
-	if len(findings) == 0 {
+	var active, waived []Finding
+	for _, f := range findings {
+		if f.Waived {
+			waived = append(waived, f)
+		} else {
+			active = append(active, f)
+		}
+	}
+
+	if len(active) == 0 && len(waived) == 0 {
 		b.WriteString("No risk patterns detected in the changed Terraform files. ✅\n")
 		return b.String()
 	}
 
-	sorted := make([]Finding, len(findings))
-	copy(sorted, findings)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].File != sorted[j].File {
-			return sorted[i].File < sorted[j].File
+	sort.Slice(active, func(i, j int) bool {
+		if active[i].File != active[j].File {
+			return active[i].File < active[j].File
 		}
-		return sorted[i].Line < sorted[j].Line
+		return active[i].Line < active[j].Line
 	})
 
-	if blocked {
-		fmt.Fprintf(&b, "🚫 **Merge blocked** — findings at or above `%s` severity (threshold: `%s`).\n\n", highestSeverity(sorted), threshold)
+	if len(active) == 0 {
+		fmt.Fprintf(&b, "✅ No blocking findings — %d finding(s) waived (see below).\n\n", len(waived))
+	} else if blocked {
+		fmt.Fprintf(&b, "🚫 **Merge blocked** — findings at or above `%s` severity (threshold: `%s`).\n\n", highestSeverity(active), threshold)
 	} else {
-		fmt.Fprintf(&b, "⚠️ %d finding(s), none reach the `%s` blocking threshold.\n\n", len(sorted), threshold)
+		fmt.Fprintf(&b, "⚠️ %d finding(s), none reach the `%s` blocking threshold.\n\n", len(active), threshold)
 	}
 
-	b.WriteString("| Severity | File | Line | Category | Resource | Detail |\n")
-	b.WriteString("|---|---|---|---|---|---|\n")
-	for _, f := range sorted {
-		fmt.Fprintf(&b, "| %s %s | `%s` | %d | %s | `%s` | %s |\n",
-			severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryLabel[f.Category], f.Resource, f.Message)
+	if len(active) > 0 {
+		b.WriteString("| Severity | File | Line | Category | Resource | Detail |\n")
+		b.WriteString("|---|---|---|---|---|---|\n")
+		for _, f := range active {
+			fmt.Fprintf(&b, "| %s %s | `%s` | %d | %s | `%s` | %s |\n",
+				severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), f.Resource, f.Message)
+		}
 	}
+
+	renderSuggestions(&b, active)
+	renderWaivers(&b, waived)
 
 	return b.String()
+}
+
+// renderWaivers lists findings an admin accepted via the control plane
+// (Starter+, GET /v1/waivers) — visible so a waiver is a documented
+// decision, not a silent removal from the report.
+func renderWaivers(b *strings.Builder, waived []Finding) {
+	if len(waived) == 0 {
+		return
+	}
+	sort.Slice(waived, func(i, j int) bool {
+		if waived[i].File != waived[j].File {
+			return waived[i].File < waived[j].File
+		}
+		return waived[i].Line < waived[j].Line
+	})
+
+	fmt.Fprintf(b, "\n<details><summary>%d waived finding(s) — excluded from the block decision</summary>\n\n", len(waived))
+	b.WriteString("| Severity | File | Line | Category | Resource | Detail | Waiver justification |\n")
+	b.WriteString("|---|---|---|---|---|---|---|\n")
+	for _, f := range waived {
+		fmt.Fprintf(b, "| %s %s | `%s` | %d | %s | `%s` | %s | %s |\n",
+			severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), f.Resource, f.Message, f.WaiverNote)
+	}
+	b.WriteString("\n</details>\n")
+}
+
+// renderSuggestions appends a collapsible "Suggested fixes" block per
+// finding that has one — pasteable HCL, not a computed patch (this tool
+// never has write access to the repo). Kept out of the main table since a
+// multi-line code block doesn't fit inside a markdown table cell.
+func renderSuggestions(b *strings.Builder, sorted []Finding) {
+	var any bool
+	for _, f := range sorted {
+		if f.Suggestion != "" {
+			any = true
+			break
+		}
+	}
+	if !any {
+		return
+	}
+
+	b.WriteString("\n### Suggested fixes\n\n")
+	for _, f := range sorted {
+		if f.Suggestion == "" {
+			continue
+		}
+		fmt.Fprintf(b, "<details><summary><code>%s</code> (%s:%d)</summary>\n\n```hcl\n%s\n```\n\n</details>\n\n",
+			f.Resource, f.File, f.Line, f.Suggestion)
+	}
+}
+
+// categoryDisplay labels a category for the PR comment. Custom rules
+// (category "custom:<rule-id>", from internal/customrules) aren't in the
+// built-in categoryLabel map — they're rendered as "Custom rule: <id>"
+// instead of falling back to an empty string.
+func categoryDisplay(c Category) string {
+	if label, ok := categoryLabel[c]; ok {
+		return label
+	}
+	if id, isCustom := strings.CutPrefix(string(c), customCategoryPrefix); isCustom {
+		return "Custom rule: " + id
+	}
+	return string(c)
 }
 
 func highestSeverity(findings []Finding) Severity {

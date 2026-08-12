@@ -21,6 +21,16 @@ func TestBlockedBy(t *testing.T) {
 	}
 }
 
+func TestBlockedBy_WaivedFindingIsSkipped(t *testing.T) {
+	findings := []report.Finding{
+		{Severity: report.SeverityCritical, Waived: true},
+		{Severity: report.SeverityLow},
+	}
+	if blockedBy(findings, report.SeverityHigh) {
+		t.Error("expected not blocked: the only finding meeting the threshold is waived")
+	}
+}
+
 func TestLoadConfig_MissingFileFallsBackToDefaults(t *testing.T) {
 	cfg, err := loadConfig(filepath.Join(t.TempDir(), "does-not-exist.yml"))
 	if err != nil {
@@ -53,6 +63,33 @@ func TestLoadConfig_YAMLOverridesDefaults(t *testing.T) {
 	}
 	if len(cfg.IgnoreRules) != 1 || cfg.IgnoreRules[0] != report.CategoryTutorialPattern {
 		t.Errorf("expected ignore_rules=[tutorial_pattern], got %v", cfg.IgnoreRules)
+	}
+}
+
+func TestLoadConfig_IgnorePathsParsedAndConvertible(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yml")
+	yamlContent := "ignore_paths:\n  - path: \"legacy/**\"\n  - path: \"sandbox/*.tf\"\n    categories: [missing_lifecycle]\n"
+	if err := os.WriteFile(path, []byte(yamlContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := loadConfig(path)
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if len(cfg.IgnorePaths) != 2 {
+		t.Fatalf("expected 2 ignore_paths entries, got %d", len(cfg.IgnorePaths))
+	}
+	if cfg.IgnorePaths[0].Path != "legacy/**" || len(cfg.IgnorePaths[0].Categories) != 0 {
+		t.Errorf("expected unscoped legacy/** rule, got %#v", cfg.IgnorePaths[0])
+	}
+	if cfg.IgnorePaths[1].Path != "sandbox/*.tf" || len(cfg.IgnorePaths[1].Categories) != 1 {
+		t.Errorf("expected scoped sandbox/*.tf rule, got %#v", cfg.IgnorePaths[1])
+	}
+
+	rules := cfg.ignorePathRules()
+	if len(rules) != 2 {
+		t.Fatalf("expected ignorePathRules() to convert both entries, got %d", len(rules))
 	}
 }
 

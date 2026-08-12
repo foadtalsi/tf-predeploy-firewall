@@ -66,6 +66,7 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 		if !credentialAttrNames.MatchString(name) {
 			continue
 		}
+		varName := credentialVarName(res, name)
 		findings = append(findings, report.Finding{
 			File:     path,
 			Line:     attr.Range.Start.Line,
@@ -75,9 +76,26 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 			Message: fmt.Sprintf(
 				"%q is a hardcoded string literal, not a variable or secret reference — credentials must not be committed in plain text",
 				name),
+			Suggestion: fmt.Sprintf(
+				"variable %q {\n  type      = string\n  sensitive = true\n}\n\n# in %s:\n%s = var.%s",
+				varName, res.Address(), name, varName),
 		})
 	}
 	return findings
+}
+
+// credentialVarName derives a reasonably unique, valid HCL identifier for
+// the suggested variable — resource name + attribute name, since the same
+// attribute name (e.g. "password") can recur across multiple resources in
+// one file.
+func credentialVarName(res *parser.Resource, attrName string) string {
+	return sanitizeIdent(res.Name) + "_" + sanitizeIdent(attrName)
+}
+
+var nonIdentChar = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+func sanitizeIdent(s string) string {
+	return nonIdentChar.ReplaceAllString(strings.ToLower(s), "_")
 }
 
 // checkCredentialValues scans ALL literal string attributes for known
@@ -195,4 +213,35 @@ func checkGenericNaming(path string, res *parser.Resource) []report.Finding {
 	}
 
 	return findings
+}
+
+// IsCredentialAttrName reports whether name looks like a credential-bearing
+// attribute by name alone (password, api_key, token, ...) — exported so
+// internal/terragrunt can apply the same check to terragrunt.hcl's
+// `inputs`/`remote_state.config` maps, which aren't Terraform resource
+// blocks and so never go through parser.Resource.
+func IsCredentialAttrName(name string) bool {
+	return credentialAttrNames.MatchString(name)
+}
+
+// MatchCredentialValuePattern checks value against the same well-known
+// credential formats (AWS keys, PEM headers, JWTs, GitHub tokens,
+// high-entropy strings) checkCredentialValues uses, regardless of which
+// attribute it came from. Returns the matched pattern's human-readable
+// label and true, or ("", false) if nothing matched.
+func MatchCredentialValuePattern(value string) (label string, ok bool) {
+	if len(value) < 16 {
+		return "", false
+	}
+	for _, pat := range credentialValuePatterns {
+		if pat.re.MatchString(value) {
+			return pat.label, true
+		}
+	}
+	return "", false
+}
+
+// IsOpenCIDR reports whether value is the wide-open 0.0.0.0/0 CIDR block.
+func IsOpenCIDR(value string) bool {
+	return value == openCIDR
 }

@@ -12,6 +12,9 @@ type PlanRuleConfig struct {
 	// BlastRadiusThreshold is the number of destroy/replace actions that
 	// triggers BlastRadiusRule. Zero disables the rule.
 	BlastRadiusThreshold int
+	// CostImpactThresholdUSD is the estimated monthly cost increase (USD)
+	// that triggers CostImpactRule. Zero disables the rule.
+	CostImpactThresholdUSD float64
 	// GlobalIgnore suppresses these categories, same as the static scan.
 	GlobalIgnore []report.Category
 }
@@ -27,6 +30,7 @@ func RunPlanRules(planPath string, pf *planjson.PlanFile, changedAttrs map[strin
 	findings = append(findings, ConfirmedReplaceRule{}.Check(planPath, pf.ResourceChanges, aws)...)
 	findings = append(findings, DriftRule{}.Check(planPath, pf.ResourceChanges, changedAttrs, aws)...)
 	findings = append(findings, BlastRadiusRule{Threshold: cfg.BlastRadiusThreshold}.Check(planPath, pf.ResourceChanges, aws)...)
+	findings = append(findings, CostImpactRule{ThresholdUSD: cfg.CostImpactThresholdUSD}.Check(planPath, pf.ResourceChanges, aws)...)
 
 	// No per-line inline ignore directives apply to plan-derived findings
 	// (there's no .tf source line to attach a comment to); only the global

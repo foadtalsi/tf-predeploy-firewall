@@ -2,6 +2,7 @@ package rules
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
@@ -76,6 +77,13 @@ func TestTutorialPatternRule(t *testing.T) {
 	if !sawCredential {
 		t.Error("expected a hardcoded-credential finding for password = \"changeme\"")
 	}
+	for _, f := range findings {
+		if f.Resource == "aws_db_instance.example" && f.Severity == report.SeverityCritical {
+			if !strings.Contains(f.Suggestion, "variable ") || !strings.Contains(f.Suggestion, "sensitive = true") {
+				t.Errorf("expected a suggested variable block for the hardcoded credential, got: %q", f.Suggestion)
+			}
+		}
+	}
 	if !sawCIDR {
 		t.Error("expected an open-CIDR finding for 0.0.0.0/0")
 	}
@@ -127,6 +135,9 @@ func TestMissingLifecycleRule(t *testing.T) {
 	}
 	if findings[0].Resource != "aws_db_instance.unprotected" {
 		t.Errorf("expected finding on aws_db_instance.unprotected, got %s", findings[0].Resource)
+	}
+	if !strings.Contains(findings[0].Suggestion, "lifecycle {") || !strings.Contains(findings[0].Suggestion, "prevent_destroy = true") {
+		t.Errorf("expected a suggested lifecycle block, got: %q", findings[0].Suggestion)
 	}
 }
 

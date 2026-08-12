@@ -39,6 +39,7 @@ const (
 	CategoryConfirmedReplace Category = "confirmed_replace"
 	CategoryUnexpectedDrift  Category = "unexpected_drift"
 	CategoryLargeBlastRadius Category = "large_blast_radius"
+	CategoryCostImpact       Category = "cost_impact"
 )
 
 // Finding is a single risk detected in a Terraform diff.
@@ -49,4 +50,20 @@ type Finding struct {
 	Severity Severity
 	Resource string // "type.name" address, for context
 	Message  string
+
+	// Suggestion is an optional, mechanically-generated HCL snippet showing
+	// how to fix the finding — not a computed byte-range patch against the
+	// real file (this tool never has write access to the repo), just a
+	// snippet the author can paste in. Populated only for categories where
+	// a safe, generic fix exists; empty otherwise.
+	Suggestion string
+
+	// Waived, when true, excludes this finding from the blocking decision
+	// and from SARIF output — an admin accepted this specific finding
+	// (matched by category+resource+file, via the control plane's
+	// per-finding waivers, Starter+) with WaiverNote as the justification.
+	// It still appears in the PR comment, in its own section, so a waived
+	// finding never just silently vanishes from the record.
+	Waived     bool
+	WaiverNote string
 }

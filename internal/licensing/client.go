@@ -34,18 +34,45 @@ func NewClient(apiKey, apiBase string) *Client {
 	}
 }
 
+// FindingSummary is the subset of report.Finding sent to the control plane
+// so the dashboard's Reports/Trends/Audit Log can show what was actually
+// found, not just a count. Deliberately not report.Finding itself: this
+// package has no import-cycle reason to avoid it, but keeping the wire
+// type separate means a future change to the internal Finding struct
+// (e.g. adding a field only the PR comment needs) doesn't silently change
+// what gets reported to a paid service without a deliberate edit here too.
+type FindingSummary struct {
+	Category string
+	Severity string
+	Resource string
+	FilePath string
+	Line     int
+	Message  string
+}
+
 // ScanResult is what the CLI reports about a completed scan, used both for
 // usage metering and for quota enforcement decisions.
 type ScanResult struct {
 	RepoFullName string
 	FindingCount int
 	Blocked      bool
+	Findings     []FindingSummary
+}
+
+type findingPayload struct {
+	Category string `json:"category"`
+	Severity string `json:"severity"`
+	Resource string `json:"resource"`
+	FilePath string `json:"file"`
+	Line     int    `json:"line"`
+	Message  string `json:"message"`
 }
 
 type recordScanRequest struct {
-	RepoFullName string `json:"repo_full_name"`
-	FindingCount int    `json:"finding_count"`
-	Blocked      bool   `json:"blocked"`
+	RepoFullName string           `json:"repo_full_name"`
+	FindingCount int              `json:"finding_count"`
+	Blocked      bool             `json:"blocked"`
+	Findings     []findingPayload `json:"findings,omitempty"`
 }
 
 type recordScanResponse struct {
@@ -59,10 +86,19 @@ type recordScanResponse struct {
 // outage should block the scan (fail closed) or just log a warning and
 // continue (fail open) — this package takes no position on that.
 func (c *Client) RecordScan(result ScanResult) (allowed bool, reason string, err error) {
+	findings := make([]findingPayload, len(result.Findings))
+	for i, f := range result.Findings {
+		findings[i] = findingPayload{
+			Category: f.Category, Severity: f.Severity, Resource: f.Resource,
+			FilePath: f.FilePath, Line: f.Line, Message: f.Message,
+		}
+	}
+
 	body, err := json.Marshal(recordScanRequest{
 		RepoFullName: result.RepoFullName,
 		FindingCount: result.FindingCount,
 		Blocked:      result.Blocked,
+		Findings:     findings,
 	})
 	if err != nil {
 		return false, "", fmt.Errorf("encoding usage report: %w", err)

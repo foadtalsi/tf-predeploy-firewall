@@ -35,6 +35,33 @@ type ResourceSchema struct {
 	NestedBlocks map[string][]string
 }
 
+// PricingSpec is the curated approximate monthly cost for a resource type.
+// A type may have a flat Base cost, and/or a cost that depends on the value
+// of a single pricing-driving Attribute (e.g. instance_type). ByAttribute
+// misses fall back to Default. All figures are coarse USD/month estimates.
+type PricingSpec struct {
+	Base        float64            // flat monthly cost regardless of attributes
+	Attribute   string             // attribute whose value drives cost, if any
+	ByAttribute map[string]float64 // attribute value -> monthly cost
+	Default     float64            // used when Attribute is set but the value isn't in ByAttribute
+}
+
+// MonthlyCost returns the estimated monthly USD cost for a resource of this
+// type, given its attribute values (as strings). Base and attribute-driven
+// costs add together, so e.g. a resource with both a flat base and a
+// per-size price is handled.
+func (p *PricingSpec) MonthlyCost(attrValue string) float64 {
+	cost := p.Base
+	if p.Attribute != "" {
+		if v, ok := p.ByAttribute[attrValue]; ok {
+			cost += v
+		} else {
+			cost += p.Default
+		}
+	}
+	return cost
+}
+
 // AWS holds the loaded static knowledge base. Construct with Load().
 type AWS struct {
 	// ResourceSchemas maps resource_type -> allowed attributes (top-level + nested).
@@ -48,6 +75,11 @@ type AWS struct {
 	// CriticalStatefulResources is the set of resource types expected to
 	// carry lifecycle { prevent_destroy = true }.
 	CriticalStatefulResources map[string]bool
+
+	// Pricing maps resource_type -> approximate monthly cost spec. Resource
+	// types absent here contribute $0 to cost estimates (unknown = ignored,
+	// same under-detect-over-spam philosophy as the other maps).
+	Pricing map[string]*PricingSpec
 }
 
 func Load() (*AWS, error) {
@@ -75,11 +107,51 @@ func Load() (*AWS, error) {
 		criticalSet[t] = true
 	}
 
+	pricing, err := loadPricing("data/aws_pricing.json")
+	if err != nil {
+		return nil, fmt.Errorf("loading aws_pricing.json: %w", err)
+	}
+
 	return &AWS{
 		ResourceSchemas:           resourceSchemas,
 		ForceNewAttrs:             forceNew,
 		CriticalStatefulResources: criticalSet,
+		Pricing:                   pricing,
 	}, nil
+}
+
+// loadPricing reads aws_pricing.json into per-resource-type PricingSpecs.
+func loadPricing(path string) (map[string]*PricingSpec, error) {
+	raw, err := dataFS.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	out := make(map[string]*PricingSpec, len(m))
+	for k, v := range m {
+		if k == "_comment" {
+			continue
+		}
+		var obj struct {
+			Base        float64            `json:"base"`
+			Attribute   string             `json:"attribute"`
+			ByAttribute map[string]float64 `json:"by_attribute"`
+			Default     float64            `json:"default"`
+		}
+		if err := json.Unmarshal(v, &obj); err != nil {
+			return nil, fmt.Errorf("key %s: %w", k, err)
+		}
+		out[k] = &PricingSpec{
+			Base:        obj.Base,
+			Attribute:   obj.Attribute,
+			ByAttribute: obj.ByAttribute,
+			Default:     obj.Default,
+		}
+	}
+	return out, nil
 }
 
 // loadForceNewAttrs reads aws_forcenew_attrs.json which supports two formats

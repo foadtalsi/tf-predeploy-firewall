@@ -26,27 +26,31 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 		}
 
 		line := res.DefRange.Start.Line
-		var detail string
+		var detail, suggestion string
 		switch {
 		case res.HasLifecycleBlock && res.PreventDestroyValue != nil && !*res.PreventDestroyValue:
 			// lifecycle block exists but prevent_destroy is explicitly false
 			line = res.PreventDestroyRange.Start.Line
 			detail = fmt.Sprintf("%s explicitly sets prevent_destroy = false — remove this or set it to true to protect against accidental deletion", res.Type)
+			suggestion = "  prevent_destroy = true"
 		case res.HasLifecycleBlock && res.PreventDestroyValue == nil:
 			// lifecycle block exists but prevent_destroy is absent from it
 			detail = fmt.Sprintf("%s has a lifecycle block but is missing prevent_destroy = true — add it to guard against accidental deletion", res.Type)
+			suggestion = "  prevent_destroy = true"
 		default:
 			// no lifecycle block at all
 			detail = fmt.Sprintf("%s is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard", res.Type)
+			suggestion = "lifecycle {\n  prevent_destroy = true\n}"
 		}
 
 		findings = append(findings, report.Finding{
-			File:     in.Path,
-			Line:     line,
-			Category: report.CategoryMissingLifecycle,
-			Severity: report.SeverityMedium,
-			Resource: res.Address(),
-			Message:  detail,
+			File:       in.Path,
+			Line:       line,
+			Category:   report.CategoryMissingLifecycle,
+			Severity:   report.SeverityMedium,
+			Resource:   res.Address(),
+			Message:    detail,
+			Suggestion: suggestion,
 		})
 	}
 

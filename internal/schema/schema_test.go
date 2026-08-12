@@ -52,3 +52,29 @@ func TestLoad_AllowedAttrsNotEmpty(t *testing.T) {
 		}
 	}
 }
+
+func TestLoad_Pricing(t *testing.T) {
+	aws, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	// Attribute-driven: an EC2 instance priced by instance_type.
+	ec2 := aws.Pricing["aws_instance"]
+	if ec2 == nil {
+		t.Fatal("expected pricing for aws_instance")
+	}
+	if got := ec2.MonthlyCost("m5.xlarge"); got != 140 {
+		t.Errorf("m5.xlarge monthly cost = %v, want 140", got)
+	}
+	// Unknown size falls back to default, not zero.
+	if got := ec2.MonthlyCost("some-future-size"); got != ec2.Default || got == 0 {
+		t.Errorf("unknown size should fall back to default %v, got %v", ec2.Default, got)
+	}
+
+	// Flat base: NAT gateway has no attribute.
+	nat := aws.Pricing["aws_nat_gateway"]
+	if nat == nil || nat.MonthlyCost("") != 32 {
+		t.Errorf("expected aws_nat_gateway flat base 32, got %v", nat)
+	}
+}

@@ -106,6 +106,40 @@ func (c *Client) doJSON(method, url, body string) error {
 	return nil
 }
 
+// RequestReviewers requests review from the given users and/or teams on
+// the PR — used to enforce a second human review when a critical finding
+// is present. This only requests the review; GitHub itself (via branch
+// protection's "required reviewers" setting, configured once in the repo,
+// not per-PR) is what actually blocks the merge on it. Silently a no-op if
+// both lists are empty.
+func (c *Client) RequestReviewers(users, teams []string) error {
+	if len(users) == 0 && len(teams) == 0 {
+		return nil
+	}
+	url := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/requested_reviewers", c.apiBase(), c.Owner, c.Repo, c.PRNum)
+	payload, err := json.Marshal(map[string][]string{"reviewers": users, "team_reviewers": teams})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	c.setHeaders(req)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("requesting reviewers failed: %s: %s", resp.Status, string(b))
+	}
+	return nil
+}
+
 func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Accept", "application/vnd.github+json")

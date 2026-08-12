@@ -1,0 +1,77 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "resource_changes": [
+    {
+      "address": "aws_instance.web",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "instance_type": "m5.2xlarge"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.upsized",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "upsized",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "instance_type": "t3.micro"
+        },
+        "after": {
+          "instance_type": "m5.large"
+        }
+      }
+    },
+    {
+      "address": "aws_nat_gateway.old",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_nat_gateway",
+      "name": "old",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete"],
+        "before": {},
+        "after": null
+      }
+    },
+    {
+      "address": "aws_iam_role.app",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["no-op"],
+        "before": { "name": "app-role" },
+        "after": { "name": "app-role" }
+      }
+    },
+    {
+      "address": "data.aws_ami.al2023",
+      "module_address": "",
+      "mode": "data",
+      "type": "aws_ami",
+      "name": "al2023",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["read"],
+        "before": null,
+        "after": { "id": "ami-123" }
+      }
+    }
+  ]
+}

@@ -24,12 +24,17 @@ inputs:
       Phase 2 (optional): path to the output of `terraform show -json <planfile>`,
       run earlier in your own job with your own cloud credentials. This action never
       runs terraform or touches the cloud itself — it only reads this file, if given,
-      to add confirmed-replace, unexpected-drift, and large-blast-radius findings on
-      top of the static .tf scan. Leave empty to run phase 1 only.
+      to add confirmed-replace, unexpected-drift, large-blast-radius, and
+      cost-impact findings on top of the static .tf scan. Leave empty to run
+      phase 1 only.
     required: false
     default: ""
   plan-blast-radius-threshold:
     description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
+    required: false
+    default: ""
+  cost-impact-threshold-usd:
+    description: "Estimated monthly USD cost increase that triggers a cost-impact finding. Overrides config/default.yml. Set to 0 to disable. Only used with plan-json."
     required: false
     default: ""
   license-key:
@@ -41,6 +46,14 @@ inputs:
       outage never blocks the scan itself (fails open).
     required: false
     default: ""
+  full-repo-scan:
+    description: >
+      Set to "true" to scan every .tf file in the repo instead of just a PR diff —
+      for a scheduled drift audit (cron/workflow_dispatch) of already-merged code,
+      not a PR check. base-ref/head-ref are ignored in this mode. See
+      .github/workflows/scheduled-drift-audit.yml for a full example.
+    required: false
+    default: "false"
 
 runs:
   using: "docker"
@@ -52,10 +65,12 @@ runs:
     - "${{ inputs.sarif-output }}"
     - "--plan-json"
     - "${{ inputs.plan-json }}"
+    - "--full-repo-scan=${{ inputs.full-repo-scan }}"
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
     SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
+    SCANNER_COST_IMPACT_THRESHOLD_USD: ${{ inputs.cost-impact-threshold-usd }}
     TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
 
 branding:

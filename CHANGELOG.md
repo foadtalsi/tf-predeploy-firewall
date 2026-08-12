@@ -3,6 +3,44 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Per-finding waivers (Starter+)** — an admin accepts a specific finding
+  (matched by category + resource + file, not by line — line drifts on
+  unrelated edits) from the dashboard instead of lowering `block_threshold`
+  for everything else. Fetched once per scan (`GET /v1/waivers`, fails open
+  if unreachable). A waived finding never disappears from the PR
+  comment — it moves to a separate, collapsed section with its
+  justification — and is excluded from SARIF output and the block decision.
+- **Scheduled drift audit (`--full-repo-scan`)** — scans every `.tf` file
+  currently in the repo, not just a PR's diff, for a cron-triggered job
+  against the default branch. Catches Terraform that was clean when it
+  merged but no longer is because the scanner's own rule/schema coverage
+  grew since then. ForceNew-change detection naturally finds nothing
+  (there's no diff to compare against); unknown-attribute, tutorial-pattern,
+  and missing-lifecycle findings run at full strength against current
+  content.
+- **Terragrunt support** — `terragrunt.hcl` files' `inputs` and
+  `remote_state.config` maps (recursively, including nested maps) are now
+  scanned for the same hardcoded-credential and open-CIDR patterns
+  `TutorialPatternRule` already applies inside `.tf` resource blocks.
+  Previously invisible to the scanner entirely, since it only ever
+  considered `*.tf` files — a real gap for Terragrunt users, since
+  `inputs` commonly carries exactly the kind of secret this tool exists to
+  catch. Picked up by both the PR-diff scan and `--full-repo-scan`.
+- **Per-repo policy overrides** — `GetPolicy` accepts the scanning repo's
+  full name and merges a repo-specific override on top of the org-wide
+  policy, per field, so one repo can tighten (or loosen) just its block
+  threshold without restating the whole policy.
+- **Finding detail reporting** — usage reporting (`--license-key`) now
+  sends each finding's category, severity, resource, file/line, and
+  message, not just a bare count — the paid dashboard's Reports/Trends/
+  Audit Log can finally show what was actually found, not just a number.
+- Badge (static, shields.io) and step-by-step required-status-check
+  instructions in the README — turning this from an FYI comment into an
+  actual merge gate, and a lightweight organic-growth lever for public repos.
+
 ## [v0] — current
 
 ### Added
@@ -14,6 +52,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     inside `ingress`/`egress` nested blocks), generic placeholder names.
   - ForceNew attribute changes (top-level and nested-block) on pre-existing resources.
   - Missing `lifecycle { prevent_destroy = true }` on stateful/critical resources.
+  - Suggested fixes: a pasteable HCL snippet in the PR comment for missing-lifecycle
+    and hardcoded-credential findings (a suggestion, not a computed file patch —
+    this tool never has write access to the repo).
+- **Custom rules (policy-as-code)** — declarative YAML rules (`custom_rules` in
+  config): resource type + optional nested block + optional attribute/regex match.
+  No eval/exec surface by design — this tool runs inside other people's CI, so
+  letting org config execute arbitrary code was never on the table. Findings
+  appear under category `custom:<id>`.
 - **Phase 2: `terraform plan` analysis (optional, `--plan-json`)** — still no cloud
   credentials or terraform execution in this tool; reads a plan the user already
   generated in their own job.
@@ -22,6 +68,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     by the PR's own `.tf` diff.
   - Large blast radius: too many destroy/replace actions in one plan (configurable
     threshold).
+  - Cost impact: estimated monthly AWS bill increase from a curated, region-agnostic
+    pricing table (configurable threshold, disabled by default) — an early-warning
+    FinOps signal, not a billing-accurate quote.
   - Phase 1's ForceNew heuristic is deduplicated against phase 2's confirmed replace
     for the same resource, so a real plan doesn't produce two findings for one problem.
 - Two-tier suppression: inline `# tf-firewall-ignore: <category>` comments, and a

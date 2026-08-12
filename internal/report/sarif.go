@@ -112,6 +112,12 @@ var sarifRules = []sarifRule{
 		ShortDescription: sarifMessage{Text: "terraform plan destroys/replaces an unusually large number of resources"},
 		Properties:       sarifRuleProperties{Tags: []string{"terraform", "plan", "blast-radius"}, Severity: "warning"},
 	},
+	{
+		ID:               string(CategoryCostImpact),
+		Name:             "CostImpact",
+		ShortDescription: sarifMessage{Text: "terraform plan increases the estimated monthly AWS bill by more than the configured threshold"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "plan", "finops", "cost"}, Severity: "warning"},
+	},
 }
 
 var severityToSarifLevel = map[Severity]string{
