@@ -17,7 +17,7 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
-		if !aws.CriticalStatefulResources[res.Type] {
+		if !aws.IsCritical(res.Type) {
 			continue
 		}
 

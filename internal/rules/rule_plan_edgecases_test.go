@@ -22,9 +22,9 @@ func TestDriftRule_MatchesModuleAddressAgainstBareChangedAttrs(t *testing.T) {
 	pf := mustLoadEdgeCasePlan(t)
 
 	// changedAttrs uses the bare "type.name" key the HCL parser produces —
-	// no module prefix — because this PR's .tf diff DID touch "identifier".
+	// no module prefix — because this PR's .tf diff DID touch "availability_zone".
 	changedAttrs := map[string]map[ChangedAttrKey]bool{
-		"aws_db_instance.primary": {"identifier": true},
+		"aws_db_instance.primary": {"availability_zone": true},
 	}
 	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, changedAttrs, aws)
 

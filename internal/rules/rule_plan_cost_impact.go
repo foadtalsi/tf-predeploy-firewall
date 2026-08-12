@@ -51,7 +51,7 @@ func (r CostImpactRule) Check(planPath string, changes []planjson.ResourceChange
 		if !rc.IsManaged() {
 			continue
 		}
-		spec, priced := aws.Pricing[rc.Type]
+		spec, priced := aws.PricingFor(rc.Type)
 		if !priced {
 			continue
 		}

@@ -1,3 +1,8 @@
 /tf-predeploy-firewall
 *.test
 .env
+
+# Built by cmd/genpack; the full pack is published via the control plane repo,
+# not committed here (the free base pack under internal/schema/data/ is).
+/dist/
+/genpack

@@ -5,7 +5,49 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Provider knowledge is now generated, not hand-curated.** All of it lives
+  in *rule packs* built by the new `cmd/genpack` from two authoritative
+  sources: `terraform providers schema -json` for the argument surface, and
+  the AWS provider's own Go source for the ForceNew flags that schema
+  doesn't expose (SDKv2 `ForceNew: true` and Framework `RequiresReplace()`,
+  1234/1234 and 452/459 resources resolved respectively).
+
+  Coverage went from 33 hand-listed resource types to **1,699**, and from 18
+  types with ForceNew data to **1,485**. Nesting is now handled at any depth
+  via dotted block paths, not just one level.
+
+  This fixes wrong data in both directions:
+  - The curated schema listed **29 arguments for `aws_instance`**; the
+    provider declares **71**. Every omission (`launch_template`,
+    `cpu_options`, `hibernation`, `network_interface`, …) was reported as a
+    hallucinated attribute at severity `high` — a blocked PR on valid
+    Terraform. This was the single largest source of false positives.
+  - `identifier` was listed as ForceNew on `aws_db_instance`. It isn't: the
+    provider renames in place. The scanner was warning that a rename would
+    destroy a production database.
+
+  `schema.AWS`'s map fields are replaced by accessors (`ResourceSchema`,
+  `ForceNew`, `IsCritical`, `PricingFor`) so entries decode lazily — the full
+  pack is ~14 MB of JSON and a scan touches a few dozen types.
+
+- **Open-core split.** The scanner, every rule, and the free base pack (39
+  common AWS types) stay MIT-licensed and work with no account and no network
+  call. The extended pack (all 1,699 types) is fetched with a license key.
+  Both packs are cut from the same generated data, so they can never disagree
+  about a type they share.
+
 ### Added
+- **Extended rule pack delivery** — `GET /v1/rulepacks/aws`, cached on the
+  runner for 24h and revalidated with an ETag (steady state: a 304, no body).
+  Fails soft in every direction: control plane unreachable → cached pack;
+  no cache → the embedded base pack; corrupt pack → base pack. Each case
+  warns on stderr rather than silently scanning with less coverage, and none
+  of them can fail a scan. `TFPDF_CACHE_DIR` points the cache at a directory
+  CI already restores.
+- Every scan now logs which packs it loaded, the provider version they
+  describe, and how many resource types they cover — so "why didn't it catch
+  this?" has an answer.
 - **Per-finding waivers (Starter+)** — an admin accepts a specific finding
   (matched by category + resource + file, not by line — line drifts on
   unrelated edits) from the dashboard instead of lowering `block_threshold`

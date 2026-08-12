@@ -26,7 +26,7 @@ func (ConfirmedReplaceRule) Check(planPath string, changes []planjson.ResourceCh
 		if !rc.IsManaged() {
 			continue // data source reads are never destroyed/replaced
 		}
-		critical := aws.CriticalStatefulResources[rc.Type]
+		critical := aws.IsCritical(rc.Type)
 
 		switch {
 		case rc.Change.IsDestroyOnly():

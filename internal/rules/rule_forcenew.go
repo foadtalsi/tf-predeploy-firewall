@@ -25,13 +25,13 @@ func (ForceNewChangeRule) Check(in FileInput, aws *schema.AWS) []report.Finding 
 			continue
 		}
 
-		spec, known := aws.ForceNewAttrs[res.Type]
+		spec, known := aws.ForceNew(res.Type)
 		if !known {
 			continue
 		}
 
 		severity := report.SeverityHigh
-		if aws.CriticalStatefulResources[res.Type] {
+		if aws.IsCritical(res.Type) {
 			severity = report.SeverityCritical
 		}
 

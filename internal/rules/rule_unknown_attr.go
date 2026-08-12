@@ -20,7 +20,7 @@ func (UnknownAttributeRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
-		resSchema, known := aws.ResourceSchemas[res.Type]
+		resSchema, known := aws.ResourceSchema(res.Type)
 		if !known {
 			continue
 		}

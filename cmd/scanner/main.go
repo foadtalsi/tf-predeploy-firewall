@@ -96,11 +96,14 @@ func main() {
 		applyOrgPolicy(&cfg, *licenseKey, *licenseAPIBase)
 	}
 
-	aws, err := schema.Load()
+	aws, err := loadKnowledgeBase(*licenseKey, *licenseAPIBase)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 		os.Exit(2)
 	}
+	coverage := aws.Coverage()
+	fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: rule packs %v (aws provider %s, %d resource types)\n",
+		coverage.Packs, coverage.ProviderVersion, coverage.ResourceTypes)
 
 	var changed []diff.ChangedFile
 	if *fullRepoScan {
@@ -275,6 +278,50 @@ func reportUsage(licenseKey, apiBase string, findings []report.Finding, blocked 
 // Fails open: if the control plane is unreachable or the org has no
 // policy, cfg is left exactly as loadConfig produced it. A policy-fetch
 // failure must never be the reason a scan doesn't run.
+// loadKnowledgeBase builds the rule engine's knowledge base: the free base
+// pack embedded in this binary, plus — for a licensed org — the extended pack
+// covering the provider's full resource surface.
+//
+// Without a license key this does no network I/O at all, and the scanner
+// behaves exactly like the free tool it has always been.
+//
+// With one, an extended pack that can't be fetched is a warning, never an
+// error: the scan continues on the base pack. Coverage silently shrinking
+// would be the worst possible failure mode here, so the reduced coverage is
+// always stated out loud rather than inferred from missing findings.
+func loadKnowledgeBase(licenseKey, apiBase string) (*schema.AWS, error) {
+	if licenseKey == "" {
+		return schema.Load()
+	}
+
+	pack, err := licensing.NewClient(licenseKey, apiBase).FetchRulePack("aws")
+	switch {
+	case pack == nil:
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: extended rule pack unavailable (%v) — scanning with the free base pack, coverage is reduced\n", err)
+		return schema.Load()
+	case err != nil:
+		// A pack was still produced, so coverage is intact — say that plainly
+		// rather than warning about reduced coverage we didn't actually lose.
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: could not reach the rule pack service (%v) — using the cached extended pack, coverage is unchanged\n", err)
+	case pack.FromCache:
+		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: using the cached extended rule pack")
+	}
+
+	aws, errs := schema.LoadWith(pack.Reader())
+	if aws == nil {
+		// The embedded base pack itself failed to load — that is a broken
+		// build, not a degraded one, and there is nothing to scan with.
+		return nil, fmt.Errorf("loading rule packs: %v", errs)
+	}
+	for _, e := range errs {
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: extended rule pack rejected (%v) — scanning with the free base pack, coverage is reduced\n", e)
+	}
+	return aws, nil
+}
+
 func applyOrgPolicy(cfg *config, licenseKey, apiBase string) {
 	client := licensing.NewClient(licenseKey, apiBase)
 	policy, err := client.GetPolicy(os.Getenv("GITHUB_REPOSITORY"))

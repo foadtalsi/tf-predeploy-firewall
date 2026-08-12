@@ -36,7 +36,7 @@ func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, chang
 		if !rc.IsManaged() || !rc.Change.IsPureUpdate() {
 			continue
 		}
-		spec, known := aws.ForceNewAttrs[rc.Type]
+		spec, known := aws.ForceNew(rc.Type)
 		if !known || len(spec.TopLevel) == 0 {
 			continue
 		}
