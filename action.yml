@@ -54,6 +54,15 @@ inputs:
       the scanner adoptable on a repository that already has Terraform in it.
     required: false
     default: ""
+  suggestions:
+    description: >
+      Post the fixes that can be applied verbatim as inline review comments,
+      each in a GitHub ```suggestion block so the author can apply it with the
+      "Commit suggestion" button. Set to "false" to keep the whole report in
+      the single summary comment. Only findings whose fix is exact get one;
+      every finding is in the summary comment either way.
+    required: false
+    default: "true"
   full-repo-scan:
     description: >
       Set to "true" to scan every .tf file in the repo instead of just a PR diff —
@@ -81,6 +90,7 @@ runs:
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
     SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
     SCANNER_COST_IMPACT_THRESHOLD_USD: ${{ inputs.cost-impact-threshold-usd }}
+    SCANNER_SUGGESTIONS: ${{ inputs.suggestions }}
     TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
 
 branding:

@@ -34,6 +34,13 @@ type FileInput struct {
 	// HeadResources are the resource blocks as they exist after the change.
 	HeadResources []*parser.Resource
 
+	// HeadSource is the raw file content the head resources were parsed
+	// from. Rules use it to build report.Fix values, which have to reproduce
+	// existing lines byte-for-byte. Optional: with it empty, rules simply
+	// emit no one-click fixes, which is why unit tests that construct a
+	// FileInput by hand don't have to supply it.
+	HeadSource []byte
+
 	// BaseResources maps "type.name" -> resource as it existed before the
 	// change, for files that existed at the base ref. Empty for new files.
 	BaseResources map[string]*parser.Resource
@@ -113,7 +120,7 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 			}
 		}
 
-		in := FileInput{Path: f.Path, HeadResources: headResources, BaseResources: baseByAddr}
+		in := FileInput{Path: f.Path, HeadResources: headResources, HeadSource: f.HeadContent, BaseResources: baseByAddr}
 		for _, rule := range ruleset {
 			findings = append(findings, rule.Check(in, aws)...)
 		}

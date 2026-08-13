@@ -48,6 +48,12 @@ type config struct {
 	RequireSecondReviewerUsers []string `yaml:"require_second_reviewer_users"`
 	RequireSecondReviewerTeams []string `yaml:"require_second_reviewer_teams"`
 
+	// Suggestions posts every fix the scanner can express as an exact line
+	// replacement as an inline review comment, so it can be applied with
+	// GitHub's "Commit suggestion" button. Defaults to true; set false for
+	// repos that would rather keep the whole report in one comment.
+	Suggestions bool `yaml:"suggestions"`
+
 	// CustomRulesYAMLOverride is never read from the local YAML file (no
 	// yaml tag) — it's only ever populated by applyOrgPolicy from the
 	// control plane's centrally-managed policy. When set, it replaces the
@@ -242,6 +248,9 @@ func main() {
 	if *postComment {
 		if err := postToPR(body); err != nil {
 			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to post PR comment: %v\n", err)
+		}
+		if cfg.Suggestions {
+			postSuggestions(findings)
 		}
 		requestSecondReviewerIfCritical(findings, cfg)
 	}
@@ -474,7 +483,7 @@ func loadCustomRules(path string) (*customrules.Config, error) {
 }
 
 func loadConfig(path string) (config, error) {
-	cfg := config{BlockThreshold: report.SeverityHigh, PlanBlastRadiusThreshold: 10}
+	cfg := config{BlockThreshold: report.SeverityHigh, PlanBlastRadiusThreshold: 10, Suggestions: true}
 	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return cfg, fmt.Errorf("reading config %s: %w", path, err)
@@ -503,6 +512,13 @@ func loadConfig(path string) (config, error) {
 		}
 		cfg.PlanBlastRadiusThreshold = n
 	}
+	if env := os.Getenv("SCANNER_SUGGESTIONS"); env != "" {
+		b, err := strconv.ParseBool(env)
+		if err != nil {
+			return cfg, fmt.Errorf("SCANNER_SUGGESTIONS must be true or false, got %q: %w", env, err)
+		}
+		cfg.Suggestions = b
+	}
 	if env := os.Getenv("SCANNER_COST_IMPACT_THRESHOLD_USD"); env != "" {
 		n, err := strconv.ParseFloat(env, 64)
 		if err != nil {
@@ -521,6 +537,109 @@ func postToPR(body string) error {
 		return err
 	}
 	return client.UpsertComment(body, report.Marker)
+}
+
+// maxInlineSuggestions caps how many inline comments one review will carry.
+// Past a certain point a wall of bot comments is skimmed rather than read,
+// and the summary comment already lists everything — so the cap trades
+// completeness for the suggestions actually being looked at. Whatever it
+// drops is logged, never dropped quietly.
+const maxInlineSuggestions = 20
+
+// postSuggestions posts the fixes that can be applied verbatim as inline
+// review comments, each carrying a GitHub ```suggestion block.
+//
+// This is the difference between telling someone what to write and letting
+// them click a button. Everything here is best-effort: it runs after the
+// summary comment, which already carries every finding, so any failure costs
+// the convenience and nothing else. It never touches the exit code — the
+// block decision is the enforcement mechanism.
+func postSuggestions(findings []report.Finding) {
+	var comments []githubpr.ReviewComment
+	dropped := 0
+
+	for _, f := range findings {
+		// An accepted finding isn't something to hand someone a fix for.
+		if f.Waived || f.Fix == nil {
+			continue
+		}
+		if len(comments) >= maxInlineSuggestions {
+			dropped++
+			continue
+		}
+		comments = append(comments, githubpr.ReviewComment{
+			Path:      f.File,
+			StartLine: f.Fix.StartLine,
+			Line:      f.Fix.EndLine,
+			Body:      report.ReviewCommentBody(f),
+			Marker:    report.FixMarker(f),
+		})
+	}
+
+	if len(comments) == 0 {
+		return
+	}
+	if dropped > 0 {
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: %d applicable fix(es) beyond the first %d were not posted inline; they are all in the summary comment\n",
+			dropped, maxInlineSuggestions)
+	}
+
+	client, err := githubPRClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: skipping inline suggestions: %v\n", err)
+		return
+	}
+
+	// No report.Marker here: that marker belongs to the upserted summary
+	// comment, and a review body is a different object on a different
+	// endpoint. Duplicate suggestions are prevented per-comment instead.
+	summary := fmt.Sprintf(
+		"**TF Pre-Deploy Firewall** — %d fix(es) below can be applied with the **Commit suggestion** button. "+
+			"They are generated, not reviewed by a human; read each one before applying it.",
+		len(comments))
+
+	outcome, err := client.PostSuggestions(summary, comments, headSHAFromEvent())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: posting inline suggestions failed: %v\n", err)
+		return
+	}
+	if outcome.Posted > 0 {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: posted %d inline suggestion(s)\n", outcome.Posted)
+	}
+	if outcome.OutsideDiff > 0 {
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: %d fix(es) target lines this PR doesn't touch, so GitHub can't show them inline; see the summary comment\n",
+			outcome.OutsideDiff)
+	}
+}
+
+// headSHAFromEvent reads the PR's head commit from the Actions event payload.
+//
+// GITHUB_SHA is deliberately not used: on a pull_request event it points at
+// the ephemeral merge commit, which is not a commit of the PR and which
+// GitHub rejects as a review's commit_id. An empty result is fine — GitHub
+// then attaches the review to whatever the latest commit is.
+func headSHAFromEvent() string {
+	eventPath := os.Getenv("GITHUB_EVENT_PATH")
+	if eventPath == "" {
+		return ""
+	}
+	data, err := os.ReadFile(eventPath)
+	if err != nil {
+		return ""
+	}
+	var event struct {
+		PullRequest struct {
+			Head struct {
+				SHA string `json:"sha"`
+			} `json:"head"`
+		} `json:"pull_request"`
+	}
+	if err := json.Unmarshal(data, &event); err != nil {
+		return ""
+	}
+	return event.PullRequest.Head.SHA
 }
 
 // githubPRClient builds a githubpr.Client from GitHub Actions context

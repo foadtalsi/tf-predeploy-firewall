@@ -6,6 +6,31 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **One-click fixes.** Findings whose fix is unambiguous are now posted as
+  inline review comments carrying a GitHub `suggestion` block, applied with
+  the **Commit suggestion** button rather than retyped. Covers the three
+  `prevent_destroy` cases and credentials written inline as string literals.
+
+  This is a deliberately narrow feature. A suggestion is committed to the
+  branch by a button press, so anything less than byte-exact would commit
+  broken HCL on someone's behalf: a fix is only offered when the value is
+  written inline (not reached through a variable this tool can't rewrite), it
+  occupies whole lines, and the generic fix is the only correct one. Every
+  other finding keeps its pasteable snippet in the summary comment, which
+  still lists everything.
+
+  The credential suggestion notes that it leaves the variable undeclared —
+  Terraform then fails loudly at plan time, which is a much better outcome
+  than a committed password — and that the old value remains in the branch's
+  git history and needs rotating.
+
+  Two bounds, both reported on stderr rather than applied silently: GitHub
+  only accepts comments on lines present in the PR diff, and no more than 20
+  inline comments are posted per review. Re-running is safe — suggestions
+  already on the PR are recognized by content, not by line number, so a
+  rebase or an unrelated edit above them doesn't repost the set. Disable with
+  `suggestions: false`.
+
 - **Baseline mode (`--baseline`, `--write-baseline`)** — record the findings a
   repository already has, so they stop blocking merges while anything new
   still does. This is what makes the scanner adoptable on an existing estate:

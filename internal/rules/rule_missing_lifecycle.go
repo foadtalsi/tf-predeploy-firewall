@@ -33,20 +33,38 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 
 		line := res.DefRange.Start.Line
 		var detail, suggestion string
+		var fix *report.Fix
+
 		switch {
 		case res.HasLifecycleBlock && res.PreventDestroyValue != nil && !*res.PreventDestroyValue:
 			// lifecycle block exists but prevent_destroy is explicitly false
 			line = res.PreventDestroyRange.Start.Line
 			detail = fmt.Sprintf("%s explicitly sets prevent_destroy = false — remove this or set it to true to protect against accidental deletion", res.Type)
 			suggestion = "  prevent_destroy = true"
+			// Flipping one literal in place: the narrowest fix there is.
+			if s, e, lines, ok := replaceAttrLine(in.HeadSource, res.PreventDestroyRange, "prevent_destroy", "prevent_destroy = true"); ok {
+				fix = &report.Fix{StartLine: s, EndLine: e, Lines: lines}
+			}
+
 		case res.HasLifecycleBlock && res.PreventDestroyValue == nil:
 			// lifecycle block exists but prevent_destroy is absent from it
 			detail = fmt.Sprintf("%s has a lifecycle block but is missing prevent_destroy = true — add it to guard against accidental deletion", res.Type)
 			suggestion = "  prevent_destroy = true"
+			if s, e, lines, ok := insertIntoBlock(in.HeadSource, res.LifecycleRange, "prevent_destroy = true"); ok {
+				fix = &report.Fix{StartLine: s, EndLine: e, Lines: lines}
+			}
+
 		default:
 			// no lifecycle block at all
 			detail = fmt.Sprintf("%s is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard", res.Type)
 			suggestion = "lifecycle {\n  prevent_destroy = true\n}"
+			// The block goes just inside the resource header. Anywhere in the
+			// body would be equally valid HCL, but the header is the one line
+			// guaranteed to exist and to be unambiguous.
+			if s, e, lines, ok := insertIntoBlock(in.HeadSource, res.DefRange,
+				"lifecycle {", "  prevent_destroy = true", "}"); ok {
+				fix = &report.Fix{StartLine: s, EndLine: e, Lines: lines}
+			}
 		}
 
 		findings = append(findings, report.Finding{
@@ -57,6 +75,7 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 			Resource:   res.Address(),
 			Message:    detail,
 			Suggestion: suggestion,
+			Fix:        fix,
 		})
 	}
 

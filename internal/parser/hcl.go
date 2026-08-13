@@ -81,6 +81,7 @@ func blockToResource(filename string, block *hclsyntax.Block, kind Kind, typeNam
 	for _, nested := range block.Body.Blocks {
 		if nested.Type == "lifecycle" {
 			r.HasLifecycleBlock = true
+			r.LifecycleRange = nested.DefRange()
 			if pdAttr, ok := nested.Body.Attributes["prevent_destroy"]; ok {
 				r.PreventDestroyRange = pdAttr.SrcRange
 				if v, diags := pdAttr.Expr.Value(ctx); !diags.HasErrors() && v.Type() == cty.Bool {

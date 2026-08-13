@@ -46,7 +46,7 @@ func (TutorialPatternRule) Check(in FileInput, aws *schema.AWS) []report.Finding
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
-		findings = append(findings, checkHardcodedCredentials(in.Path, res)...)
+		findings = append(findings, checkHardcodedCredentials(in.Path, in.HeadSource, res)...)
 		findings = append(findings, checkCredentialValues(in.Path, res)...)
 		findings = append(findings, checkOpenCIDR(in.Path, res)...)
 		findings = append(findings, checkGenericNaming(in.Path, res)...)
@@ -55,7 +55,7 @@ func (TutorialPatternRule) Check(in FileInput, aws *schema.AWS) []report.Finding
 	return findings
 }
 
-func checkHardcodedCredentials(path string, res *parser.Resource) []report.Finding {
+func checkHardcodedCredentials(path string, src []byte, res *parser.Resource) []report.Finding {
 	var findings []report.Finding
 	for name, attr := range res.Attributes {
 		// Only flag string literals: bools (manage_master_user_password = true)
@@ -67,6 +67,8 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 			continue
 		}
 		varName := credentialVarName(res, name)
+		declaration := fmt.Sprintf("variable %q {\n  type      = string\n  sensitive = true\n}", varName)
+
 		findings = append(findings, report.Finding{
 			File:     path,
 			Line:     attr.Range.Start.Line,
@@ -76,12 +78,44 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 			Message: fmt.Sprintf(
 				"%q resolves to a hardcoded string literal%s, not a secret reference — credentials must not be committed in plain text",
 				name, viaSuffix(attr)),
-			Suggestion: fmt.Sprintf(
-				"variable %q {\n  type      = string\n  sensitive = true\n}\n\n# in %s:\n%s = var.%s",
-				varName, res.Address(), name, varName),
+			Suggestion: fmt.Sprintf("%s\n\n# in %s:\n%s = var.%s",
+				declaration, res.Address(), name, varName),
+			Fix: credentialFix(src, attr, name, varName, declaration),
 		})
 	}
 	return findings
+}
+
+// credentialFix builds the one-click replacement for a hardcoded credential:
+// the same assignment pointing at a sensitive variable instead of a literal.
+//
+// It returns nil when the literal was reached through a variable default or
+// a local (attr.ResolvedFrom is set). In that case the line under the finding
+// reads `password = var.db_password` and is already correct — the literal
+// lives in the declaration somewhere else, and swapping this line for another
+// variable reference would fix nothing while looking like it had.
+func credentialFix(src []byte, attr *parser.Attribute, attrName, varName, declaration string) *report.Fix {
+	if attr.ResolvedFrom != "" {
+		return nil
+	}
+	start, end, lines, ok := replaceAttrLine(src, attr.Range, attrName,
+		fmt.Sprintf("%s = var.%s", attrName, varName))
+	if !ok {
+		return nil
+	}
+	return &report.Fix{
+		StartLine: start,
+		EndLine:   end,
+		Lines:     lines,
+		// Applying the suggestion alone leaves the variable undeclared, which
+		// Terraform rejects at plan time with a clear error. That is a far
+		// better failure than a committed password, but it should not come
+		// as a surprise — hence the note.
+		Note: "This also needs the variable declared, and its value supplied outside the repository " +
+			"(TF_VAR_" + varName + ", a tfvars file that isn't committed, or your secret manager):\n\n" +
+			"```hcl\n" + declaration + "\n```\n\n" +
+			"**The old value is still in this branch's git history — rotate it.**",
+	}
 }
 
 // viaSuffix names the reference a value was reached through, so a finding

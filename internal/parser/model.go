@@ -52,6 +52,12 @@ type Resource struct {
 	HasLifecycleBlock   bool
 	PreventDestroyValue *bool // nil if prevent_destroy is absent or not a literal bool
 	PreventDestroyRange hcl.Range
+
+	// LifecycleRange is the header range of the `lifecycle {` block, when one
+	// exists. Only meaningful alongside HasLifecycleBlock; it lets a rule
+	// point at the block it needs to add a setting to, rather than at the
+	// resource as a whole.
+	LifecycleRange hcl.Range
 }
 
 // NestedBlock is a named sub-block inside a resource body

@@ -203,7 +203,38 @@ scanner into an actual gate rather than an FYI comment.
 | `plan-json` | _(empty, phase 1 only)_ | Path to `terraform show -json <planfile>` output — see [Phase 2](#phase-2-analyzing-a-real-terraform-plan-optional) below. |
 | `plan-blast-radius-threshold` | `10` (from config) | Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Only used with `plan-json`. |
 | `cost-impact-threshold-usd` | `0`, disabled (from config) | Estimated monthly USD cost increase that triggers a cost-impact finding. Only used with `plan-json`. |
+| `baseline` | _(empty, disabled)_ | Path to a committed baseline of accepted pre-existing findings — see [Adopting this on a repo that already exists](#adopting-this-on-a-repo-that-already-exists). |
+| `suggestions` | `true` | Post applicable fixes as inline review comments — see [One-click fixes](#one-click-fixes) below. |
+| `full-repo-scan` | `false` | Scan every `.tf` file instead of a PR diff — see [Scheduled drift audit](#scheduled-drift-audit). |
 | `license-key` | _(empty, free tool)_ | Optional paid-plan API key — see [Paid plans](#paid-plans-optional) below. |
+
+### One-click fixes
+
+Some findings have exactly one correct fix. Those are posted as inline review
+comments containing a GitHub `suggestion` block, so the author applies them
+with the **Commit suggestion** button instead of retyping them:
+
+- `prevent_destroy` missing, absent from an existing `lifecycle` block, or
+  explicitly set to `false`.
+- A credential written inline as a string literal, rewritten to `var.<name>`.
+  The comment carries the `variable` declaration to add and a reminder that
+  the old value is still in the branch's git history and needs rotating —
+  applying the suggestion alone leaves the variable undeclared, which
+  Terraform rejects loudly at plan time.
+
+Most findings don't get one, deliberately. A `0.0.0.0/0` CIDR has no generic
+replacement, and a value reached through `var.x` can't be fixed on the line
+that reads it. Those keep their pasteable snippet in the summary comment,
+which always lists every finding regardless.
+
+Two limits are worth knowing about. GitHub only accepts a comment on a line
+present in the PR diff, so a fix for code the PR didn't touch can't be shown
+inline; the scanner reports how many that was on stderr. And at most 20
+inline comments are posted per review — past that a PR is a wall of bot
+comments — with the remainder, again, in the summary.
+
+Suggestions are generated, not reviewed. Read each one before applying it.
+Set `suggestions: false` to keep everything in the single summary comment.
 
 ### SARIF / GitHub Code Scanning
 
