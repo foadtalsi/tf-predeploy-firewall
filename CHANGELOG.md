@@ -5,6 +5,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [v1.0.0] — 2026-08-13
+
+First tagged release since `v0`, and the one that matters: everything below
+had been sitting on `main` unreleased, so every workflow pinned to `@v0` was
+running the July build.
+
+**If you are on `@v0`, you were getting false positives that blocked PRs on
+valid Terraform.** The `v0` tag now points here too, so no one is left on the
+old build; `@v1` is the tag to pin going forward.
+
+Nothing was removed: every `v0` action input still exists and behaves the
+same, and every resource type the old schema covered is still covered (39
+types now, against 33, and 71 arguments on `aws_instance` against 29).
+
 ### Changed
 - **Provider knowledge is now generated, not hand-curated.** All of it lives
   in *rule packs* built by the new `cmd/genpack` from two authoritative
@@ -83,7 +97,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   instructions in the README — turning this from an FYI comment into an
   actual merge gate, and a lightweight organic-growth lever for public repos.
 
-## [v0] — current
+## [v0] — 2026-07-14
 
 ### Added
 - **Phase 1: static scan** — no cloud credentials, no `terraform plan`, no state.

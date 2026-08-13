@@ -1,0 +1,139 @@
+# Cuts a release when a version tag is pushed.
+#
+# This exists because of a specific failure: `v0` was tagged in July and never
+# moved, while three weeks of work — including a fix for false positives that
+# blocked PRs on valid Terraform — accumulated on main. Every workflow pinned
+# to `@v0` kept running the July build. The work was done and shipped to
+# nobody.
+#
+# GitHub Actions users pin a moving major tag (`@v1`), the way actions/checkout
+# does. That tag has to be re-pointed on every release or the same drift comes
+# back, so this workflow does it rather than leaving it to memory.
+#
+# To release:
+#   1. Put the changes under a `## [vX.Y.Z] — DATE` heading in CHANGELOG.md
+#   2. git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# Everything below is automatic: tests run against the tagged tree, the major
+# alias moves, and the release notes come from the changelog section.
+
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re-)release, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  # The tag is what users run, so it gets verified on its own terms rather
+  # than trusting that main was green when it was cut.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+      # The action is a Docker action: if this image doesn't build, the action
+      # is broken for every user, and nothing else in CI would catch it.
+      - name: Build the action image
+        run: docker build -t tf-predeploy-firewall:${{ github.sha }} .
+
+      # A release whose scanner can't load its own embedded rule pack would
+      # fail on every scan. Cheap to check, catastrophic to miss.
+      - name: Smoke-test the built image
+        run: |
+          mkdir -p /tmp/smoke && cd /tmp/smoke && git init -q .
+          cat > main.tf <<'EOF'
+          resource "aws_instance" "app" {
+            ami           = "ami-0abcdef1234567890"
+            instance_type = "m5.large"
+            hibernation   = true
+            launch_template { id = "lt-0123456789" }
+            totally_made_up_argument = "hallucinated"
+          }
+          EOF
+          git add -A && git -c user.email=ci@example.com -c user.name=CI commit -qm smoke
+          docker run --rm -v /tmp/smoke:/repo -w /repo \
+            tf-predeploy-firewall:${{ github.sha }} \
+            --repo-dir /repo --full-repo-scan --post-comment=false \
+            --config /dev/null > /tmp/out.txt 2>/tmp/err.txt || true
+          cat /tmp/err.txt /tmp/out.txt
+
+          # Valid arguments the old hand-curated schema used to flag must stay clean...
+          for arg in hibernation launch_template; do
+            if grep -q "\"$arg\"" /tmp/out.txt; then
+              echo "REGRESSION: '$arg' is a valid argument but was reported"; exit 1
+            fi
+          done
+          # ...and a genuinely invented one must still be caught.
+          grep -q "totally_made_up_argument" /tmp/out.txt \
+            || { echo "REGRESSION: hallucinated argument not detected"; exit 1; }
+          echo "smoke test passed"
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the version being released
+        id: v
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "major=${TAG%%.*}" >> "$GITHUB_OUTPUT"
+
+      # Pull this release's section out of the changelog. Release notes that
+      # are generated from commit subjects say what changed; these say why.
+      - name: Extract release notes
+        run: |
+          awk -v tag="${{ steps.v.outputs.tag }}" '
+            $0 ~ "^## \\[" tag "\\]" { grab = 1; next }
+            grab && /^## / { exit }
+            grab { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then
+            echo "No CHANGELOG section for ${{ steps.v.outputs.tag }}" >&2
+            exit 1
+          fi
+          cat /tmp/notes.md
+
+      # The whole point of this workflow. Without it the major tag drifts
+      # behind main again and users silently run an old build.
+      - name: Move the major alias tag
+        run: |
+          MAJOR="${{ steps.v.outputs.major }}"
+          git tag -f "$MAJOR" "${{ steps.v.outputs.tag }}"
+          git push -f origin "refs/tags/$MAJOR"
+          echo "$MAJOR now points at ${{ steps.v.outputs.tag }}"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.v.outputs.tag }}" \
+            --title "${{ steps.v.outputs.tag }}" \
+            --notes-file /tmp/notes.md \
+            --verify-tag 2>/dev/null \
+          || gh release edit "${{ steps.v.outputs.tag }}" \
+            --title "${{ steps.v.outputs.tag }}" \
+            --notes-file /tmp/notes.md

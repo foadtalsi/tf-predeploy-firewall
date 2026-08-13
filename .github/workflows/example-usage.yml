@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           # Set to 'critical' to only block on credentials-in-code / ForceNew on prod DB.
           # Set to 'medium' to also block on missing prevent_destroy.

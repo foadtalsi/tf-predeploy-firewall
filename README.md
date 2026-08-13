@@ -94,7 +94,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           block-threshold: high
 ```
@@ -152,7 +152,7 @@ scanner into an actual gate rather than an FYI comment.
 ### SARIF / GitHub Code Scanning
 
 ```yaml
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           block-threshold: high
           sarif-output: tf-firewall.sarif
@@ -196,7 +196,7 @@ This action never runs `terraform` or touches your cloud provider. You run
           terraform show -json tfplan > plan.json
         # ... your own AWS/cloud credentials go here, not this action's
 
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           block-threshold: high
           plan-json: plan.json
@@ -233,7 +233,7 @@ policy, waivers, the dashboard, and the enterprise integrations (SSO/SAML,
 SCIM, audit log, Jira/Linear/ServiceNow, compliance mapping).
 
 ```yaml
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           block-threshold: high
           license-key: ${{ secrets.TFPDF_LICENSE_KEY }}

@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: foadtalsi/tf-predeploy-firewall@v0
+      - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           full-repo-scan: "true"
           block-threshold: high
