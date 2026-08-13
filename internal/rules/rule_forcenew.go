@@ -20,6 +20,12 @@ func (ForceNewChangeRule) Check(in FileInput, aws *schema.AWS) []report.Finding 
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
+		// Only a managed resource is destroyed and recreated. A module call
+		// has no ForceNew surface of its own, and a data source is never
+		// replaced because it is never created.
+		if res.Kind != parser.KindResource {
+			continue
+		}
 		base, existedBefore := in.BaseResources[res.Address()]
 		if !existedBefore {
 			continue

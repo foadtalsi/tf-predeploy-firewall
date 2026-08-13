@@ -74,14 +74,25 @@ func checkHardcodedCredentials(path string, res *parser.Resource) []report.Findi
 			Severity: report.SeverityCritical,
 			Resource: res.Address(),
 			Message: fmt.Sprintf(
-				"%q is a hardcoded string literal, not a variable or secret reference — credentials must not be committed in plain text",
-				name),
+				"%q resolves to a hardcoded string literal%s, not a secret reference — credentials must not be committed in plain text",
+				name, viaSuffix(attr)),
 			Suggestion: fmt.Sprintf(
 				"variable %q {\n  type      = string\n  sensitive = true\n}\n\n# in %s:\n%s = var.%s",
 				varName, res.Address(), name, varName),
 		})
 	}
 	return findings
+}
+
+// viaSuffix names the reference a value was reached through, so a finding
+// reported on a line that merely reads `password = var.db_password` says where
+// the literal actually lives. Without it the report looks like a false
+// positive to whoever opens the file.
+func viaSuffix(attr *parser.Attribute) string {
+	if attr.ResolvedFrom == "" {
+		return ""
+	}
+	return fmt.Sprintf(" (via %s)", attr.ResolvedFrom)
 }
 
 // credentialVarName derives a reasonably unique, valid HCL identifier for
@@ -123,8 +134,8 @@ func checkCredentialValues(path string, res *parser.Resource) []report.Finding {
 						Severity: report.SeverityCritical,
 						Resource: res.Address(),
 						Message: fmt.Sprintf(
-							"%s%q value matches pattern: %s — remove from source and use a secret reference",
-							locationPrefix, name, pat.label),
+							"%s%q value matches pattern: %s%s — remove from source and use a secret reference",
+							locationPrefix, name, pat.label, viaSuffix(attr)),
 					})
 					break // one match per attribute is enough
 				}

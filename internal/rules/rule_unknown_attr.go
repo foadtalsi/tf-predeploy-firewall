@@ -3,6 +3,7 @@ package rules
 import (
 	"fmt"
 
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 )
@@ -20,6 +21,12 @@ func (UnknownAttributeRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
+		// Module inputs are someone else's variables and data sources are read
+		// paths — neither has an entry in a provider resource pack, so there is
+		// nothing to validate an argument name against.
+		if res.Kind != parser.KindResource {
+			continue
+		}
 		resSchema, known := aws.ResourceSchema(res.Type)
 		if !known {
 			continue

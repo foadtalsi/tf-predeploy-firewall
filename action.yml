@@ -46,6 +46,14 @@ inputs:
       outage never blocks the scan itself (fails open).
     required: false
     default: ""
+  baseline:
+    description: >
+      Path to a committed baseline file of accepted pre-existing findings
+      (see --write-baseline). Baselined findings still appear in the PR
+      comment but do not block a merge; anything new does. This is what makes
+      the scanner adoptable on a repository that already has Terraform in it.
+    required: false
+    default: ""
   full-repo-scan:
     description: >
       Set to "true" to scan every .tf file in the repo instead of just a PR diff —
@@ -66,6 +74,8 @@ runs:
     - "--plan-json"
     - "${{ inputs.plan-json }}"
     - "--full-repo-scan=${{ inputs.full-repo-scan }}"
+    - "--baseline"
+    - "${{ inputs.baseline }}"
   env:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}

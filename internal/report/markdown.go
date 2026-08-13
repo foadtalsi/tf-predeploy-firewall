@@ -62,7 +62,7 @@ func RenderMarkdown(findings []Finding, threshold Severity, blocked bool) string
 	})
 
 	if len(active) == 0 {
-		fmt.Fprintf(&b, "✅ No blocking findings — %d finding(s) waived (see below).\n\n", len(waived))
+		fmt.Fprintf(&b, "✅ No blocking findings — %d finding(s) previously accepted (see below).\n\n", len(waived))
 	} else if blocked {
 		fmt.Fprintf(&b, "🚫 **Merge blocked** — findings at or above `%s` severity (threshold: `%s`).\n\n", highestSeverity(active), threshold)
 	} else {
@@ -98,8 +98,8 @@ func renderWaivers(b *strings.Builder, waived []Finding) {
 		return waived[i].Line < waived[j].Line
 	})
 
-	fmt.Fprintf(b, "\n<details><summary>%d waived finding(s) — excluded from the block decision</summary>\n\n", len(waived))
-	b.WriteString("| Severity | File | Line | Category | Resource | Detail | Waiver justification |\n")
+	fmt.Fprintf(b, "\n<details><summary>%d accepted finding(s) — excluded from the block decision</summary>\n\n", len(waived))
+	b.WriteString("| Severity | File | Line | Category | Resource | Detail | Accepted because |\n")
 	b.WriteString("|---|---|---|---|---|---|---|\n")
 	for _, f := range waived {
 		fmt.Fprintf(b, "| %s %s | `%s` | %d | %s | `%s` | %s | %s |\n",

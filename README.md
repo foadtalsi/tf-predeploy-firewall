@@ -59,6 +59,62 @@ Packs are now generated directly from `terraform providers schema -json` and,
 for the ForceNew flags that schema doesn't expose, from the provider's own Go
 source. See [cmd/genpack](cmd/genpack/main.go) for the exact commands.
 
+## Adopting this on a repo that already exists
+
+Point the scanner at a mature Terraform estate and it will report a lot of
+findings. Every one may be true, and collectively they're useless: the only
+available response is to lower `block-threshold` until it stops complaining,
+which is the same as uninstalling it.
+
+A **baseline** records what was already there. Run it once:
+
+```sh
+tf-predeploy-firewall --repo-dir . --full-repo-scan \
+    --write-baseline .tf-firewall-baseline.json
+```
+
+Commit that file, then pass it on every scan:
+
+```yaml
+      - uses: foadtalsi/tf-predeploy-firewall@v1
+        with:
+          baseline: .tf-firewall-baseline.json
+```
+
+Baselined findings **still appear** in the PR comment, in their own collapsed
+section — the debt stays visible — but they don't block a merge. Anything not
+in the file does. The bleeding stops immediately and the backlog gets paid
+down on its own schedule, which is the only sequence that works on a codebase
+nobody has time to fix all at once.
+
+Matching is on **category + resource + file**, deliberately not on line
+number: a baseline that broke every time someone added a line above would be
+abandoned in a week. Entries that no longer match anything are reported as
+prunable — regenerate with `--write-baseline` to clean them up.
+
+## What gets scanned
+
+Beyond `resource` blocks, the scanner reads:
+
+- **`module` calls.** A mature repo is mostly module calls, and a password
+  passed to a module is exactly as hardcoded as one passed to a resource.
+  Module inputs are someone else's variables, so there is no schema to check
+  argument *names* against — but their *values* are checked in full.
+- **`data` sources**, for the same value-based checks.
+- **`locals` and `variable` defaults**, to resolve references. A
+  `password = var.db_password` whose variable declares
+  `default = "changeme"` is a hardcoded credential one indirection away, and
+  it's the more common mistake of the two. Findings say where the value
+  actually lives — *"resolves to a hardcoded string literal (via
+  var.db_password)"* — so a report on a line that reads `var.something`
+  doesn't look like a false positive.
+
+Resolution is directory-scoped, the way Terraform scopes them: a local
+declared in `locals.tf` is visible when scanning `rds.tf`. Anything that
+can't be resolved statically — a variable with no default, a value from
+`.tfvars`, anything computed at plan time — stays unresolved and is skipped,
+exactly as before. Richer resolution only ever finds more, never differently.
+
 ### Terragrunt
 
 If the repo uses Terragrunt, every changed `terragrunt.hcl` file's `inputs`

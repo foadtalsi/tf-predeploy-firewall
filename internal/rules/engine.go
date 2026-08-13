@@ -16,6 +16,15 @@ import (
 type RunOptions struct {
 	// GlobalIgnore is a list of categories to suppress across all files.
 	GlobalIgnore []report.Category
+
+	// RepoDir is the checkout root. When set, each scanned file's whole
+	// directory is read to build a scope for resolving `var.x` and `local.y`
+	// — Terraform scopes those per directory, not per file, so a local
+	// declared in locals.tf has to be visible when scanning rds.tf.
+	//
+	// Leaving it empty disables reference resolution entirely; every rule
+	// then behaves exactly as it did before, skipping non-literal values.
+	RepoDir string
 }
 
 // FileInput is what each Rule sees for one changed .tf file.
@@ -65,11 +74,19 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 	inlineByFile := make(map[string]map[int]map[report.Category]bool)
 	changedAttrs := make(map[string]map[ChangedAttrKey]bool)
 
+	scopes := newScopeCache(opts.RepoDir)
+
 	for _, f := range files {
 		// Collect inline ignore directives from the head revision source.
 		inlineByFile[f.Path] = ignore.ParseComments(f.HeadContent)
 
-		headResources, err := parser.ParseFile(f.Path, f.HeadContent)
+		// The scope is built from the file's own directory, with this file's
+		// head content overriding whatever is on disk — on a PR scan the disk
+		// holds the checked-out revision, which is what we want, but being
+		// explicit keeps the two consistent.
+		scope := scopes.forFile(f.Path, f.HeadContent)
+
+		headResources, err := parser.ParseFileWithContext(f.Path, f.HeadContent, scope)
 		if err != nil {
 			findings = append(findings, report.Finding{
 				File:     f.Path,
@@ -84,6 +101,10 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 
 		baseByAddr := map[string]*parser.Resource{}
 		if f.BaseContent != nil {
+			// The base revision is parsed without a scope: it exists only to
+			// answer "did this attribute's value change", and resolving it
+			// against the *head* directory's locals would compare a before
+			// value to an after scope.
 			baseResources, err := parser.ParseFile(f.Path, f.BaseContent)
 			if err == nil {
 				for _, r := range baseResources {

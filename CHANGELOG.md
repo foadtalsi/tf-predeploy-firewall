@@ -5,6 +5,39 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Baseline mode (`--baseline`, `--write-baseline`)** — record the findings a
+  repository already has, so they stop blocking merges while anything new
+  still does. This is what makes the scanner adoptable on an existing estate:
+  before it, the only response to a wall of pre-existing findings was to lower
+  `block_threshold` until the tool went quiet, which is uninstalling it with
+  extra steps.
+
+  Baselined findings stay visible in the PR comment, in their own collapsed
+  section — the debt is never hidden, just de-fanged. Matching is on
+  category + resource + file, never on line number, so an unrelated edit above
+  a finding doesn't resurrect it; entries that no longer match anything are
+  reported as prunable rather than silently dropped.
+
+- **`module` and `data` blocks are scanned.** The parser only ever looked at
+  `resource` blocks, which meant a mature repo — mostly module calls — was
+  largely invisible, and a `module "rds" { master_password = "hunter2" }` went
+  straight through. Value-based rules now apply to all three kinds;
+  schema-driven rules (unknown attributes, ForceNew, prevent_destroy) stay
+  resource-only, since module inputs have no provider schema to check against.
+
+- **`var.x` and `local.y` are resolved** from `variable` defaults and `locals`
+  blocks, directory-scoped the way Terraform scopes them. A password sitting
+  in a variable default is a hardcoded credential one indirection away, and it
+  is the more common mistake of the two; previously a single reference was
+  enough to hide from every value-based rule.
+
+  Findings name the indirection — *"resolves to a hardcoded string literal
+  (via var.db_password)"* — so a report on a line that merely reads
+  `var.something` doesn't read as a false positive. Anything not statically
+  resolvable stays unresolved and is skipped exactly as before, so this can
+  only ever surface more findings, never different ones.
+
 ## [v1.0.0] — 2026-08-13
 
 First tagged release since `v0`, and the one that matters: everything below

@@ -3,6 +3,7 @@ package rules
 import (
 	"fmt"
 
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/parser"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 )
@@ -17,6 +18,11 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
+		// prevent_destroy guards a managed resource. Modules and data sources
+		// have nothing for it to protect.
+		if res.Kind != parser.KindResource {
+			continue
+		}
 		if !aws.IsCritical(res.Type) {
 			continue
 		}

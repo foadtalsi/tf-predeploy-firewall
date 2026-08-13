@@ -10,7 +10,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/baseline"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/customrules"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/diff"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/githubpr"
@@ -84,6 +86,8 @@ func main() {
 	planJSONPath := flag.String("plan-json", "", "path to `terraform show -json <planfile>` output (phase 2: adds confirmed-replace, drift, and blast-radius findings). Optional — this tool never runs terraform or touches cloud credentials itself.")
 	licenseKey := flag.String("license-key", envOr("TFPDF_LICENSE_KEY", ""), "paid-plan API key. Entirely optional — leave unset to run the scanner exactly as the free, open-source tool it has always been. When set, each scan is reported to the billing/usage service for quota enforcement.")
 	licenseAPIBase := flag.String("license-api-base", envOr("TFPDF_LICENSE_API_BASE", licensing.DefaultAPIBase), "control-plane API base URL, override for self-hosted/staging deployments")
+	baselinePath := flag.String("baseline", envOr("TFPDF_BASELINE", ""), "path to a committed baseline file of accepted pre-existing findings. They stay visible in the PR comment but don't block a merge; anything new does. Missing file = no baseline.")
+	writeBaseline := flag.String("write-baseline", "", "write the current findings to this path as the new baseline and exit without failing. Run once when adopting the scanner on an existing repo, then commit the file.")
 	flag.Parse()
 
 	cfg, err := loadConfig(*configPath)
@@ -137,6 +141,10 @@ func main() {
 
 	result, err := rules.Run(changed, aws, ruleset, rules.RunOptions{
 		GlobalIgnore: cfg.IgnoreRules,
+		// Lets the engine read each scanned file's directory to resolve
+		// `var.x` and `local.y` — a credential one indirection away is the
+		// common case, not the exotic one.
+		RepoDir: *repoDir,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
@@ -184,6 +192,37 @@ func main() {
 	findings = append(findings, ignore.Apply(terragruntFindings, nil, cfg.IgnoreRules)...)
 
 	findings = ignore.ApplyPathRules(findings, cfg.ignorePathRules())
+
+	// --write-baseline records the current state and stops. It deliberately
+	// runs before waivers are applied: a waiver is a live decision held in the
+	// dashboard, and baking one into a committed file would outlive it.
+	if *writeBaseline != "" {
+		if err := baseline.Write(*writeBaseline, findings, time.Now().UTC().Format(time.RFC3339)); err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+			os.Exit(2)
+		}
+		fmt.Fprintf(os.Stderr,
+			"tf-predeploy-firewall: wrote %d finding(s) to %s — commit this file; they will no longer block a merge, and anything new will\n",
+			len(findings), *writeBaseline)
+		return
+	}
+
+	base, err := baseline.Load(*baselinePath)
+	if err != nil {
+		// A baseline that exists but can't be read is fatal rather than
+		// ignored: silently enforcing on a repo that expected a baseline would
+		// block every PR in it.
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+		os.Exit(2)
+	}
+	if base != nil {
+		findings = base.Apply(findings)
+		msg := fmt.Sprintf("tf-predeploy-firewall: baseline %s accepts %d finding(s)", *baselinePath, base.Size())
+		if stale := base.Stale(); stale > 0 {
+			msg += fmt.Sprintf("; %d entr(y/ies) no longer match anything and can be pruned with --write-baseline", stale)
+		}
+		fmt.Fprintln(os.Stderr, msg)
+	}
 
 	if *licenseKey != "" {
 		findings = applyWaivers(findings, *licenseKey, *licenseAPIBase)

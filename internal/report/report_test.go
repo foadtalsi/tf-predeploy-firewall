@@ -109,8 +109,10 @@ func TestRenderMarkdown_MixedActiveAndWaivedFindings(t *testing.T) {
 	if !strings.Contains(out, "Merge blocked") {
 		t.Error("expected 'Merge blocked' — the active critical finding alone breaches the threshold")
 	}
-	if !strings.Contains(out, "1 waived finding") {
-		t.Error("expected the waived-findings section header to mention exactly 1 waived finding")
+	// The section covers findings accepted for any reason — a dashboard waiver
+	// or a committed baseline — so its wording is deliberately not "waived".
+	if !strings.Contains(out, "1 accepted finding") {
+		t.Error("expected the accepted-findings section header to mention exactly 1 finding")
 	}
 	if !strings.Contains(out, "accepted, sandbox repo") {
 		t.Error("expected the waiver justification for the waived finding")
