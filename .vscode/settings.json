@@ -1,0 +1,26 @@
+{
+  // testdata is a corpus, not infrastructure. Several fixtures are wrong on
+  // purpose — unknown_attribute.tf exists to carry an argument no provider
+  // declares, because that is the rule it tests — so a Terraform language
+  // server indexing this directory reports errors that are the point of the
+  // files rather than defects in them.
+  //
+  // Both keys are set because the setting moved between extension versions;
+  // whichever one your build doesn't recognise is ignored.
+  "terraform.languageServer.ignoreDirectoryNames": ["testdata"],
+  "terraform.languageServer.indexing.ignoreDirectoryNames": ["testdata"],
+
+  // The generated packs under internal/schema/data are gzipped JSON blobs;
+  // opening one by accident is never useful and searching them is slow.
+  "search.exclude": {
+    "**/internal/schema/data/*.json.gz": true,
+    "**/dist": true
+  },
+
+  "gopls": {
+    "formatting.gofumpt": false
+  },
+  "[go]": {
+    "editor.formatOnSave": true
+  }
+}
