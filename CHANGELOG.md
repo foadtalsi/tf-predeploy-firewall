@@ -6,6 +6,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Azure support.** Rule packs for azurerm 4.81.0, generated the same way
+  the AWS ones are: the full argument surface from `terraform providers
+  schema -json` (1,141 resource types), ForceNew flags extracted from the
+  provider's own Go source (1,054 types carry them; azurerm registers
+  resources structurally rather than via AWS's doc annotations, so it got
+  its own collector for both its untyped registration maps and its typed
+  `ResourceType()`/`Arguments()` resources), plus hand-curated judgment: 44
+  data-holding types that warrant `prevent_destroy`, and coarse monthly
+  prices for 29 types. A 41-type base pack ships free in the binary; the
+  full pack is served to licensed orgs like the AWS one.
+
+  Writing the Azure packs surfaced two fixes that were latent for AWS. The
+  credential name matcher was an exact-word list (`password`, `secret`, …)
+  and simply missed Azure's vocabulary — `administrator_login_password`
+  carrying `"Hunter2!"` sailed through; it now matches by suffix, with the
+  key-ish names (`public_key`, `kms_key_id`, `partition_key`) explicitly
+  kept out, and a test pinning both directions. And genpack's schema
+  resolver, when it met `Schema: someFunc()`, walked past the call and could
+  mistake a nested block's schema for the resource's top level — silently
+  wrong ForceNew data, not just missing. The AWS packs were regenerated
+  after the fix and came out identical, so that bug never shipped wrong AWS
+  data; it just would have for Azure.
+
 - **The scanner runs at your desk, not only in CI.** Releases now attach
   static binaries for Linux, macOS and Windows (amd64/arm64), and two new
   modes make them useful without a PR: `--uncommitted` scans everything

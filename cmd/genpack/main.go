@@ -87,7 +87,13 @@ func run(provider, schemaPath, srcPath, providerAddr, providerVer, curatedDir, b
 
 	// --- 2. ForceNew ------------------------------------------------------
 	if srcPath != "" {
-		idx, err := extractForceNew(srcPath)
+		// Same walker underneath; what differs per provider is how a
+		// resource type string is matched to its schema function.
+		extract := extractForceNew
+		if provider == "azurerm" {
+			extract = extractForceNewAzurerm
+		}
+		idx, err := extract(srcPath)
 		if err != nil {
 			return err
 		}

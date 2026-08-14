@@ -221,8 +221,16 @@ func TestCoverage_BasePackOnly(t *testing.T) {
 	if c.Extended {
 		t.Error("a base-only load must not report extended coverage")
 	}
-	if len(c.Packs) != 1 || c.Packs[0] != "aws-base" {
-		t.Errorf("Packs = %v, want [aws-base]", c.Packs)
+	// One base pack per embedded provider; pinning the exact list here would
+	// make every new free-tier provider a test failure, which is backwards.
+	found := false
+	for _, p := range c.Packs {
+		if p == "aws-base" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Packs = %v, must include aws-base", c.Packs)
 	}
 	if c.ResourceTypes == 0 {
 		t.Error("base pack reports zero resource types")

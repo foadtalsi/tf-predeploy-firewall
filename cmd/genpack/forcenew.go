@@ -249,7 +249,7 @@ func resolveSDKSchemaMap(fn *ast.FuncDecl, pkg *packageIndex) *ast.CompositeLit 
 			return false
 		}
 		cl, ok := n.(*ast.CompositeLit)
-		if !ok || !isSelectorType(cl.Type, "schema", "Resource") {
+		if !ok || !isSchemaSelector(cl.Type, "Resource") {
 			return true
 		}
 		for _, elt := range cl.Elts {
@@ -295,6 +295,19 @@ func resolveSchemaMapExpr(expr ast.Expr, pkg *packageIndex) *ast.CompositeLit {
 			return findSchemaMapLit(fn)
 		}
 	case *ast.CallExpr:
+		// `Schema: resourceFooSchema()` — the map lives in the called
+		// function. This must be tried before the argument unwrap below:
+		// a niladic call has no arguments, and falling through used to let
+		// the caller's ast.Inspect keep walking into some nested block's
+		// resource literal and mistake ITS schema map for the top level —
+		// silently wrong ForceNew data, not just missing data.
+		if fnName, ok := v.Fun.(*ast.Ident); ok {
+			if fn, ok := pkg.funcs[fnName.Name]; ok {
+				if m := findSchemaMapLit(fn); m != nil {
+					return m
+				}
+			}
+		}
 		// Unwrap one level of wrapping (maps.Clone, mergeSchemas, ...) by
 		// resolving the first argument that yields a schema map.
 		for _, arg := range v.Args {
@@ -415,7 +428,7 @@ func walkSDKSchemaMap(m *ast.CompositeLit, path, rType string, pkg *packageIndex
 // arguments and returns nil.
 func nestedResourceSchema(expr ast.Expr) *ast.CompositeLit {
 	cl := asStructLit(expr)
-	if cl == nil || !isSelectorType(cl.Type, "schema", "Resource") {
+	if cl == nil || !isSchemaSelector(cl.Type, "Resource") {
 		return nil
 	}
 	for _, elt := range cl.Elts {
@@ -673,7 +686,15 @@ func isSchemaMapType(expr ast.Expr) bool {
 	if star, ok := val.(*ast.StarExpr); ok {
 		val = star.X
 	}
-	return isSelectorType(val, "schema", "Schema")
+	return isSchemaSelector(val, "Schema")
+}
+
+// isSchemaSelector matches `schema.<name>` and `pluginsdk.<name>` — the AWS
+// provider imports SDKv2 as `schema`, azurerm wraps the same types in its
+// own `pluginsdk` package with identical field names, so one matcher serves
+// both providers.
+func isSchemaSelector(expr ast.Expr, typeName string) bool {
+	return isSelectorType(expr, "schema", typeName) || isSelectorType(expr, "pluginsdk", typeName)
 }
 
 // isSelectorType reports whether expr is the type `pkg.name`, ignoring a

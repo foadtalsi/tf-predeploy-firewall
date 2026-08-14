@@ -15,7 +15,16 @@ import (
 // wide-open CIDR ranges, and placeholder/generic naming.
 type TutorialPatternRule struct{}
 
-var credentialAttrNames = regexp.MustCompile(`(?i)^(password|secret|secret_key|access_key|api_key|token|private_key|client_secret|auth_token|master_password)$`)
+// credentialAttrNames matches attribute names that carry a credential.
+//
+// Suffix-based (`.*_password`, not just `password`) because every provider
+// grows its own vocabulary — azurerm alone has administrator_login_password,
+// admin_password and account_password, and an exact-match list rebuilt per
+// provider would always be one release behind. "key" is deliberately NOT a
+// bare suffix: public_key, partition_key and kms_key_id are not secrets, so
+// only the specific key-ish names appear. Values that look like credentials
+// regardless of their attribute name are checkCredentialValues's job.
+var credentialAttrNames = regexp.MustCompile(`(?i)^(?:.*_)?(password|passwd|secret|secret_key|access_key|api_key|token|private_key|client_secret|auth_token|connection_string)$`)
 
 var openCIDR = "0.0.0.0/0"
 
