@@ -127,14 +127,17 @@ func (d declarativeRule) finding(in FileInput, spec *ruledef.Rule, res *parser.R
 	vars["length"] = strconv.Itoa(len(loc.attr.RawValue))
 	vars["label"] = spec.Label
 	vars["via"] = viaSuffix(loc.attr)
-	vars["var"] = credentialVarName(res, loc.name)
 	vars["bits"] = fmt.Sprintf("%.1f", bits)
+
+	blockType := ""
 	if loc.block != nil {
-		vars["block"] = loc.block.Type
-		vars["location"] = fmt.Sprintf("(inside %s block) ", loc.block.Type)
+		blockType = loc.block.Type
+		vars["block"] = blockType
+		vars["location"] = fmt.Sprintf("(inside %s block) ", blockType)
 	} else {
 		vars["location"] = ""
 	}
+	vars["var"] = credentialVarName(res, blockType, loc.name)
 
 	return report.Finding{
 		File:       in.Path,

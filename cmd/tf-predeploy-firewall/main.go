@@ -1075,11 +1075,28 @@ func loadRuleset(path string, opts rules.Options) ([]rules.Rule, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+
+	// `extends: builtin` layers the pack over the compiled-in rules instead of
+	// replacing them. Both outcomes are announced, because both are easy to
+	// get wrong in a way that runs perfectly and scans less than the author
+	// believes.
+	if pack.Extends == ruledef.ExtendsBuiltin {
+		merged, report, err := ruledef.Merge(rules.BuiltinPack(), pack)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		ruleset, err := rules.FromPack(merged, opts)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", path, err)
+		}
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: rule pack %s extends the built-in rules: %s\n", path, report)
+		return ruleset, nil
+	}
+
 	ruleset, err := rules.FromPack(pack, opts)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-
 	fmt.Fprintf(os.Stderr,
 		"tf-predeploy-firewall: using rule pack %s (%d definitions, %d active) — the built-in rules are NOT in effect\n",
 		path, len(pack.Rules), len(ruleset))

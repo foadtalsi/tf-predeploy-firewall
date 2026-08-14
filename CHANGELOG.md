@@ -5,6 +5,55 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **A credential in a nested block was found by nothing at all.** Not a gap
+  but a dead zone, produced by two rules interacting: the value-pattern
+  checks deliberately skip attributes whose *name* already looks like a
+  credential, so as not to report the same line twice — and the name check
+  only walked top-level attributes. A nested `client_secret` was therefore
+  excluded from the value checks for having a credential name, and excluded
+  from the name check for being nested.
+
+  `service_principal { client_secret = "AKIA…" }` on an AKS cluster — a
+  literal AWS key, in a block shape that is entirely ordinary — produced no
+  finding whatsoever. `auth { password }` and `environment { variables }`
+  were equally invisible.
+
+  The name rule now walks nested attributes too, and says which block the
+  finding is in. The suggested variable name carries the block type
+  (`prod_service_principal_client_secret`), since one resource can hold two
+  blocks declaring the same attribute and a shared variable name would have
+  the second fix quietly redefine the first.
+
+  Purely additive: over the corpus this adds one finding and changes none.
+  It was invisible to the existing tests because each rule was correct on its
+  own — only their combination lost the attribute.
+
+### Added
+- **Rule packs can extend the built-in ones instead of replacing them.**
+  `extends: builtin` layers a pack over the compiled-in rules, matched by
+  rule id: override one to change its severity or wording, `disabled: true`
+  to switch a single detector off, a new id to add your own. Everything else
+  is inherited, and the scan reports exactly what happened.
+
+  The two things people want are opposites — adding an org's rule must not
+  silently drop the built-in ones, and correcting a built-in that misfires
+  must be possible at all, which an add-only mechanism cannot do. Overriding
+  by id is both, and it makes "change one severity" a four-line file rather
+  than a fork of the whole pack.
+
+  An override keeps the position of the rule it replaces, because order
+  carries meaning: a group's members are ordered alternatives. Disabling an
+  id that does not exist is an error rather than a no-op — it is what a typo
+  looks like, and the consequence of guessing would be that the rule you
+  meant to switch off is still running. Merged packs are revalidated from
+  scratch, since two valid packs can combine into an invalid one.
+
+  This makes `custom_rules:` the legacy path. It is unchanged and is not
+  going away — three lines of config is a fair way to say "we also forbid
+  X" — but a pack does everything it does, in the same vocabulary as the
+  built-in rules.
+
 ### Changed
 - **The detection rules are data, not Go.** What each built-in rule looks
   for, its severity, the wording of its finding, the one-click fix it offers

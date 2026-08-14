@@ -30,8 +30,17 @@ func viaSuffix(attr *parser.Attribute) string {
 // credentialVarName derives a reasonably unique, valid HCL identifier for
 // the variable a fix suggests — resource name plus attribute name, since the
 // same attribute name (`password`) recurs across resources in one file.
-func credentialVarName(res *parser.Resource, attrName string) string {
-	return sanitizeIdent(res.Name) + "_" + sanitizeIdent(attrName)
+//
+// blockType is the nested block the attribute sits in, and joins the name
+// when there is one: a resource can hold two blocks declaring the same
+// attribute, and suggesting the same variable for both would have the second
+// fix quietly overwrite the first one's meaning.
+func credentialVarName(res *parser.Resource, blockType, attrName string) string {
+	name := sanitizeIdent(res.Name)
+	if blockType != "" {
+		name += "_" + sanitizeIdent(blockType)
+	}
+	return name + "_" + sanitizeIdent(attrName)
 }
 
 var nonIdentChar = regexp.MustCompile(`[^a-zA-Z0-9_]`)

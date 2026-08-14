@@ -15,11 +15,69 @@ tf-predeploy-firewall --print-rules > my-rules.yaml
 tf-predeploy-firewall --rules my-rules.yaml
 ```
 
-`--rules` **replaces** the built-in pack rather than adding to it. That is
-the only honest option: a pack that could only add rules could never correct
-a false positive in a built-in one, and correcting one is the first reason
-anyone reaches for this. Because the failure mode is a scan running on far
-fewer rules than you think, the swap is announced on stderr with the count:
+## Extending instead of replacing
+
+Most of the time you want to keep the built-in rules and change one thing.
+Add `extends: builtin` and the pack is layered on top of the compiled-in one
+instead of replacing it — matched **by rule id**:
+
+```yaml
+version: 1
+extends: builtin
+
+rules:
+  # Switch one detector off. Not the whole category: `ignore_rules:` in the
+  # config can only do categories, and disabling all of tutorial_pattern to
+  # silence one over-eager format would take credential detection with it.
+  - id: placeholder_resource_name
+    disabled: true
+
+  # Correct a built-in by redeclaring it. Same id, your severity and wording.
+  - id: hardcoded_credential
+    category: tutorial_pattern
+    severity: high
+    match:
+      scope: attribute
+      literal: true
+      attr_name_matches: '(?i)^(?:.*_)?(password|secret|api_key|token)$'
+      value_not_one_of: ["", "true", "false"]
+    message: '{attr_q} is committed in plain text — see runbook/secrets'
+
+  # Add one of your own. New id, so it is appended.
+  - id: no_public_acl
+    category: org_policy
+    severity: critical
+    match:
+      scope: attribute
+      attr_names: [acl]
+      literal: true
+      value_matches: 'public'
+    message: 'bucket ACL {value_q} is public — use a bucket policy instead'
+```
+
+```
+tf-predeploy-firewall: rule pack overlay.yaml extends the built-in rules: 19 inherited, 1 overridden (hardcoded_credential), 1 added (no_public_acl), 1 disabled (placeholder_resource_name)
+```
+
+An override lands **in the position the rule it replaces held**, because order
+carries meaning: a group's members are ordered alternatives. Disabling an id
+that does not exist is an error rather than a no-op — it is the signature of a
+typo, and the consequence of guessing would be that the rule you meant to
+switch off is still running. A pack that disables every rule is refused for
+the same reason.
+
+Both packs are revalidated after merging, since two individually valid packs
+can combine into an invalid one — overriding a group member with a rule of a
+different scope, for instance.
+
+## Replacing outright
+
+Without `extends:`, `--rules` **replaces** the built-in pack. Correcting a
+built-in rule is the main reason to reach for a pack at all, and an add-only
+mechanism could not do it — but `extends: builtin` now covers that case more
+precisely, so full replacement is for when you genuinely want only your own
+rules. The failure mode is a scan running on far fewer rules than you think,
+so it is announced:
 
 ```
 tf-predeploy-firewall: using rule pack my-rules.yaml (21 definitions, 10 active) — the built-in rules are NOT in effect
@@ -147,10 +205,18 @@ A rule you cannot turn off is a rule that gets the whole tool turned off.
 
 ## Relationship to `custom_rules:`
 
-`custom_rules:` in your config still works exactly as before and is unchanged
-— it is the simpler format for "our org also forbids X", and it *adds* to the
-built-in rules instead of replacing them. Reach for a full pack when you need
-to change what a built-in rule does, not just add to it.
+`custom_rules:` in your config still works exactly as before and nothing about
+it has changed. It is now the legacy path: an `extends: builtin` pack does
+everything it does and more, in the same vocabulary as the built-in rules, and
+with documentation, fixes and severities attached.
 
-The two formats are intended to converge on this one. Until they do, prefer
-`custom_rules:` for additions and `--rules` for corrections.
+| | `custom_rules:` | `extends: builtin` pack |
+|---|---|---|
+| Add a rule | yes | yes |
+| Correct a built-in rule | no | yes |
+| Switch off one built-in rule | no (category only) | yes |
+| Nested-block scopes, entropy predicates, fixes, docs | no | yes |
+
+Prefer a pack for anything new. `custom_rules:` is not deprecated and will
+not be removed without warning — plenty of orgs only ever need "we also
+forbid X", and three lines of YAML in a config file is a fair way to say it.

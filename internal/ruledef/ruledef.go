@@ -32,10 +32,26 @@ import (
 // silently matches nothing, which looks exactly like a clean scan.
 const FormatVersion = 1
 
+// ExtendsBuiltin is the only value `extends:` accepts today.
+const ExtendsBuiltin = "builtin"
+
 // Pack is a full set of rules, as loaded from YAML.
 type Pack struct {
-	Version int     `yaml:"version"`
-	Rules   []*Rule `yaml:"rules"`
+	Version int `yaml:"version"`
+
+	// Extends, when set to "builtin", layers this pack on top of the one
+	// compiled into the scanner instead of replacing it: rules whose id
+	// already exists are overridden, new ids are added, and everything else
+	// is inherited.
+	//
+	// It exists because the two things people want are opposites. Adding an
+	// org's own rule must not silently drop the built-in ones. Correcting a
+	// built-in rule that misfires must be possible at all, which an add-only
+	// mechanism cannot do. Overriding by id is both, and it means a pack that
+	// changes one severity is four lines rather than a fork of the whole file.
+	Extends string `yaml:"extends,omitempty"`
+
+	Rules []*Rule `yaml:"rules"`
 
 	// Docs is keyed by category rather than by rule because that is the
 	// granularity a reader meets it at: a code-scanning alert page shows one
@@ -102,6 +118,13 @@ type Rule struct {
 	// Params carries engine-specific settings. Kept as strings so the format
 	// has one scalar type and no schema-per-engine.
 	Params map[string]string `yaml:"params,omitempty"`
+
+	// Disabled switches one rule off. Only meaningful in a pack that extends
+	// another — it is how you turn off a single built-in detector without
+	// disowning the rest of its category, which is all `ignore_rules:` in the
+	// config can do. Disabling the whole of tutorial_pattern to silence one
+	// over-eager format would take the credential detection with it.
+	Disabled bool `yaml:"disabled,omitempty"`
 }
 
 // Match is the declarative condition. Every field set must hold; an empty
@@ -218,30 +241,44 @@ func Load(data []byte) (*Pack, error) {
 			"rule pack declares format version %d but this binary understands %d — upgrade the scanner rather than running it against a pack it can only partly read",
 			p.Version, FormatVersion)
 	}
+	if p.Extends != "" && p.Extends != ExtendsBuiltin {
+		return nil, fmt.Errorf("extends must be %q or omitted, got %q", ExtendsBuiltin, p.Extends)
+	}
 	if len(p.Rules) == 0 {
 		return nil, fmt.Errorf("rule pack declares no rules")
 	}
 
+	if err := p.index(); err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
+// index validates every rule and builds the lookup tables. Separate from Load
+// so a merged pack is checked by exactly the same code as a parsed one — a
+// merge that produced something Load would have rejected is a bug worth
+// catching at the point it happens.
+func (p *Pack) index() error {
 	p.byID = make(map[string]*Rule, len(p.Rules))
 	p.byGroup = map[string][]*Rule{}
 	p.byCat = make(map[string]*CategoryDoc, len(p.Docs))
 
 	for i, d := range p.Docs {
 		if d.Category == "" {
-			return nil, fmt.Errorf("docs %d: category is required", i)
+			return fmt.Errorf("docs %d: category is required", i)
 		}
 		if _, dup := p.byCat[d.Category]; dup {
-			return nil, fmt.Errorf("docs %d: duplicate category %q", i, d.Category)
+			return fmt.Errorf("docs %d: duplicate category %q", i, d.Category)
 		}
 		p.byCat[d.Category] = d
 	}
 
 	for i, r := range p.Rules {
 		if err := r.validate(); err != nil {
-			return nil, fmt.Errorf("rule %d (%s): %w", i, r.ID, err)
+			return fmt.Errorf("rule %d (%s): %w", i, r.ID, err)
 		}
 		if _, dup := p.byID[r.ID]; dup {
-			return nil, fmt.Errorf("rule %d: duplicate id %q", i, r.ID)
+			return fmt.Errorf("rule %d: duplicate id %q", i, r.ID)
 		}
 		p.byID[r.ID] = r
 		if r.Group != "" {
@@ -260,26 +297,33 @@ func Load(data []byte) (*Pack, error) {
 		scope := ""
 		for _, r := range group {
 			if r.Match == nil {
-				return nil, fmt.Errorf("rule %q: a grouped rule must be declarative (group %q)", r.ID, name)
+				return fmt.Errorf("rule %q: a grouped rule must be declarative (group %q)", r.ID, name)
 			}
 			if scope == "" {
 				scope = r.Match.Scope
 				continue
 			}
 			if r.Match.Scope != scope {
-				return nil, fmt.Errorf(
+				return fmt.Errorf(
 					"group %q mixes scopes (%s and %s) — first-match-wins is only meaningful between rules that examine the same location",
 					name, scope, r.Match.Scope)
 			}
 		}
 	}
 
-	return &p, nil
+	return nil
 }
 
 func (r *Rule) validate() error {
 	if r.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	// A disabling entry names a rule and nothing else — demanding a category
+	// and a severity for something that is being switched off would mean
+	// copying fields nobody reads, which then rot against the rule they
+	// shadow. Merge drops these before the merged pack is validated.
+	if r.Disabled {
+		return nil
 	}
 	if r.Category == "" {
 		return fmt.Errorf("category is required")

@@ -63,6 +63,29 @@ resource "aws_acm_certificate" "internal" {
   certificate_body = "-----BEGIN CERTIFICATE-----"
 }
 
+# A credential inside a nested block. This was a dead zone, not merely a gap:
+# the value-pattern checks skip attributes whose NAME already looks like a
+# credential, to avoid two findings on one line — so a nested `client_secret`
+# was excluded from those for having a credential name, and excluded from the
+# name check for being nested. A literal AWS key in one was found by nothing.
+resource "azurerm_kubernetes_cluster" "prod" {
+  name                = "prod-aks"
+  location            = "westeurope"
+  resource_group_name = "prod-platform"
+  dns_prefix          = "prod"
+
+  default_node_pool {
+    name       = "system"
+    node_count = 1
+    vm_size    = "Standard_D2s_v3"
+  }
+
+  service_principal {
+    client_id     = "8f3c1a2b-0000-0000-0000-000000000000"
+    client_secret = "s0me-service-principal-secret"
+  }
+}
+
 # --- credential-shaped names that carry no credential ----------------------
 
 # A bool is not a secret, and neither is an empty string.

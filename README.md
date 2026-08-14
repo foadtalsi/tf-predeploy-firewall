@@ -403,10 +403,18 @@ tf-predeploy-firewall --rules my-rules.yaml
 No Go toolchain, no release. A pattern that misfires on your repo is
 something you can correct today rather than file an issue about.
 
-`--rules` replaces the built-in pack (and says so, loudly, on stderr) —
-correcting a built-in rule is the main reason to reach for it, and an
-add-only mechanism could not do that. To *add* rules while keeping the
-built-ins, use `custom_rules:` below.
+Add `extends: builtin` to a pack and it layers over the built-in rules
+instead of replacing them, matched by rule id — override one to change its
+severity or wording, `disabled: true` to switch one off, a new id to add your
+own. Everything else is inherited, and the scan says exactly what happened:
+
+```
+rule pack overlay.yaml extends the built-in rules: 19 inherited, 1 overridden (hardcoded_credential), 1 added (no_public_acl), 1 disabled (placeholder_resource_name)
+```
+
+Without `extends:`, `--rules` replaces the built-in pack outright — also
+announced, loudly, because a scan running on fewer rules than you think looks
+exactly like a clean repository.
 
 See **[docs/rule-packs.md](docs/rule-packs.md)** for the format: the match
 vocabulary, the message placeholders, the fixed set of compiled predicates a

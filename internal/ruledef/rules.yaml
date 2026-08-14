@@ -58,13 +58,23 @@ rules:
     category: tutorial_pattern
     severity: critical
     match:
-      scope: attribute
+      # any_attribute, not attribute: nested blocks carry credentials just as
+      # often as the top level — service_principal { client_secret },
+      # auth { password }, environment { variables { … } }.
+      #
+      # Top-level-only left a dead zone rather than merely a gap, because the
+      # value-pattern group below deliberately skips attributes whose NAME
+      # already matches (to avoid reporting the same line twice). A nested
+      # `client_secret` was therefore excluded from the value checks for
+      # having a credential name, and never checked by name for being nested.
+      # A literal AWS key sitting in one was found by nothing at all.
+      scope: any_attribute
       literal: true
       attr_name_matches: *credential_attr_names
       # Bools and empties are never credentials.
       # manage_master_user_password = true is the opposite of a leak.
       value_not_one_of: ["", "true", "false"]
-    message: '{attr_q} resolves to a hardcoded string literal{via}, not a secret reference — credentials must not be committed in plain text'
+    message: '{location}{attr_q} resolves to a hardcoded string literal{via}, not a secret reference — credentials must not be committed in plain text'
     suggestion: |-
       variable "{var}" {
         type      = string
