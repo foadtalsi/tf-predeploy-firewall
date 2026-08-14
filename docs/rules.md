@@ -283,14 +283,22 @@ Tearing down a whole environment is a legitimate large plan. Raise
 
 ## cost_impact
 
-**Estimated cost impact (from terraform plan)**
+**Estimated cost impact**
 
-The plan increases the estimated monthly bill by more than the configured threshold. Estimates are coarse and on-demand-only.
+The change increases the estimated monthly bill by more than the configured threshold. Estimates are coarse and on-demand-only.
 
 ### What this means
 
-Summing the coarse per-type prices in the rule pack, this plan raises the
+Summing the coarse per-type prices in the rule pack, this change raises the
 estimated monthly cost by more than `cost_impact_threshold_usd`.
+
+With a plan JSON supplied, the estimate reads Terraform's own diff (counts
+and for_each included). Without one, a static estimate reads the `.tf`
+source directly — new resources of priced types, and changes to the
+attribute that drives a type's price — with no multipliers, since inventing
+a fleet size would be worse than understating one. When a plan is supplied,
+only the plan-based estimate runs; the same PR is never billed twice by two
+estimators that could disagree.
 
 ### Why it matters
 

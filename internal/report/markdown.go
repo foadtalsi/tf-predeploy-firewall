@@ -27,7 +27,7 @@ var categoryLabel = map[Category]string{
 	CategoryConfirmedReplace: "Confirmed destroy/replace (from terraform plan)",
 	CategoryUnexpectedDrift:  "Unexpected drift (from terraform plan)",
 	CategoryLargeBlastRadius: "Large blast radius (from terraform plan)",
-	CategoryCostImpact:       "Estimated cost impact (from terraform plan)",
+	CategoryCostImpact:       "Estimated cost impact",
 }
 
 // RenderMarkdown builds the full PR comment body for a set of findings.

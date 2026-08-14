@@ -8,7 +8,7 @@ ever runs. No `terraform plan`, no cloud credentials, no state file.
 
 Detects:
 - **Unknown/hallucinated attributes** — arguments that don't exist in the provider's real schema (AWS and Azure).
-- **Tutorial-copy patterns** — hardcoded credentials, `0.0.0.0/0` CIDRs, placeholder names (`example`, `test`, `my-bucket`...). Also applied to Terragrunt's `inputs`/`remote_state.config` maps in `terragrunt.hcl` (see below), not just `.tf` resource attributes.
+- **Tutorial-copy patterns** — hardcoded credentials (by attribute name, by known token formats, and by **entropy**: a 30-character random string is flagged as a probable machine-generated secret even when no known format matches), `0.0.0.0/0` CIDRs, placeholder names (`example`, `test`, `my-bucket`...). Also applied to Terragrunt's `inputs`/`remote_state.config` maps in `terragrunt.hcl` (see below), not just `.tf` resource attributes.
 - **ForceNew changes** — edits to attributes known to force destroy+recreate on stateful resources (RDS, EBS, ElastiCache...).
 - **Missing `prevent_destroy`** — critical stateful resources without a `lifecycle { prevent_destroy = true }` guard.
 
@@ -206,7 +206,7 @@ scanner into an actual gate rather than an FYI comment.
 | `sarif-output` | _(empty, disabled)_ | Path to write a SARIF 2.1.0 file, for upload to GitHub Code Scanning via `github/codeql-action/upload-sarif` — gives inline PR annotations on the exact changed lines, see example below. |
 | `plan-json` | _(empty, phase 1 only)_ | Path to `terraform show -json <planfile>` output — see [Phase 2](#phase-2-analyzing-a-real-terraform-plan-optional) below. |
 | `plan-blast-radius-threshold` | `10` (from config) | Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Only used with `plan-json`. |
-| `cost-impact-threshold-usd` | `0`, disabled (from config) | Estimated monthly USD cost increase that triggers a cost-impact finding. Only used with `plan-json`. |
+| `cost-impact-threshold-usd` | `0`, disabled (from config) | Estimated monthly USD cost increase that triggers a cost-impact finding. With `plan-json`, the estimate reads Terraform's own diff; without one, a static estimate reads the `.tf` source directly (new priced resources, size changes — no count/for_each multipliers). |
 | `baseline` | _(empty, disabled)_ | Path to a committed baseline of accepted pre-existing findings — see [Adopting this on a repo that already exists](#adopting-this-on-a-repo-that-already-exists). |
 | `suggestions` | `true` | Post applicable fixes as inline review comments — see [One-click fixes](#one-click-fixes) below. |
 | `full-repo-scan` | `false` | Scan every `.tf` file instead of a PR diff — see [Scheduled drift audit](#scheduled-drift-audit). |
@@ -408,6 +408,20 @@ it belongs in a fork or an upstream feature request, not in this file.
 
 Findings from custom rules appear in the PR comment and SARIF output
 under category `custom:<rule id>`.
+
+### Testing a rule before it gates anyone
+
+```sh
+tf-predeploy-firewall --rules-dry-run --config .github/tf-firewall.yml
+```
+
+runs only your `custom_rules` against the whole repo and prints what each
+one matched — including **"0 match(es)"**, which is the line a rule author
+most needs to see: a rule that silently matches nothing looks exactly like
+a working one until the incident it should have caught. Exit code is always
+0 (a config that doesn't parse is the one exception), nothing is posted,
+no usage is reported, and suppressions are deliberately not applied — the
+question is what the rule *really* matches.
 
 ## Ignoring entire paths
 

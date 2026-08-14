@@ -6,6 +6,34 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **High-entropy secret detection.** Known formats (AWS keys, JWTs, PEM
+  headers, GitHub tokens) were already caught by shape; the random API token
+  some SaaS minted has no shape at all, and enumerating every vendor's
+  format is a race that can't be won. Randomness is the one property they
+  all share, so string literals ≥24 chars with per-character entropy above
+  what any cloud identifier format produces are now flagged — at `high`, not
+  `critical`, because a statistical accusation must not claim certainty.
+  Tuned against false positives first: ARNs, resource IDs, UUIDs, URLs and
+  Azure resource paths are excluded by prefix or fall below the threshold
+  naturally, and the test pins both directions. Known formats still win —
+  an AKIA key reports as an AWS key, never vaguely as entropy.
+
+- **Cost estimation without a plan.** `cost_impact_threshold_usd` now works
+  on repos that never wire a plan JSON into the scan: a static estimator
+  reads the `.tf` diff directly — a new resource of a priced type at its
+  list price, a pricing-driving attribute change as its before/after delta.
+  Decreases never fire, and count/for_each are deliberately ignored rather
+  than guessed at. When a plan JSON is supplied, only the plan-based
+  estimator runs — the same PR is never billed twice by two estimators that
+  could disagree.
+
+- **`--rules-dry-run`.** Tests the config's `custom_rules` against the whole
+  repo and prints what each rule matched — including "0 match(es)", which is
+  the line a rule author most needs: a rule that silently matches nothing
+  looks exactly like a working one until the incident it should have caught.
+  Always exits 0 (except on a config that doesn't parse), posts nothing,
+  reports no usage, applies no suppressions.
+
 - **GitLab support.** The scanner detects GitLab CI's predefined variables
   and speaks merge requests natively: the report upserts as one MR note,
   applicable fixes post as inline discussions with the **Apply suggestion**

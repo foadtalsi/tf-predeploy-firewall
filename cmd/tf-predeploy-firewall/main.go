@@ -119,6 +119,7 @@ func main() {
 	providersFlag := flag.String("providers", envOr("TFPDF_PROVIDERS", "auto"), `comma-separated providers to fetch extended rule packs for ("aws,azurerm"), or "auto" to detect them from the resource types in the scanned files. Only affects which extended packs a licensed scan fetches — the embedded base packs always cover whatever they cover.`)
 	staged := flag.Bool("staged", false, "scan the staged changes (git index vs HEAD) instead of a ref diff — what a pre-commit hook wants: the findings arrive before the secret enters history, while removing it is still an edit and not a rotation")
 	uncommitted := flag.Bool("uncommitted", false, "scan working-tree changes vs HEAD — staged, unstaged and untracked .tf files alike. The \"what would the firewall say?\" mode for local use, no refs needed")
+	rulesDryRun := flag.Bool("rules-dry-run", false, "test the config's custom_rules against the whole repo without failing anything: prints what each rule matched (including 'matched nothing', which is what a rule author most needs to see) and exits 0. No comments are posted, no usage is reported.")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
@@ -143,6 +144,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 		os.Exit(2)
+	}
+
+	if *rulesDryRun {
+		// Deliberately before applyOrgPolicy: an author iterating on the
+		// LOCAL file needs to test that file, not the org override that
+		// would replace it in a real scan.
+		os.Exit(runRulesDryRun(*configPath, *repoDir))
 	}
 
 	if *licenseKey != "" {
@@ -183,6 +191,13 @@ func main() {
 		coverage.Packs, strings.Join(providerSummary, ", "), coverage.ResourceTypes)
 
 	ruleset := rules.DefaultRules()
+	// The static cost estimator runs only when no plan JSON is supplied —
+	// the plan-based CostImpactRule sees counts, for_each and computed
+	// values, so when both could run, the better-informed one runs alone
+	// rather than billing the same PR twice with numbers that may disagree.
+	if cfg.CostImpactThresholdUSD > 0 && *planJSONPath == "" {
+		ruleset = append(ruleset, rules.StaticCostRule{ThresholdUSD: cfg.CostImpactThresholdUSD})
+	}
 	var customRuleSet *customrules.Config
 	if cfg.CustomRulesYAMLOverride != "" {
 		customRuleSet, err = customrules.Load([]byte(cfg.CustomRulesYAMLOverride))

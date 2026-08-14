@@ -168,6 +168,7 @@ func checkCredentialValues(path string, res *parser.Resource) []report.Finding {
 			if credentialAttrNames.MatchString(name) {
 				continue
 			}
+			matched := false
 			for _, pat := range credentialValuePatterns {
 				if pat.re.MatchString(attr.RawValue) {
 					findings = append(findings, report.Finding{
@@ -180,8 +181,28 @@ func checkCredentialValues(path string, res *parser.Resource) []report.Finding {
 							"%s%q value matches pattern: %s%s — remove from source and use a secret reference",
 							locationPrefix, name, pat.label, viaSuffix(attr)),
 					})
+					matched = true
 					break // one match per attribute is enough
 				}
+			}
+			if matched {
+				continue
+			}
+
+			// No known format matched; randomness itself is the fallback
+			// signal. High severity rather than critical — this is a
+			// statistical accusation, not a recognized credential shape.
+			if bits, ok := looksLikeSecret(attr.RawValue); ok {
+				findings = append(findings, report.Finding{
+					File:     path,
+					Line:     attr.Range.Start.Line,
+					Category: report.CategoryTutorialPattern,
+					Severity: report.SeverityHigh,
+					Resource: res.Address(),
+					Message: fmt.Sprintf(
+						"%s%q value is a high-entropy string (%.1f bits/char over %d chars)%s — this is the statistical signature of a machine-generated secret; if it is one, move it out of source and rotate it",
+						locationPrefix, name, bits, len(attr.RawValue), viaSuffix(attr)),
+				})
 			}
 		}
 	}
