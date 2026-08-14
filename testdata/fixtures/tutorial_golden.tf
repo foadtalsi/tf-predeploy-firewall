@@ -1,61 +1,116 @@
-# Corpus for the golden test that guards the tutorial-pattern detectors
-# through their move out of Go and into the declarative rule pack. It is
-# deliberately exhaustive rather than realistic: every branch, and every
-# near-miss that must stay silent, appears exactly once.
+# Corpus for the golden test that guards the tutorial-pattern detectors.
+# Exhaustive rather than realistic in what it exercises: every branch, and
+# every near-miss that must stay silent, appears exactly once.
 #
-# The strings below are the same ones already asserted in this package's unit
-# tests. They are public documentation examples or random filler, never real
-# credentials — the point of a corpus like this is that it can be committed.
+# It is nonetheless valid Terraform — `terraform validate` passes against the
+# real AWS and Azure provider schemas. That is not tidiness. Every attribute
+# below sits on a resource type that genuinely declares it, so the corpus
+# cannot drift into testing against Terraform nobody could ever write, and
+# the scanner's own unknown-attribute rule stays silent on it. A fixture its
+# own tool flags is a fixture that has stopped describing reality.
+#
+# The strings here are public documentation examples or random filler, never
+# real credentials — the point of a corpus like this is that it can be
+# committed.
 
 # --- credential-bearing attribute names, by suffix -------------------------
 
+# The plain case.
 resource "aws_db_instance" "primary" {
-  identifier                  = "prod-orders-01"
-  engine                      = "postgres"
-  password                    = "changeme"
+  identifier     = "prod-orders-01"
+  engine         = "postgres"
+  instance_class = "db.t3.medium"
+  password       = "changeme"
+}
+
+# A provider-specific spelling. The name matcher is suffix-based precisely
+# because every provider grows its own vocabulary; an exact-match list would
+# always be one release behind.
+resource "azurerm_mssql_server" "reporting" {
+  name                         = "prod-reporting-sql"
+  resource_group_name          = "prod-data"
+  location                     = "westeurope"
+  version                      = "12.0"
+  administrator_login          = "sqladmin"
   administrator_login_password = "Hunter2Hunter2"
 }
 
-resource "azurerm_key_vault_secret" "app" {
-  name         = "prod-app-secret"
-  client_secret = "s0me-client-secret-value"
-  api_key      = "abcdef123456789012345"
-  auth_token   = "tok_abcdefghijklmnop"
+# Two credential suffixes on one resource.
+resource "aws_pinpoint_baidu_channel" "notifications" {
+  application_id = "prod-mobile"
+  api_key        = "abcdef123456789012345"
+  secret_key     = "fedcba098765432109876"
 }
 
-resource "aws_dms_endpoint" "warehouse" {
-  endpoint_id       = "prod-warehouse"
+resource "aws_pinpoint_adm_channel" "amazon_devices" {
+  application_id = "prod-mobile"
+  client_id      = "prod-adm-client"
+  client_secret  = "s0me-client-secret-value"
+}
+
+resource "aws_elasticache_replication_group" "sessions" {
+  replication_group_id = "prod-sessions"
+  description          = "session store"
+  auth_token           = "tok-abcdefghijklmnopqrst"
+}
+
+resource "aws_workspaces_connection_alias" "desks" {
   connection_string = "Server=db;User Id=admin;Password=p4ssw0rd;"
 }
 
-# Credential-shaped names carrying values that are NOT credentials. None of
-# these may fire: a bool is not a secret, and neither is an empty string.
-resource "aws_rds_cluster" "managed" {
-  cluster_identifier          = "prod-billing"
-  manage_master_user_password = true
-  password                    = ""
+resource "aws_acm_certificate" "internal" {
+  private_key      = "internal-signing-key-material"
+  certificate_body = "-----BEGIN CERTIFICATE-----"
 }
 
-# Names that merely contain "key" are not credentials. public_key,
-# partition_key and kms_key_id are ordinary configuration.
+# --- credential-shaped names that carry no credential ----------------------
+
+# A bool is not a secret, and neither is an empty string.
+# manage_master_user_password = true is the opposite of a leak: it hands the
+# password to the provider so none is written here at all.
+# Split across two clusters because the provider treats the pair as mutually
+# exclusive — which is the point of the feature.
+resource "aws_rds_cluster" "managed" {
+  cluster_identifier          = "prod-billing"
+  engine                      = "aurora-postgresql"
+  manage_master_user_password = true
+}
+
+resource "aws_rds_cluster" "empty_password" {
+  cluster_identifier = "prod-archive"
+  engine             = "aurora-postgresql"
+  master_password    = ""
+}
+
+# Names that merely contain "key" are ordinary configuration. This is why
+# "key" is not a bare suffix in the matcher.
 resource "aws_dynamodb_table" "events" {
-  name          = "prod-events"
-  hash_key      = "event_id"
-  partition_key = "tenant_id"
-  kms_key_id    = "arn:aws:kms:eu-west-1:123456789012:key/abcd"
+  name      = "prod-events"
+  hash_key  = "event_id"
+  range_key = "occurred_at"
+}
+
+resource "aws_db_instance" "encrypted" {
+  identifier     = "prod-ledger"
+  engine         = "postgres"
+  instance_class = "db.t3.medium"
+  kms_key_id     = "arn:aws:kms:eu-west-1:123456789012:key/abcd"
 }
 
 # A credential reached through a variable default rather than written inline.
-# The finding must still fire, must name the reference, and must NOT offer a
-# one-click fix — the line here is already correct.
+# The finding must still fire and must name the reference, but must NOT offer
+# a one-click fix — the line here already reads `password = var.db_password`
+# and is correct. The literal lives in the declaration.
 variable "db_password" {
   type    = string
   default = "resolved-through-a-default"
 }
 
 resource "aws_db_instance" "via_variable" {
-  identifier = "prod-reporting"
-  password   = var.db_password
+  identifier     = "prod-analytics"
+  engine         = "postgres"
+  instance_class = "db.t3.medium"
+  password       = var.db_password
 }
 
 # --- credential-shaped values, regardless of attribute name ----------------
@@ -75,8 +130,7 @@ resource "aws_instance" "with_secret_key" {
 resource "aws_lambda_function" "with_jwt_value" {
   function_name = "prod-webhook"
   role          = "arn:aws:iam::123456789012:role/lambda"
-  handler       = "index.handler"
-  runtime       = "nodejs18.x"
+  filename      = "webhook.zip"
   description   = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 }
 
@@ -98,11 +152,21 @@ resource "aws_ssm_parameter" "with_hex_digest" {
   value = "9e107d9d372bb6826bd81d3542a419d6ab5f3c81"
 }
 
+# Matches no known credential format at all, so randomness is the only signal
+# left. Fires at high rather than critical: a statistical accusation is not a
+# recognised credential shape.
+resource "aws_ssm_parameter" "unknown_vendor_token" {
+  name  = "/prod/vendor"
+  type  = "SecureString"
+  value = "Zk9#mQ2$vT7!xR4&pL8@wN3^cF6"
+}
+
 # --- the near-misses that must stay silent ---------------------------------
 
 # 41 characters of [a-z/] that the 40-char base64 class matches. This exact
 # shape was reported as a leaked AWS secret key, at critical severity, when
-# the scanner was run against this project's own Terraform. It is a path.
+# the scanner was first run against this project's own Terraform. It is a
+# build command.
 resource "null_resource" "build" {
   triggers = {
     always = "1"
@@ -133,17 +197,8 @@ resource "aws_ssm_parameter" "short" {
   value = "abc123"
 }
 
-# Matches no known credential format at all. Randomness is the only signal
-# left, so this must fire on entropy alone — at high rather than critical,
-# because a statistical accusation is not a recognised credential shape.
-resource "aws_ssm_parameter" "unknown_vendor_token" {
-  name  = "/prod/vendor"
-  type  = "SecureString"
-  value = "Zk9#mQ2$vT7!xR4&pL8@wN3^cF6"
-}
-
-# High entropy, but public by design. An ARN must never be reported as a
-# leaked secret; that failure mode is how a rule gets switched off.
+# High entropy, but public by design. An ARN reported as a leaked secret is
+# how a rule gets switched off.
 resource "aws_ssm_parameter" "arn_value" {
   name  = "/prod/role"
   type  = "String"
@@ -151,6 +206,10 @@ resource "aws_ssm_parameter" "arn_value" {
 }
 
 # A non-literal value cannot be pattern-matched and must never be guessed at.
+data "aws_secretsmanager_secret_version" "current" {
+  secret_id = "prod/api"
+}
+
 resource "aws_ssm_parameter" "computed" {
   name  = "/prod/computed"
   type  = "SecureString"
@@ -160,11 +219,12 @@ resource "aws_ssm_parameter" "computed" {
 # --- open CIDR, top level and nested ---------------------------------------
 
 resource "aws_security_group_rule" "ssh_from_anywhere" {
-  type        = "ingress"
-  from_port   = 22
-  to_port     = 22
-  protocol    = "tcp"
-  cidr_blocks = ["0.0.0.0/0"]
+  type              = "ingress"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  security_group_id = "sg-abc123"
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 resource "aws_security_group" "mixed" {
@@ -199,9 +259,12 @@ resource "aws_s3_bucket" "test_data" {
 }
 
 resource "aws_db_instance" "deliberate" {
-  identifier = "demo-cluster"
+  identifier     = "demo-cluster"
+  engine         = "postgres"
+  instance_class = "db.t3.medium"
 }
 
 resource "aws_elasticache_cluster" "real" {
   cluster_id = "prod-sessions"
+  engine     = "redis"
 }
