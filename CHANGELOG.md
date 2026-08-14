@@ -106,8 +106,8 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   provider version per provider — the single version field it replaces was
   silently overwritten by whichever pack loaded last.
 
-  No Azure or GCP pack ships yet; this is the plumbing that makes shipping
-  one a data drop instead of a code change.
+  This is the plumbing that made shipping the Azure pack (above) a data
+  drop instead of a code change; a GCP pack would land the same way.
 
 - **Every finding links to the provider documentation** for its resource type,
   pinned to the provider version the rule pack was generated from. A scanner
