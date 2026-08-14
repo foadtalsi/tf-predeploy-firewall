@@ -173,7 +173,7 @@ access to your repo.
 name: tf-predeploy-firewall
 on:
   pull_request:
-    paths: ["**/*.tf"]
+    paths: ["**/*.tf", "**/*.tfvars", "**/*.tfvars.json", "**/terragrunt.hcl"]
 
 permissions:
   pull-requests: write

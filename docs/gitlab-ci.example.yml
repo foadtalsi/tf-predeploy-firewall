@@ -25,6 +25,8 @@ tf-predeploy-firewall:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - "**/*.tf"
+        - "**/*.tfvars"
+        - "**/*.tfvars.json"
         - "**/terragrunt.hcl"
   variables:
     # The scanner diffs against the MR target branch, so the fetch must

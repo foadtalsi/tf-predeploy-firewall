@@ -22,5 +22,10 @@
   # The scanner reads the git index itself, so it needs no filename
   # arguments; the files filter just keeps the hook from running on commits
   # that touch no Terraform at all.
-  files: (\.tf|terragrunt\.hcl)$
+  #
+  # .tfvars is spelled out rather than left to `\.tf`, which anchors at the
+  # end and does not match it. A commit that only adds terraform.tfvars is
+  # the single most valuable one for this hook to see — that file is where
+  # values live, so it is where a secret lands.
+  files: (\.tf|\.tfvars|\.tfvars\.json|terragrunt\.hcl)$
   pass_filenames: false
