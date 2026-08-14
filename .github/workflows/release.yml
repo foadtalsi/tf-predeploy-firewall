@@ -117,6 +117,29 @@ jobs:
           fi
           cat /tmp/notes.md
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # Pre-built binaries are the local-use story: `--staged` in a
+      # pre-commit hook and `--uncommitted` at a dev's desk shouldn't require
+      # a Go toolchain or a Docker pull. Cross-compiled here because Go makes
+      # that free; the matrix covers every platform a laptop or CI runner
+      # plausibly is.
+      - name: Build release binaries
+        run: |
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do
+            GOOS="${target%/*}"; GOARCH="${target#*/}"
+            EXT=""; [ "$GOOS" = windows ] && EXT=".exe"
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+              go build -trimpath \
+                -ldflags "-s -w -X main.version=${{ steps.v.outputs.tag }}" \
+                -o "dist/tf-predeploy-firewall_${GOOS}_${GOARCH}${EXT}" \
+                ./cmd/tf-predeploy-firewall
+          done
+          (cd dist && sha256sum * > checksums.txt && cat checksums.txt)
+
       # The whole point of this workflow. Without it the major tag drifts
       # behind main again and users silently run an old build.
       - name: Move the major alias tag
@@ -133,7 +156,8 @@ jobs:
           gh release create "${{ steps.v.outputs.tag }}" \
             --title "${{ steps.v.outputs.tag }}" \
             --notes-file /tmp/notes.md \
-            --verify-tag 2>/dev/null \
-          || gh release edit "${{ steps.v.outputs.tag }}" \
-            --title "${{ steps.v.outputs.tag }}" \
-            --notes-file /tmp/notes.md
+            --verify-tag dist/* 2>/dev/null \
+          || { gh release edit "${{ steps.v.outputs.tag }}" \
+                 --title "${{ steps.v.outputs.tag }}" \
+                 --notes-file /tmp/notes.md; \
+               gh release upload "${{ steps.v.outputs.tag }}" dist/* --clobber; }

@@ -84,6 +84,22 @@ func (cfg config) ignorePathRules() []ignore.PathRule {
 	return rules
 }
 
+// version is stamped by the release build via
+// -ldflags "-X main.version=v1.2.3"; "dev" means a from-source build.
+var version = "dev"
+
+// count reports how many of the given booleans are set — for flag
+// mutual-exclusion checks.
+func count(bs ...bool) int {
+	n := 0
+	for _, b := range bs {
+		if b {
+			n++
+		}
+	}
+	return n
+}
+
 func main() {
 	repoDir := flag.String("repo-dir", ".", "path to the git repository to scan")
 	baseRef := flag.String("base-ref", envOr("GITHUB_BASE_REF", "origin/main"), "git ref to diff against (PR base)")
@@ -98,7 +114,27 @@ func main() {
 	baselinePath := flag.String("baseline", envOr("TFPDF_BASELINE", ""), "path to a committed baseline file of accepted pre-existing findings. They stay visible in the PR comment but don't block a merge; anything new does. Missing file = no baseline.")
 	writeBaseline := flag.String("write-baseline", "", "write the current findings to this path as the new baseline and exit without failing. Run once when adopting the scanner on an existing repo, then commit the file.")
 	providersFlag := flag.String("providers", envOr("TFPDF_PROVIDERS", "auto"), `comma-separated providers to fetch extended rule packs for ("aws,azurerm"), or "auto" to detect them from the resource types in the scanned files. Only affects which extended packs a licensed scan fetches — the embedded base packs always cover whatever they cover.`)
+	staged := flag.Bool("staged", false, "scan the staged changes (git index vs HEAD) instead of a ref diff — what a pre-commit hook wants: the findings arrive before the secret enters history, while removing it is still an edit and not a rotation")
+	uncommitted := flag.Bool("uncommitted", false, "scan working-tree changes vs HEAD — staged, unstaged and untracked .tf files alike. The \"what would the firewall say?\" mode for local use, no refs needed")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("tf-predeploy-firewall " + version)
+		return
+	}
+	report.ToolVersion = version
+
+	if nModes := count(*staged, *uncommitted, *fullRepoScan); nModes > 1 {
+		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: --staged, --uncommitted and --full-repo-scan are mutually exclusive")
+		os.Exit(2)
+	}
+	if *staged || *uncommitted {
+		// A local scan has no PR to comment on. GITHUB_TOKEN being exported
+		// in a developer's shell is common enough that leaving the default
+		// in place would make the hook try (and fail) to post somewhere.
+		*postComment = false
+	}
 
 	cfg, err := loadConfig(*configPath)
 	if err != nil {
@@ -115,9 +151,14 @@ func main() {
 	// actually use — fetching an Azure pack to scan an AWS repo would be a
 	// network round trip spent on nothing.
 	var changed []diff.ChangedFile
-	if *fullRepoScan {
+	switch {
+	case *staged:
+		changed, err = diff.StagedTerraformFiles(*repoDir)
+	case *uncommitted:
+		changed, err = diff.UncommittedTerraformFiles(*repoDir)
+	case *fullRepoScan:
 		changed, err = diff.AllTerraformFiles(*repoDir)
-	} else {
+	default:
 		changed, err = diff.ChangedTerraformFiles(*repoDir, *baseRef, *headRef)
 	}
 	if err != nil {
@@ -189,9 +230,14 @@ func main() {
 	}
 
 	var terragruntChanged []diff.ChangedFile
-	if *fullRepoScan {
+	switch {
+	case *staged:
+		terragruntChanged, err = diff.StagedTerragruntFiles(*repoDir)
+	case *uncommitted:
+		terragruntChanged, err = diff.UncommittedTerragruntFiles(*repoDir)
+	case *fullRepoScan:
 		terragruntChanged, err = diff.AllTerragruntFiles(*repoDir)
-	} else {
+	default:
 		terragruntChanged, err = diff.ChangedTerragruntFiles(*repoDir, *baseRef, *headRef)
 	}
 	if err != nil {

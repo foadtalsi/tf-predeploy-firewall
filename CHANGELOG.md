@@ -6,6 +6,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **The scanner runs at your desk, not only in CI.** Releases now attach
+  static binaries for Linux, macOS and Windows (amd64/arm64), and two new
+  modes make them useful without a PR: `--uncommitted` scans everything
+  changed since HEAD — staged, unstaged and untracked files alike, since the
+  brand-new `main.tf` nobody has `git add`ed is exactly what the question is
+  about — and `--staged` scans the git index, judging partial staging on
+  what the commit will actually contain. Both work on a repo's very first
+  commit, exit 1 at the block threshold like CI does, and never post
+  comments or report usage.
+
+  A `.pre-commit-hooks.yaml` makes it a three-line
+  [pre-commit](https://pre-commit.com) hook. This is the moment the finding
+  is cheapest: before a secret enters git history, removing it is an edit;
+  after, it's a rotation.
+
+  The binary is now `cmd/tf-predeploy-firewall` (was `cmd/scanner`), so
+  `go install` produces a binary with the tool's actual name, and `--version`
+  reports the release it was built from (also stamped into SARIF).
+
 - **Multi-provider plumbing.** The knowledge base loads any number of rule
   packs for any number of providers side by side — resource type prefixes
   (`aws_`, `azurerm_`, `google_`) are the namespace, so lookups need no

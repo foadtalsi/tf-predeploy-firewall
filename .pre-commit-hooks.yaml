@@ -1,0 +1,26 @@
+# Hook definition for https://pre-commit.com — lets any repo add this
+# scanner to its pre-commit config with three lines:
+#
+#   repos:
+#     - repo: https://github.com/foadtalsi/tf-predeploy-firewall
+#       rev: v1.1.0
+#       hooks:
+#         - id: tf-predeploy-firewall
+#
+# pre-commit builds the binary itself with the Go toolchain (language:
+# golang), so there is nothing to install first and the hook pins to the rev
+# above rather than to whatever happens to be on PATH.
+- id: tf-predeploy-firewall
+  name: TF Pre-Deploy Firewall
+  description: >
+    Scans the staged Terraform changes for hardcoded credentials,
+    hallucinated attributes, destroy+recreate traps and missing
+    prevent_destroy guards — before they enter git history, while removing a
+    secret is still an edit and not a rotation.
+  entry: tf-predeploy-firewall --staged
+  language: golang
+  # The scanner reads the git index itself, so it needs no filename
+  # arguments; the files filter just keeps the hook from running on commits
+  # that touch no Terraform at all.
+  files: (\.tf|terragrunt\.hcl)$
+  pass_filenames: false

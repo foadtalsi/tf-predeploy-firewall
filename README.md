@@ -468,8 +468,62 @@ judgment calls rather than facts the provider exposes:
 Curated entries are validated against the generated schema, so a type that a
 provider renames or removes is reported rather than silently ignored.
 
-## Local run
+## Running it locally
+
+The scanner is a single static binary — the GitHub Action is just one way to
+run it. Locally it answers before anything is committed, which is the only
+moment a hardcoded secret is still an *edit*; once it enters git history,
+removing it means rotating it.
+
+Install from a release (Linux/macOS, amd64/arm64, Windows):
 
 ```sh
-go run ./cmd/scanner --repo-dir . --base-ref origin/main --head-ref HEAD
+curl -fsSL -o /usr/local/bin/tf-predeploy-firewall \
+  https://github.com/foadtalsi/tf-predeploy-firewall/releases/latest/download/tf-predeploy-firewall_$(uname -s | tr A-Z a-z)_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+chmod +x /usr/local/bin/tf-predeploy-firewall
+```
+
+or with Go: `go install github.com/foadtalsi/tf-predeploy-firewall/cmd/tf-predeploy-firewall@latest`
+
+Then, in any Terraform repo:
+
+```sh
+tf-predeploy-firewall --uncommitted   # everything changed since HEAD: staged, unstaged, untracked
+tf-predeploy-firewall --staged        # exactly what the next commit would contain
+tf-predeploy-firewall --base-ref origin/main --head-ref HEAD   # the CI view of a branch
+```
+
+`--uncommitted` includes untracked files on purpose — the brand-new `main.tf`
+nobody has `git add`ed yet is precisely the file the question is about.
+`--staged` reads the git index, not the working tree, so partial staging
+(`git add -p`) is judged on what the commit will actually contain. Exit code
+1 means the block threshold was reached, same as in CI.
+
+### As a pre-commit hook
+
+With [pre-commit](https://pre-commit.com), add to `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/foadtalsi/tf-predeploy-firewall
+    rev: v1
+    hooks:
+      - id: tf-predeploy-firewall
+```
+
+pre-commit builds the pinned rev itself with the Go toolchain — nothing else
+to install. Without pre-commit, a plain git hook does the same:
+
+```sh
+echo 'exec tf-predeploy-firewall --staged' > .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+Local runs never post comments and never report usage — they're the same
+free scanner, pointed at your keyboard instead of your CI.
+
+## Running from source
+
+```sh
+go run ./cmd/tf-predeploy-firewall --repo-dir . --base-ref origin/main --head-ref HEAD
 ```

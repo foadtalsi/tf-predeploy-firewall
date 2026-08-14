@@ -163,6 +163,12 @@ var severityToSarifLevel = map[Severity]string{
 	SeverityCritical: "error",
 }
 
+// ToolVersion appears as the driver version in SARIF output. main stamps it
+// from the release ldflags; "dev" means a from-source build. A package var
+// rather than a parameter because exactly one caller will ever set it and
+// every render site would otherwise thread it through untouched.
+var ToolVersion = "dev"
+
 // RenderSARIF serialises findings as a SARIF 2.1.0 JSON document suitable
 // for upload to GitHub Code Scanning via actions/upload-sarif.
 func RenderSARIF(findings []Finding) ([]byte, error) {
@@ -195,7 +201,7 @@ func RenderSARIF(findings []Finding) ([]byte, error) {
 		Runs: []sarifRun{{
 			Tool: sarifTool{Driver: sarifDriver{
 				Name:           "tf-predeploy-firewall",
-				Version:        "0.1.0",
+				Version:        ToolVersion,
 				InformationURI: "https://github.com/foadtalsi/tf-predeploy-firewall",
 				Rules:          describedRules(),
 			}},
