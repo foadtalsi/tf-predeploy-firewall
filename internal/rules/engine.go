@@ -51,16 +51,21 @@ type Rule interface {
 	Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding
 }
 
-// DefaultRules returns every built-in rule, in the order findings should
-// be reported.
-func DefaultRules() []Rule {
-	return []Rule{
-		UnknownAttributeRule{},
-		TutorialPatternRule{},
-		ForceNewChangeRule{},
-		MissingLifecycleRule{},
-		UnpinnedVersionRule{},
+// DefaultRules returns the built-in rule set, in pack order.
+//
+// The rules themselves are declarations in internal/ruledef/rules.yaml, not
+// Go: what each one looks for, how its finding is worded, and what the
+// documentation says are all data. This function only resolves those
+// declarations into runnable form.
+func DefaultRules(opts Options) []Rule {
+	ruleset, err := FromPack(BuiltinPack(), opts)
+	if err != nil {
+		// FromPack only fails on a malformed pack, and the built-in pack is
+		// embedded in this binary — so this is a broken build, not a bad
+		// input, and carrying on would mean scanning with rules missing.
+		panic("tf-predeploy-firewall: " + err.Error())
 	}
+	return ruleset
 }
 
 // Result is the outcome of a static-scan Run: the findings plus the set of

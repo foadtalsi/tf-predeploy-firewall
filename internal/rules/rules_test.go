@@ -58,7 +58,7 @@ func TestTutorialPatternRule(t *testing.T) {
 	kb := mustLoadSchema(t)
 	in := FileInput{Path: "tutorial_pattern.tf", HeadResources: mustParseFixture(t, "tutorial_pattern.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, kb)
+	findings := tutorialPatternRule(t).Check(in, kb)
 	if !hasCategory(findings, report.CategoryTutorialPattern) {
 		t.Fatalf("expected tutorial_pattern findings, got %#v", findings)
 	}
@@ -145,7 +145,7 @@ func TestTutorialPatternRule_CredentialValuePatterns(t *testing.T) {
 	kb := mustLoadSchema(t)
 	in := FileInput{Path: "credential_values.tf", HeadResources: mustParseFixture(t, "credential_values.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, kb)
+	findings := tutorialPatternRule(t).Check(in, kb)
 
 	var criticals []report.Finding
 	for _, f := range findings {
@@ -170,7 +170,7 @@ resource "aws_db_instance" "x" {
 		t.Fatalf("parse: %v", err)
 	}
 	in := FileInput{Path: "test.tf", HeadResources: resources}
-	findings := TutorialPatternRule{}.Check(in, kb)
+	findings := tutorialPatternRule(t).Check(in, kb)
 
 	for _, f := range findings {
 		if f.Line == 3 {
@@ -183,7 +183,7 @@ func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
 	kb := mustLoadSchema(t)
 	in := FileInput{Path: "nested_block_cidr.tf", HeadResources: mustParseFixture(t, "nested_block_cidr.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, kb)
+	findings := tutorialPatternRule(t).Check(in, kb)
 
 	var cidrFindings []report.Finding
 	for _, f := range findings {
@@ -197,4 +197,20 @@ func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
 	if cidrFindings[0].Resource != "aws_security_group.wide_open" {
 		t.Errorf("unexpected resource: %s", cidrFindings[0].Resource)
 	}
+}
+
+// tutorialPatternRule returns every tutorial_pattern detector the built-in
+// pack declares, as one rule.
+//
+// The detectors used to be a Go type (TutorialPatternRule) that tests could
+// name directly. They are declarations now, so tests reach them the same way
+// a scan does — through the pack. Building them any other way would leave
+// the tests asserting against a construction the product never uses.
+func tutorialPatternRule(t *testing.T) Rule {
+	t.Helper()
+	r, err := RulesForCategory(BuiltinPack(), "tutorial_pattern", Options{})
+	if err != nil {
+		t.Fatalf("loading tutorial_pattern rules: %v", err)
+	}
+	return r
 }

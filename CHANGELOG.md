@@ -5,6 +5,41 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **The detection rules are data, not Go.** What each built-in rule looks
+  for, its severity, the wording of its finding, the one-click fix it offers
+  and the documentation a reader lands on are now declarations in a YAML rule
+  pack (`internal/ruledef/rules.yaml`), embedded in the binary. `--print-rules`
+  writes it out and `--rules <file>` runs against your edited copy — no Go
+  toolchain, no release. A pattern that misfires on your repository is
+  something you can correct today.
+
+  Rules were in Go for no better reason than that the scanner is; the cost
+  was that improving a sentence someone found confusing, or narrowing a
+  regex that overfired, required a release. Four hundred lines of the rule
+  documentation were Markdown inside Go string literals.
+
+  What did *not* move is the more interesting half. Anchoring a finding to a
+  line, offering a fix precise enough for GitHub's "Commit suggestion"
+  button, and confirming a match by measuring it are exactly what a
+  declarative matcher cannot express — and exactly what this scanner does
+  that a plan-JSON policy engine does not. Those traversals stay compiled and
+  declare themselves in the pack with an `engine:` key, so a rule's identity,
+  parameters and documentation still live in one file. The vocabulary a rule
+  may invoke is a fixed list of named predicates with no expression language
+  and no plugin path: this runs inside other people's CI, and a rule format
+  that can execute is one that can be weaponised.
+
+  Verified by pinning all 27 findings a purpose-built corpus produces —
+  messages, suggestions, fixes and notes in full — before the change and
+  asserting them after, and by diffing a full scan of this project's own
+  infrastructure: 39 findings, byte-identical. `docs/rules.md` regenerated
+  from the pack differs from the previous version only in the line naming
+  what generated it.
+
+  `custom_rules:` in your config is untouched and still adds to the built-in
+  rules. See `docs/rule-packs.md`.
+
 ### Added
 - **Rule packs refresh themselves weekly.** A scheduled workflow resolves the
   newest AWS and Azure provider releases, regenerates both packs, verifies

@@ -19,17 +19,10 @@ var severityEmoji = map[Severity]string{
 	SeverityCritical: "🔴",
 }
 
-var categoryLabel = map[Category]string{
-	CategoryUnknownAttribute: "Unknown/hallucinated attribute",
-	CategoryUnpinnedVersion:  "Unpinned module or provider version",
-	CategoryTutorialPattern:  "Tutorial-copy pattern",
-	CategoryForceNewChange:   "ForceNew change on stateful resource",
-	CategoryMissingLifecycle: "Missing prevent_destroy",
-	CategoryConfirmedReplace: "Confirmed destroy/replace (from terraform plan)",
-	CategoryUnexpectedDrift:  "Unexpected drift (from terraform plan)",
-	CategoryLargeBlastRadius: "Large blast radius (from terraform plan)",
-	CategoryCostImpact:       "Estimated cost impact",
-}
+// The readable label for each category comes from the rule pack's `title`,
+// alongside the documentation it heads. Keeping a second copy here would
+// mean a renamed rule reading one way in the PR comment and another on the
+// alert page it links to.
 
 // RenderMarkdown builds the full PR comment body for a set of findings.
 // blocked indicates whether the configured severity threshold was breached
@@ -148,11 +141,11 @@ func renderSuggestions(b *strings.Builder, sorted []Finding) {
 }
 
 // categoryDisplay labels a category for the PR comment. Custom rules
-// (category "custom:<rule-id>", from internal/customrules) aren't in the
-// built-in categoryLabel map — they're rendered as "Custom rule: <id>"
-// instead of falling back to an empty string.
+// (category "custom:<rule-id>", from internal/customrules) have no entry in
+// the built-in pack — they're rendered as "Custom rule: <id>" instead of
+// falling back to an empty string.
 func categoryDisplay(c Category) string {
-	if label, ok := categoryLabel[c]; ok {
+	if label, ok := categoryTitle(c); ok {
 		return label
 	}
 	if id, isCustom := strings.CutPrefix(string(c), customCategoryPrefix); isCustom {

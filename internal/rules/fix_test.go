@@ -117,7 +117,7 @@ func TestFix_ReplacesHardcodedCredentialWithAVariable(t *testing.T) {
   password   = "hunter2"
 }
 `
-	findings := runOn(t, TutorialPatternRule{}, src)
+	findings := runOn(t, tutorialPatternRule(t), src)
 
 	var fix *report.Fix
 	for _, f := range findings {
@@ -157,7 +157,7 @@ resource "aws_db_instance" "prod" {
 		t.Fatalf("ParseFileWithContext: %v", err)
 	}
 	kb, _ := schema.Load()
-	findings := TutorialPatternRule{}.Check(FileInput{
+	findings := tutorialPatternRule(t).Check(FileInput{
 		Path: "main.tf", HeadResources: resources, HeadSource: []byte(src),
 	}, kb)
 

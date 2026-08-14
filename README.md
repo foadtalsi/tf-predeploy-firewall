@@ -389,6 +389,29 @@ with its justification, so accepting a finding is a documented decision,
 not a silent removal. Set an optional expiry to force the team to revisit
 it instead of it becoming permanent by accident.
 
+## The built-in rules are data, not code
+
+Every built-in check — what it looks for, its severity, its wording, the
+documentation it links to — is a declaration in a YAML rule pack, embedded in
+the binary. Print it, change it, run against your version:
+
+```sh
+tf-predeploy-firewall --print-rules > my-rules.yaml
+tf-predeploy-firewall --rules my-rules.yaml
+```
+
+No Go toolchain, no release. A pattern that misfires on your repo is
+something you can correct today rather than file an issue about.
+
+`--rules` replaces the built-in pack (and says so, loudly, on stderr) —
+correcting a built-in rule is the main reason to reach for it, and an
+add-only mechanism could not do that. To *add* rules while keeping the
+built-ins, use `custom_rules:` below.
+
+See **[docs/rule-packs.md](docs/rule-packs.md)** for the format: the match
+vocabulary, the message placeholders, the fixed set of compiled predicates a
+rule may name, and why some checks stay compiled.
+
 ## Custom rules (policy-as-code)
 
 Beyond the built-in checks, define your own detection rules declaratively in

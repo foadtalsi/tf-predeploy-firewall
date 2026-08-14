@@ -142,7 +142,7 @@ var sarifRules = []sarifRule{
 }
 
 // describedRules is sarifRules with each entry's help text, full description
-// and documentation link filled in from ruleHelps.
+// and documentation link filled in from the rule pack.
 //
 // Kept as a derivation rather than written into the literals above so the two
 // can't drift: a category added to one and forgotten in the other shows up as
@@ -154,7 +154,7 @@ func describedRules() []sarifRule {
 	for i, r := range out {
 		c := Category(r.ID)
 		out[i].HelpURI = ruleHelpURI(c)
-		if h, ok := ruleHelps[c]; ok {
+		if h, ok := lookupRuleHelp(c); ok {
 			out[i].FullDescription = &sarifMessage{Text: h.fullDescription}
 			out[i].Help = &sarifHelp{Text: h.fullDescription, Markdown: h.markdown}
 		}

@@ -8,14 +8,14 @@ import (
 	"testing"
 )
 
-var updateDocs = flag.Bool("update", false, "rewrite docs/rules.md from ruleHelps")
+var updateDocs = flag.Bool("update", false, "rewrite docs/rules.md from the rule pack")
 
 const rulesDocPath = "../../docs/rules.md"
 
 // Every SARIF rule's helpUri points at a section of docs/rules.md. A category
 // with no section is a dead link in whoever's security dashboard uploaded the
 // SARIF — so the file is generated, and this keeps it in sync.
-func TestRuleDocs_FileMatchesRuleHelps(t *testing.T) {
+func TestRuleDocs_FileMatchesThePack(t *testing.T) {
 	want := RenderRuleDocs()
 
 	if *updateDocs {
@@ -43,9 +43,9 @@ func TestRuleDocs_FileMatchesRuleHelps(t *testing.T) {
 func TestRuleDocs_EveryRuleIsDocumented(t *testing.T) {
 	for _, r := range sarifRules {
 		c := Category(r.ID)
-		h, ok := ruleHelps[c]
+		h, ok := lookupRuleHelp(c)
 		if !ok {
-			t.Errorf("category %q has a SARIF rule but no help text", c)
+			t.Errorf("category %q has a SARIF rule but no docs entry in the rule pack", c)
 			continue
 		}
 		if h.fullDescription == "" || h.markdown == "" {

@@ -25,6 +25,7 @@ import (
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/licensing"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/planjson"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/report"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/ruledef"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/rules"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/terragrunt"
@@ -121,11 +122,17 @@ func main() {
 	staged := flag.Bool("staged", false, "scan the staged changes (git index vs HEAD) instead of a ref diff — what a pre-commit hook wants: the findings arrive before the secret enters history, while removing it is still an edit and not a rotation")
 	uncommitted := flag.Bool("uncommitted", false, "scan working-tree changes vs HEAD — staged, unstaged and untracked .tf files alike. The \"what would the firewall say?\" mode for local use, no refs needed")
 	rulesDryRun := flag.Bool("rules-dry-run", false, "test the config's custom_rules against the whole repo without failing anything: prints what each rule matched (including 'matched nothing', which is what a rule author most needs to see) and exits 0. No comments are posted, no usage is reported.")
+	rulesPath := flag.String("rules", envOr("TFPDF_RULES", ""), "path to a rule pack (YAML) to use INSTEAD of the built-in one. The detection content — patterns, severities, wording, documentation — is data, so a pattern can be corrected or added without waiting for a release. Start from --print-rules rather than a blank file.")
+	printRules := flag.Bool("print-rules", false, "print the built-in rule pack to stdout and exit — the starting point for a --rules file, and the honest answer to \"what exactly does this thing look for?\"")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println("tf-predeploy-firewall " + version)
+		return
+	}
+	if *printRules {
+		os.Stdout.Write(ruledef.BuiltinYAML())
 		return
 	}
 	report.ToolVersion = version
@@ -192,13 +199,18 @@ func main() {
 		coverage.Packs, strings.Join(providerSummary, ", "), coverage.ResourceTypes)
 	warnUncoveredProviders(changed, coverage)
 
-	ruleset := rules.DefaultRules()
 	// The static cost estimator runs only when no plan JSON is supplied —
 	// the plan-based CostImpactRule sees counts, for_each and computed
 	// values, so when both could run, the better-informed one runs alone
 	// rather than billing the same PR twice with numbers that may disagree.
-	if cfg.CostImpactThresholdUSD > 0 && *planJSONPath == "" {
-		ruleset = append(ruleset, rules.StaticCostRule{ThresholdUSD: cfg.CostImpactThresholdUSD})
+	ruleOpts := rules.Options{}
+	if *planJSONPath == "" {
+		ruleOpts.CostThresholdUSD = cfg.CostImpactThresholdUSD
+	}
+	ruleset, err := loadRuleset(*rulesPath, ruleOpts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+		os.Exit(2)
 	}
 	var customRuleSet *customrules.Config
 	if cfg.CustomRulesYAMLOverride != "" {
@@ -1039,4 +1051,37 @@ func defaultPostComment() bool {
 		return os.Getenv("TFPDF_GITLAB_TOKEN") != "" || os.Getenv("GITLAB_TOKEN") != ""
 	}
 	return os.Getenv("GITHUB_TOKEN") != ""
+}
+
+// loadRuleset resolves the rule pack for this scan: the one embedded in the
+// binary, or an external file when --rules names one.
+//
+// An external pack REPLACES the built-in set rather than adding to it, which
+// is the only honest option — a pack that could only ever add rules could not
+// correct a false positive in a built-in one, and that is the first reason
+// anyone reaches for this. It also means a mistake here is a scan running on
+// far fewer rules than the operator thinks, so the swap is announced on
+// stderr with the count, next to the line that reports pack coverage.
+func loadRuleset(path string, opts rules.Options) ([]rules.Rule, error) {
+	if path == "" {
+		return rules.DefaultRules(opts), nil
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading rule pack: %w", err)
+	}
+	pack, err := ruledef.Load(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	ruleset, err := rules.FromPack(pack, opts)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+
+	fmt.Fprintf(os.Stderr,
+		"tf-predeploy-firewall: using rule pack %s (%d definitions, %d active) — the built-in rules are NOT in effect\n",
+		path, len(pack.Rules), len(ruleset))
+	return ruleset, nil
 }

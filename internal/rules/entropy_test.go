@@ -49,7 +49,7 @@ func TestTutorialPattern_FlagsHighEntropyValueInUnnamedAttribute(t *testing.T) {
   some_config_field = "xoxb4Qm7Zt2LkVpR9sWyE3uHnJd6FbCa8gXe"
 }
 `
-	findings := runOn(t, TutorialPatternRule{}, src)
+	findings := runOn(t, tutorialPatternRule(t), src)
 
 	var hit bool
 	for _, f := range findings {
@@ -72,7 +72,7 @@ func TestTutorialPattern_KnownFormatsWinOverEntropy(t *testing.T) {
   user_data = "AKIAIOSFODNN7EXAMPLEAKIAIOSFODNN7EXAMPLE"
 }
 `
-	for _, f := range runOn(t, TutorialPatternRule{}, src) {
+	for _, f := range runOn(t, tutorialPatternRule(t), src) {
 		if strings.Contains(f.Message, "high-entropy string") {
 			t.Error("a recognized credential format must not double-report as entropy")
 		}
