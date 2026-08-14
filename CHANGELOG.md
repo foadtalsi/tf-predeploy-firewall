@@ -56,6 +56,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is already committed*, not asserted as fact when nothing is disclosed yet.
 
 ### Fixed
+- **A build command was reported as a leaked AWS secret key.** The 40-char
+  base64 pattern matched any long run of `[a-z0-9/+]`, which an ordinary file
+  path reaches easily — `infra/terraform/build/dashboard/bootstrap` is 41 —
+  so a `local-exec` command was flagged at *critical* severity. Found by
+  running the scanner against this project's own Terraform.
+
+  A credential pattern may now carry a confirmation check applied to the
+  matched text. The base64 one requires mixed case, digits and high entropy
+  (which base64 of random bytes has and a lowercase path does not); the
+  "high-entropy hex string" pattern now actually measures entropy, so a
+  repetitive run of valid hex characters no longer qualifies. Detection of
+  real keys is unchanged — AWS's own canonical example secret still matches.
+
 - **A GCP repo was told it had coverage it never had.** `google` was listed
   as a fetchable provider in v1.1.0 while no GCP pack was ever generated, so
   a licensed scan announced that coverage "falls back to the embedded pack"

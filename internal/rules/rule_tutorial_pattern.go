@@ -33,22 +33,71 @@ var genericNamePattern = regexp.MustCompile(`(?i)^(example|test|demo|foo|bar|my[
 // credentialValuePatterns detects high-entropy or well-known credential
 // formats embedded in any string literal, regardless of the attribute name.
 // These are ordered cheapest-to-most-specific; first match wins for message.
+//
+// A pattern may carry a confirm function, applied to the matched text. It
+// exists for shapes loose enough to hit ordinary strings: the character
+// class alone cannot tell a secret from a long path, but randomness can.
 var credentialValuePatterns = []struct {
-	re    *regexp.Regexp
-	label string
+	re      *regexp.Regexp
+	label   string
+	confirm func(match string) bool
 }{
 	// AWS access key ID
-	{regexp.MustCompile(`AKIA[A-Z0-9]{16}`), "AWS access key ID (AKIA…)"},
-	// AWS secret access key: 40-char base64url
-	{regexp.MustCompile(`(?i)[a-z0-9/+]{40}`), "possible AWS secret key (40-char base64)"},
+	{re: regexp.MustCompile(`AKIA[A-Z0-9]{16}`), label: "AWS access key ID (AKIA…)"},
+	// AWS secret access key: 40 characters of base64.
+	//
+	// The character class matches any 40-char run of [a-z0-9/+], which a
+	// file path reaches easily — "infra/terraform/build/dashboard/bootstrap"
+	// is 41 — and reporting a build command as a leaked AWS key at critical
+	// severity is precisely the false positive that gets a scanner switched
+	// off. A real secret is base64 output: mixed case, digits, and high
+	// entropy. Requiring that keeps the detection and drops the paths.
+	{
+		re:      regexp.MustCompile(`(?i)[a-z0-9/+]{40}`),
+		label:   "possible AWS secret key (40-char base64)",
+		confirm: looksLikeBase64Secret,
+	},
 	// PEM private key header
-	{regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----`), "PEM private key"},
+	{re: regexp.MustCompile(`-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----`), label: "PEM private key"},
 	// JWT (3 base64url segments separated by dots)
-	{regexp.MustCompile(`^ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`), "JWT token"},
+	{re: regexp.MustCompile(`^ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$`), label: "JWT token"},
 	// GitHub PAT (classic ghp_ or fine-grained github_pat_)
-	{regexp.MustCompile(`^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$`), "GitHub personal access token"},
-	// Generic high-entropy hex string (32+ chars: MD5/SHA/UUID-ish secrets)
-	{regexp.MustCompile(`^[0-9a-f]{32,}$`), "high-entropy hex string (possible secret)"},
+	{re: regexp.MustCompile(`^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$`), label: "GitHub personal access token"},
+	// Generic high-entropy hex string (32+ chars: MD5/SHA/UUID-ish secrets).
+	// The label claims entropy, so the check measures it: hex tops out at 4
+	// bits/char, and a repetitive run like 40 a's is a valid hex string with
+	// none of it.
+	{
+		re:      regexp.MustCompile(`^[0-9a-f]{32,}$`),
+		label:   "high-entropy hex string (possible secret)",
+		confirm: func(m string) bool { return shannonEntropy(m) >= 3.0 },
+	},
+}
+
+// looksLikeBase64Secret reports whether a 40-char base64 run is plausibly
+// random output rather than a path or an identifier.
+//
+// Two conditions, both cheap and both necessary. Mixed case with digits is
+// what base64 of random bytes looks like and what a lowercase file path
+// never is; the entropy floor then rejects the structured strings that
+// happen to mix case anyway. The canonical AWS example secret
+// (wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) clears both comfortably.
+func looksLikeBase64Secret(match string) bool {
+	var hasUpper, hasLower, hasDigit bool
+	for _, r := range match {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		}
+	}
+	if !hasUpper || !hasLower || !hasDigit {
+		return false
+	}
+	return shannonEntropy(match) >= 4.2
 }
 
 func (TutorialPatternRule) Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding {
@@ -170,7 +219,7 @@ func checkCredentialValues(path string, res *parser.Resource) []report.Finding {
 			}
 			matched := false
 			for _, pat := range credentialValuePatterns {
-				if pat.re.MatchString(attr.RawValue) {
+				if patternConfirms(pat.re, pat.confirm, attr.RawValue) {
 					findings = append(findings, report.Finding{
 						File:     path,
 						Line:     attr.Range.Start.Line,
@@ -309,11 +358,23 @@ func MatchCredentialValuePattern(value string) (label string, ok bool) {
 		return "", false
 	}
 	for _, pat := range credentialValuePatterns {
-		if pat.re.MatchString(value) {
+		if patternConfirms(pat.re, pat.confirm, value) {
 			return pat.label, true
 		}
 	}
 	return "", false
+}
+
+// patternConfirms reports whether value matches a credential pattern and,
+// where the pattern carries one, passes its confirmation check against the
+// matched text specifically — not the whole value, since the point is to
+// judge the candidate substring the regexp found.
+func patternConfirms(re *regexp.Regexp, confirm func(string) bool, value string) bool {
+	match := re.FindString(value)
+	if match == "" {
+		return false
+	}
+	return confirm == nil || confirm(match)
 }
 
 // IsOpenCIDR reports whether value is the wide-open 0.0.0.0/0 CIDR block.
