@@ -42,7 +42,7 @@ var credentialValuePatterns = []struct {
 	{regexp.MustCompile(`^[0-9a-f]{32,}$`), "high-entropy hex string (possible secret)"},
 }
 
-func (TutorialPatternRule) Check(in FileInput, aws *schema.AWS) []report.Finding {
+func (TutorialPatternRule) Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {

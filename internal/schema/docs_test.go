@@ -43,7 +43,7 @@ func TestDocURL_NoLinkForADataSourceOnlyType(t *testing.T) {
 // to describe the same provider release the claim was checked against.
 func TestDocURL_PinsThePackProviderVersion(t *testing.T) {
 	aws, _ := Load()
-	version := aws.Coverage().ProviderVersion
+	version := aws.Coverage().VersionOf("aws")
 	if version == "" {
 		t.Skip("base pack declares no provider version")
 	}

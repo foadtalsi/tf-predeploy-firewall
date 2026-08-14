@@ -14,7 +14,7 @@ import (
 // deletion via a careless apply.
 type MissingLifecycleRule struct{}
 
-func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Finding {
+func (MissingLifecycleRule) Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
@@ -23,7 +23,7 @@ func (MissingLifecycleRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 		if res.Kind != parser.KindResource {
 			continue
 		}
-		if !aws.IsCritical(res.Type) {
+		if !kb.IsCritical(res.Type) {
 			continue
 		}
 

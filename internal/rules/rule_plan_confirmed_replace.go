@@ -19,14 +19,14 @@ type ConfirmedReplaceRule struct{}
 // Check runs the rule over every resource_changes entry in the plan.
 // planPath is used only to attribute the finding to a file (the plan JSON
 // itself; findings here have no line number in .tf source).
-func (ConfirmedReplaceRule) Check(planPath string, changes []planjson.ResourceChange, aws *schema.AWS) []report.Finding {
+func (ConfirmedReplaceRule) Check(planPath string, changes []planjson.ResourceChange, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, rc := range changes {
 		if !rc.IsManaged() {
 			continue // data source reads are never destroyed/replaced
 		}
-		critical := aws.IsCritical(rc.Type)
+		critical := kb.IsCritical(rc.Type)
 
 		switch {
 		case rc.Change.IsDestroyOnly():

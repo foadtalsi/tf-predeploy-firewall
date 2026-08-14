@@ -28,31 +28,31 @@ func mustLoadCostImpactPlan(t *testing.T) *planjson.PlanFile {
 // Total delta: 280 + 62.5 - 32 = 310.5
 
 func TestCostImpactRule_Disabled(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadCostImpactPlan(t)
 
-	findings := CostImpactRule{ThresholdUSD: 0}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := CostImpactRule{ThresholdUSD: 0}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings when threshold is 0 (disabled), got %#v", findings)
 	}
 }
 
 func TestCostImpactRule_BelowThreshold(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadCostImpactPlan(t)
 
 	// Total delta is 310.5; a threshold above that should not trigger.
-	findings := CostImpactRule{ThresholdUSD: 1000}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := CostImpactRule{ThresholdUSD: 1000}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings below threshold, got %#v", findings)
 	}
 }
 
 func TestCostImpactRule_AboveThreshold(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadCostImpactPlan(t)
 
-	findings := CostImpactRule{ThresholdUSD: 100}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := CostImpactRule{ThresholdUSD: 100}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 1 {
 		t.Fatalf("expected exactly 1 aggregate finding, got %d: %#v", len(findings), findings)
 	}
@@ -69,27 +69,27 @@ func TestCostImpactRule_AboveThreshold(t *testing.T) {
 }
 
 func TestCostImpactRule_SeverityEscalatesAtFiveXThreshold(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadCostImpactPlan(t)
 
 	// Total delta 310.5 >= 5*50 (250) => high severity.
-	high := CostImpactRule{ThresholdUSD: 50}.Check("plan.json", pf.ResourceChanges, aws)
+	high := CostImpactRule{ThresholdUSD: 50}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(high) != 1 || high[0].Severity != report.SeverityHigh {
 		t.Fatalf("expected high severity at 5x threshold, got %#v", high)
 	}
 
 	// Total delta 310.5 < 5*100 (500) => medium severity.
-	medium := CostImpactRule{ThresholdUSD: 100}.Check("plan.json", pf.ResourceChanges, aws)
+	medium := CostImpactRule{ThresholdUSD: 100}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(medium) != 1 || medium[0].Severity != report.SeverityMedium {
 		t.Fatalf("expected medium severity below 5x threshold, got %#v", medium)
 	}
 }
 
 func TestCostImpactRule_SkipsDataSourcesAndNoOps(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadCostImpactPlan(t)
 
-	findings := CostImpactRule{ThresholdUSD: 1}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := CostImpactRule{ThresholdUSD: 1}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 1 {
 		t.Fatalf("expected exactly 1 aggregate finding, got %d: %#v", len(findings), findings)
 	}
@@ -102,7 +102,7 @@ func TestCostImpactRule_SkipsDataSourcesAndNoOps(t *testing.T) {
 }
 
 func TestCostImpactRule_UnpricedResourceTypeContributesZero(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 
 	changes := []planjson.ResourceChange{
 		{
@@ -117,7 +117,7 @@ func TestCostImpactRule_UnpricedResourceTypeContributesZero(t *testing.T) {
 		},
 	}
 
-	findings := CostImpactRule{ThresholdUSD: 1}.Check("plan.json", changes, aws)
+	findings := CostImpactRule{ThresholdUSD: 1}.Check("plan.json", changes, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings for an unpriced resource type, got %#v", findings)
 	}

@@ -19,7 +19,7 @@ type BlastRadiusRule struct {
 	Threshold int
 }
 
-func (r BlastRadiusRule) Check(planPath string, changes []planjson.ResourceChange, aws *schema.AWS) []report.Finding {
+func (r BlastRadiusRule) Check(planPath string, changes []planjson.ResourceChange, kb *schema.KnowledgeBase) []report.Finding {
 	if r.Threshold <= 0 {
 		return nil
 	}

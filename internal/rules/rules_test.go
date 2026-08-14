@@ -10,13 +10,13 @@ import (
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 )
 
-func mustLoadSchema(t *testing.T) *schema.AWS {
+func mustLoadSchema(t *testing.T) *schema.KnowledgeBase {
 	t.Helper()
-	aws, err := schema.Load()
+	kb, err := schema.Load()
 	if err != nil {
 		t.Fatalf("schema.Load: %v", err)
 	}
-	return aws
+	return kb
 }
 
 func mustParseFixture(t *testing.T, name string) []*parser.Resource {
@@ -42,10 +42,10 @@ func hasCategory(findings []report.Finding, cat report.Category) bool {
 }
 
 func TestUnknownAttributeRule(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	in := FileInput{Path: "unknown_attribute.tf", HeadResources: mustParseFixture(t, "unknown_attribute.tf")}
 
-	findings := UnknownAttributeRule{}.Check(in, aws)
+	findings := UnknownAttributeRule{}.Check(in, kb)
 	if !hasCategory(findings, report.CategoryUnknownAttribute) {
 		t.Fatalf("expected an unknown_attribute finding, got %#v", findings)
 	}
@@ -55,10 +55,10 @@ func TestUnknownAttributeRule(t *testing.T) {
 }
 
 func TestTutorialPatternRule(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	in := FileInput{Path: "tutorial_pattern.tf", HeadResources: mustParseFixture(t, "tutorial_pattern.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, aws)
+	findings := TutorialPatternRule{}.Check(in, kb)
 	if !hasCategory(findings, report.CategoryTutorialPattern) {
 		t.Fatalf("expected tutorial_pattern findings, got %#v", findings)
 	}
@@ -93,7 +93,7 @@ func TestTutorialPatternRule(t *testing.T) {
 }
 
 func TestForceNewChangeRule(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	base := mustParseFixture(t, "forcenew_base.tf")
 	head := mustParseFixture(t, "forcenew_head.tf")
 
@@ -103,7 +103,7 @@ func TestForceNewChangeRule(t *testing.T) {
 	}
 
 	in := FileInput{Path: "forcenew_head.tf", HeadResources: head, BaseResources: baseByAddr}
-	findings := ForceNewChangeRule{}.Check(in, aws)
+	findings := ForceNewChangeRule{}.Check(in, kb)
 
 	if !hasCategory(findings, report.CategoryForceNewChange) {
 		t.Fatalf("expected a force_new_change finding for engine change, got %#v", findings)
@@ -114,11 +114,11 @@ func TestForceNewChangeRule(t *testing.T) {
 }
 
 func TestForceNewChangeRule_NewResourceSkipped(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	head := mustParseFixture(t, "forcenew_head.tf")
 
 	in := FileInput{Path: "forcenew_head.tf", HeadResources: head, BaseResources: map[string]*parser.Resource{}}
-	findings := ForceNewChangeRule{}.Check(in, aws)
+	findings := ForceNewChangeRule{}.Check(in, kb)
 
 	if len(findings) != 0 {
 		t.Errorf("expected no findings for a brand-new resource, got %#v", findings)
@@ -126,10 +126,10 @@ func TestForceNewChangeRule_NewResourceSkipped(t *testing.T) {
 }
 
 func TestMissingLifecycleRule(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	in := FileInput{Path: "missing_lifecycle.tf", HeadResources: mustParseFixture(t, "missing_lifecycle.tf")}
 
-	findings := MissingLifecycleRule{}.Check(in, aws)
+	findings := MissingLifecycleRule{}.Check(in, kb)
 	if len(findings) != 1 {
 		t.Fatalf("expected exactly 1 finding (only the unprotected resource), got %d: %#v", len(findings), findings)
 	}
@@ -142,10 +142,10 @@ func TestMissingLifecycleRule(t *testing.T) {
 }
 
 func TestTutorialPatternRule_CredentialValuePatterns(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	in := FileInput{Path: "credential_values.tf", HeadResources: mustParseFixture(t, "credential_values.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, aws)
+	findings := TutorialPatternRule{}.Check(in, kb)
 
 	var criticals []report.Finding
 	for _, f := range findings {
@@ -159,7 +159,7 @@ func TestTutorialPatternRule_CredentialValuePatterns(t *testing.T) {
 }
 
 func TestTutorialPatternRule_BoolAttrsNotFlagged(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	src := []byte(`
 resource "aws_db_instance" "x" {
   manage_master_user_password = true
@@ -170,7 +170,7 @@ resource "aws_db_instance" "x" {
 		t.Fatalf("parse: %v", err)
 	}
 	in := FileInput{Path: "test.tf", HeadResources: resources}
-	findings := TutorialPatternRule{}.Check(in, aws)
+	findings := TutorialPatternRule{}.Check(in, kb)
 
 	for _, f := range findings {
 		if f.Line == 3 {
@@ -180,10 +180,10 @@ resource "aws_db_instance" "x" {
 }
 
 func TestTutorialPatternRule_NestedBlockCIDR(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	in := FileInput{Path: "nested_block_cidr.tf", HeadResources: mustParseFixture(t, "nested_block_cidr.tf")}
 
-	findings := TutorialPatternRule{}.Check(in, aws)
+	findings := TutorialPatternRule{}.Check(in, kb)
 
 	var cidrFindings []report.Finding
 	for _, f := range findings {

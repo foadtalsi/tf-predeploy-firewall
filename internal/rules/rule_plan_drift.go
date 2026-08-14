@@ -29,14 +29,14 @@ type DriftRule struct{}
 // ("module.db.aws_db_instance.prod[0]") are normalized with
 // bareResourceAddress before lookup, since the HCL parser has no concept
 // of module calls or resource instance keys.
-func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, changedAttrs map[string]map[ChangedAttrKey]bool, aws *schema.AWS) []report.Finding {
+func (DriftRule) Check(planPath string, changes []planjson.ResourceChange, changedAttrs map[string]map[ChangedAttrKey]bool, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, rc := range changes {
 		if !rc.IsManaged() || !rc.Change.IsPureUpdate() {
 			continue
 		}
-		spec, known := aws.ForceNew(rc.Type)
+		spec, known := kb.ForceNew(rc.Type)
 		if !known || len(spec.TopLevel) == 0 {
 			continue
 		}

@@ -48,7 +48,7 @@ type FileInput struct {
 
 // Rule is a single risk detector.
 type Rule interface {
-	Check(in FileInput, aws *schema.AWS) []report.Finding
+	Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding
 }
 
 // DefaultRules returns every built-in rule, in the order findings should
@@ -76,7 +76,7 @@ type Result struct {
 // returning the combined findings after applying ignore directives.
 // A parse error on one file is recorded as its own informational finding
 // rather than aborting the whole scan.
-func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOptions) (Result, error) {
+func Run(files []diff.ChangedFile, kb *schema.KnowledgeBase, ruleset []Rule, opts RunOptions) (Result, error) {
 	var findings []report.Finding
 	inlineByFile := make(map[string]map[int]map[report.Category]bool)
 	changedAttrs := make(map[string]map[ChangedAttrKey]bool)
@@ -122,7 +122,7 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 
 		in := FileInput{Path: f.Path, HeadResources: headResources, HeadSource: f.HeadContent, BaseResources: baseByAddr}
 		for _, rule := range ruleset {
-			findings = append(findings, rule.Check(in, aws)...)
+			findings = append(findings, rule.Check(in, kb)...)
 		}
 
 		for _, head := range headResources {
@@ -133,7 +133,7 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 	}
 
 	kept := ignore.Apply(findings, inlineByFile, opts.GlobalIgnore)
-	AttachDocURLs(kept, aws)
+	AttachDocURLs(kept, kb)
 
 	return Result{
 		Findings:     kept,
@@ -151,8 +151,8 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 //
 // Findings whose type no loaded pack covers keep an empty DocURL — a link to
 // a page that may not exist is worse than none.
-func AttachDocURLs(findings []report.Finding, aws *schema.AWS) {
-	if aws == nil {
+func AttachDocURLs(findings []report.Finding, kb *schema.KnowledgeBase) {
+	if kb == nil {
 		return
 	}
 	cache := map[string]string{}
@@ -163,7 +163,7 @@ func AttachDocURLs(findings []report.Finding, aws *schema.AWS) {
 		url, seen := cache[f.Resource]
 		if !seen {
 			if rType, isData, ok := parser.TypeFromAddress(f.Resource); ok {
-				url = aws.DocURL(rType, isData)
+				url = kb.DocURL(rType, isData)
 			}
 			cache[f.Resource] = url
 		}

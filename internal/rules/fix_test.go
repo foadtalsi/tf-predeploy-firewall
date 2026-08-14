@@ -17,7 +17,7 @@ func runOn(t *testing.T, rule Rule, src string) []report.Finding {
 	if err != nil {
 		t.Fatalf("ParseFile: %v", err)
 	}
-	aws, err := schema.Load()
+	kb, err := schema.Load()
 	if err != nil {
 		t.Fatalf("schema.Load: %v", err)
 	}
@@ -25,7 +25,7 @@ func runOn(t *testing.T, rule Rule, src string) []report.Finding {
 		Path:          "main.tf",
 		HeadResources: resources,
 		HeadSource:    []byte(src),
-	}, aws)
+	}, kb)
 }
 
 func onlyFix(t *testing.T, findings []report.Finding) *report.Fix {
@@ -156,10 +156,10 @@ resource "aws_db_instance" "prod" {
 	if err != nil {
 		t.Fatalf("ParseFileWithContext: %v", err)
 	}
-	aws, _ := schema.Load()
+	kb, _ := schema.Load()
 	findings := TutorialPatternRule{}.Check(FileInput{
 		Path: "main.tf", HeadResources: resources, HeadSource: []byte(src),
-	}, aws)
+	}, kb)
 
 	var flagged bool
 	for _, f := range findings {
@@ -198,8 +198,8 @@ func TestFix_NotOfferedWithoutSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	aws, _ := schema.Load()
-	findings := MissingLifecycleRule{}.Check(FileInput{Path: "main.tf", HeadResources: resources}, aws)
+	kb, _ := schema.Load()
+	findings := MissingLifecycleRule{}.Check(FileInput{Path: "main.tf", HeadResources: resources}, kb)
 	for _, f := range findings {
 		if f.Fix != nil {
 			t.Error("a fix built without the file source cannot be exact and must not be offered")

@@ -12,12 +12,12 @@ import (
 // the known schema for a resource type — a common signature of AI
 // hallucination (an attribute that "sounds right" but doesn't exist).
 //
-// Only resource types present in schema.AWS.ResourceSchemas are checked;
-// unmapped types are skipped to avoid false positives on real-but-uncurated
+// Only resource types covered by a loaded rule pack are checked; unmapped
+// types are skipped to avoid false positives on real-but-uncovered
 // attributes.
 type UnknownAttributeRule struct{}
 
-func (UnknownAttributeRule) Check(in FileInput, aws *schema.AWS) []report.Finding {
+func (UnknownAttributeRule) Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
@@ -27,7 +27,7 @@ func (UnknownAttributeRule) Check(in FileInput, aws *schema.AWS) []report.Findin
 		if res.Kind != parser.KindResource {
 			continue
 		}
-		resSchema, known := aws.ResourceSchema(res.Type)
+		resSchema, known := kb.ResourceSchema(res.Type)
 		if !known {
 			continue
 		}

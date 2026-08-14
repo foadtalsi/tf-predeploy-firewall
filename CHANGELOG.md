@@ -6,6 +6,20 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Multi-provider plumbing.** The knowledge base loads any number of rule
+  packs for any number of providers side by side — resource type prefixes
+  (`aws_`, `azurerm_`, `google_`) are the namespace, so lookups need no
+  routing and one provider's answers cannot change because another's pack is
+  loaded. Licensed scans fetch one extended pack per provider actually used
+  in the changed files (detected from block headers; `providers:` overrides),
+  instead of always and only fetching AWS. `genpack --provider azurerm`
+  derives every path from the provider name. Coverage now records one
+  provider version per provider — the single version field it replaces was
+  silently overwritten by whichever pack loaded last.
+
+  No Azure or GCP pack ships yet; this is the plumbing that makes shipping
+  one a data drop instead of a code change.
+
 - **Every finding links to the provider documentation** for its resource type,
   pinned to the provider version the rule pack was generated from. A scanner
   that says an argument doesn't exist and offers no way to check gets argued

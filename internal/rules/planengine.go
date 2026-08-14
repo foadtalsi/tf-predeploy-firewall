@@ -24,19 +24,19 @@ type PlanRuleConfig struct {
 // (the plan itself has no .tf line numbers). changedAttrs should come from
 // the static Run's Result.ChangedAttrs so DriftRule can tell an
 // intentional PR change from unexplained drift.
-func RunPlanRules(planPath string, pf *planjson.PlanFile, changedAttrs map[string]map[ChangedAttrKey]bool, aws *schema.AWS, cfg PlanRuleConfig) []report.Finding {
+func RunPlanRules(planPath string, pf *planjson.PlanFile, changedAttrs map[string]map[ChangedAttrKey]bool, kb *schema.KnowledgeBase, cfg PlanRuleConfig) []report.Finding {
 	var findings []report.Finding
 
-	findings = append(findings, ConfirmedReplaceRule{}.Check(planPath, pf.ResourceChanges, aws)...)
-	findings = append(findings, DriftRule{}.Check(planPath, pf.ResourceChanges, changedAttrs, aws)...)
-	findings = append(findings, BlastRadiusRule{Threshold: cfg.BlastRadiusThreshold}.Check(planPath, pf.ResourceChanges, aws)...)
-	findings = append(findings, CostImpactRule{ThresholdUSD: cfg.CostImpactThresholdUSD}.Check(planPath, pf.ResourceChanges, aws)...)
+	findings = append(findings, ConfirmedReplaceRule{}.Check(planPath, pf.ResourceChanges, kb)...)
+	findings = append(findings, DriftRule{}.Check(planPath, pf.ResourceChanges, changedAttrs, kb)...)
+	findings = append(findings, BlastRadiusRule{Threshold: cfg.BlastRadiusThreshold}.Check(planPath, pf.ResourceChanges, kb)...)
+	findings = append(findings, CostImpactRule{ThresholdUSD: cfg.CostImpactThresholdUSD}.Check(planPath, pf.ResourceChanges, kb)...)
 
 	// No per-line inline ignore directives apply to plan-derived findings
 	// (there's no .tf source line to attach a comment to); only the global
 	// config-level ignore list applies here.
 	kept := ignore.Apply(findings, nil, cfg.GlobalIgnore)
-	AttachDocURLs(kept, aws)
+	AttachDocURLs(kept, kb)
 	return kept
 }
 

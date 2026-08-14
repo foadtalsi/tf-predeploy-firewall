@@ -39,7 +39,7 @@ type resourceCostDelta struct {
 	delta   float64
 }
 
-func (r CostImpactRule) Check(planPath string, changes []planjson.ResourceChange, aws *schema.AWS) []report.Finding {
+func (r CostImpactRule) Check(planPath string, changes []planjson.ResourceChange, kb *schema.KnowledgeBase) []report.Finding {
 	if r.ThresholdUSD <= 0 {
 		return nil
 	}
@@ -51,7 +51,7 @@ func (r CostImpactRule) Check(planPath string, changes []planjson.ResourceChange
 		if !rc.IsManaged() {
 			continue
 		}
-		spec, priced := aws.PricingFor(rc.Type)
+		spec, priced := kb.PricingFor(rc.Type)
 		if !priced {
 			continue
 		}

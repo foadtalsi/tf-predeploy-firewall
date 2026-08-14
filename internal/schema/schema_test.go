@@ -227,7 +227,7 @@ func TestCoverage_BasePackOnly(t *testing.T) {
 	if c.ResourceTypes == 0 {
 		t.Error("base pack reports zero resource types")
 	}
-	if c.ProviderVersion == "" {
+	if c.VersionOf("aws") == "" {
 		t.Error("pack does not record which provider version it describes")
 	}
 }

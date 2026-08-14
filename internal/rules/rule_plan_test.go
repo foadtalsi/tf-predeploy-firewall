@@ -23,10 +23,10 @@ func mustLoadPlan(t *testing.T) *planjson.PlanFile {
 //   aws_iam_role.app            -> no-op
 
 func TestConfirmedReplaceRule(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
-	findings := ConfirmedReplaceRule{}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := ConfirmedReplaceRule{}.Check("plan.json", pf.ResourceChanges, kb)
 
 	byResource := map[string]report.Finding{}
 	for _, f := range findings {
@@ -58,22 +58,22 @@ func TestConfirmedReplaceRule(t *testing.T) {
 }
 
 func TestBlastRadiusRule_BelowThreshold(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
 	// sample_plan.json has 2 destroy/replace actions; threshold 10 => no finding.
-	findings := BlastRadiusRule{Threshold: 10}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := BlastRadiusRule{Threshold: 10}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no blast-radius finding below threshold, got %#v", findings)
 	}
 }
 
 func TestBlastRadiusRule_AboveThreshold(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
 	// 2 destructive changes in the fixture; threshold 2 should trigger.
-	findings := BlastRadiusRule{Threshold: 2}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := BlastRadiusRule{Threshold: 2}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 1 {
 		t.Fatalf("expected exactly 1 aggregate finding, got %d: %#v", len(findings), findings)
 	}
@@ -83,24 +83,24 @@ func TestBlastRadiusRule_AboveThreshold(t *testing.T) {
 }
 
 func TestBlastRadiusRule_Disabled(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
-	findings := BlastRadiusRule{Threshold: 0}.Check("plan.json", pf.ResourceChanges, aws)
+	findings := BlastRadiusRule{Threshold: 0}.Check("plan.json", pf.ResourceChanges, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings when threshold is 0 (disabled), got %#v", findings)
 	}
 }
 
 func TestDriftRule_FlagsUntouchedSensitiveAttr(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
 	// aws_security_group.web is a pure update in the plan changing "name" and
 	// "description"; aws_forcenew_attrs.json lists "name" as ForceNew/top-level
 	// for aws_security_group. No changedAttrs supplied => PR's .tf diff never
 	// touched it => should be flagged as drift.
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, kb)
 
 	found := false
 	for _, f := range findings {
@@ -114,7 +114,7 @@ func TestDriftRule_FlagsUntouchedSensitiveAttr(t *testing.T) {
 }
 
 func TestDriftRule_SuppressedWhenPRExplainsChange(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadPlan(t)
 
 	// Same plan, but this time the PR's own diff DID touch "name" on that
@@ -122,7 +122,7 @@ func TestDriftRule_SuppressedWhenPRExplainsChange(t *testing.T) {
 	changedAttrs := map[string]map[ChangedAttrKey]bool{
 		"aws_security_group.web": {"name": true},
 	}
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, changedAttrs, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, changedAttrs, kb)
 
 	for _, f := range findings {
 		if f.Resource == "aws_security_group.web" {

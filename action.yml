@@ -54,6 +54,14 @@ inputs:
       the scanner adoptable on a repository that already has Terraform in it.
     required: false
     default: ""
+  providers:
+    description: >
+      Comma-separated providers to fetch extended rule packs for ("aws,azurerm"),
+      or "auto" (default) to detect them from the resource types in the scanned
+      files. Only meaningful with a license key — it decides which extended packs
+      are fetched, never what the embedded base packs cover.
+    required: false
+    default: "auto"
   suggestions:
     description: >
       Post the fixes that can be applied verbatim as inline review comments,
@@ -92,6 +100,7 @@ runs:
     SCANNER_COST_IMPACT_THRESHOLD_USD: ${{ inputs.cost-impact-threshold-usd }}
     SCANNER_SUGGESTIONS: ${{ inputs.suggestions }}
     TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
+    TFPDF_PROVIDERS: ${{ inputs.providers }}
 
 branding:
   icon: "shield"

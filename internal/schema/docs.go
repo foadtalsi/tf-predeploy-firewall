@@ -30,7 +30,7 @@ var registryNamespace = map[string]string{
 // the URL from the type name would work most of the time, and the rest of the
 // time would send someone to a 404 to check a claim; a missing link is the
 // smaller failure.
-func (a *AWS) DocURL(rType string, dataSource bool) string {
+func (a *KnowledgeBase) DocURL(rType string, dataSource bool) string {
 	pack, ok := a.packFor(rType)
 	if !ok {
 		return ""
@@ -61,7 +61,7 @@ func (a *AWS) DocURL(rType string, dataSource bool) string {
 // carries the provider version that pack actually describes — an overlaid
 // extended pack and the embedded base pack can be built from different
 // provider releases.
-func (a *AWS) packFor(rType string) (*loadedPack, bool) {
+func (a *KnowledgeBase) packFor(rType string) (*loadedPack, bool) {
 	for i := len(a.packs) - 1; i >= 0; i-- {
 		if _, ok := a.packs[i].resource(rType); ok {
 			return a.packs[i], true

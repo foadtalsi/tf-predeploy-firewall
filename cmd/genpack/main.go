@@ -36,13 +36,14 @@ import (
 
 func main() {
 	var (
+		provider     = flag.String("provider", "aws", "provider short name (aws, azurerm, google) — names the pack, and defaults the address, curated-file and output paths")
 		schemaPath   = flag.String("provider-schema", "", "path to `terraform providers schema -json` output (required)")
-		srcPath      = flag.String("provider-src", "", "path to a terraform-provider-aws checkout, for ForceNew extraction (optional but strongly recommended)")
-		providerAddr = flag.String("provider-address", "registry.terraform.io/hashicorp/aws", "provider address inside the schema JSON")
+		srcPath      = flag.String("provider-src", "", "path to a provider source checkout, for ForceNew extraction (optional but strongly recommended; the extractor understands SDKv2 and Plugin Framework layouts)")
+		providerAddr = flag.String("provider-address", "", "provider address inside the schema JSON (default registry.terraform.io/hashicorp/<provider>)")
 		providerVer  = flag.String("provider-version", "", "provider version these packs describe, recorded in the pack (required)")
-		curatedDir   = flag.String("curated-dir", "internal/schema/curated", "directory holding the hand-curated overlays")
-		baseOut      = flag.String("base-out", "internal/schema/data/pack_aws_base.json.gz", "output path for the embedded free base pack")
-		fullOut      = flag.String("full-out", "dist/pack_aws_full.json.gz", "output path for the full pack served by the control plane")
+		curatedDir   = flag.String("curated-dir", "", "directory holding the hand-curated overlays (default internal/schema/curated/<provider>; aws keeps its historical flat layout)")
+		baseOut      = flag.String("base-out", "", "output path for the embedded free base pack (default internal/schema/data/pack_<provider>_base.json.gz)")
+		fullOut      = flag.String("full-out", "", "output path for the full pack served by the control plane (default dist/pack_<provider>_full.json.gz)")
 	)
 	flag.Parse()
 
@@ -51,13 +52,32 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := run(*schemaPath, *srcPath, *providerAddr, *providerVer, *curatedDir, *baseOut, *fullOut); err != nil {
+	// Everything defaults from the provider name so generating a second
+	// provider's packs is one flag, not five paths kept consistent by hand.
+	if *providerAddr == "" {
+		*providerAddr = "registry.terraform.io/hashicorp/" + *provider
+	}
+	if *curatedDir == "" {
+		if *provider == "aws" {
+			*curatedDir = "internal/schema/curated" // historical flat layout
+		} else {
+			*curatedDir = filepath.Join("internal/schema/curated", *provider)
+		}
+	}
+	if *baseOut == "" {
+		*baseOut = fmt.Sprintf("internal/schema/data/pack_%s_base.json.gz", *provider)
+	}
+	if *fullOut == "" {
+		*fullOut = fmt.Sprintf("dist/pack_%s_full.json.gz", *provider)
+	}
+
+	if err := run(*provider, *schemaPath, *srcPath, *providerAddr, *providerVer, *curatedDir, *baseOut, *fullOut); err != nil {
 		fmt.Fprintf(os.Stderr, "genpack: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(schemaPath, srcPath, providerAddr, providerVer, curatedDir, baseOut, fullOut string) error {
+func run(provider, schemaPath, srcPath, providerAddr, providerVer, curatedDir, baseOut, fullOut string) error {
 	// --- 1. attribute surface -------------------------------------------
 	resources, err := loadProviderSchema(schemaPath, providerAddr)
 	if err != nil {
@@ -106,7 +126,7 @@ func run(schemaPath, srcPath, providerAddr, providerVer, curatedDir, baseOut, fu
 	}
 	fmt.Printf("critical stateful: %d types (%d unmatched)\n", len(critical)-unknownCritical, unknownCritical)
 
-	pricing, err := readPricing(filepath.Join(curatedDir, "aws_pricing.json"))
+	pricing, err := readPricing(filepath.Join(curatedDir, provider+"_pricing.json"))
 	if err != nil {
 		return err
 	}
@@ -120,8 +140,8 @@ func run(schemaPath, srcPath, providerAddr, providerVer, curatedDir, baseOut, fu
 	// --- 4. write packs ---------------------------------------------------
 	full := &Pack{
 		FormatVersion:   PackFormatVersion,
-		ID:              "aws-full",
-		Provider:        "aws",
+		ID:              provider + "-full",
+		Provider:        provider,
 		ProviderVersion: providerVer,
 		Resources:       resources,
 	}
@@ -131,7 +151,7 @@ func run(schemaPath, srcPath, providerAddr, providerVer, curatedDir, baseOut, fu
 		return err
 	}
 	sort.Strings(baseTypes)
-	base := full.subset("aws-base", baseTypes)
+	base := full.subset(provider+"-base", baseTypes)
 
 	for _, path := range []string{baseOut, fullOut} {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

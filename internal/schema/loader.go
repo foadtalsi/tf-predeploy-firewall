@@ -25,10 +25,13 @@ import (
 	"sort"
 )
 
-//go:embed data/pack_aws_base.json.gz
+// Every base pack under data/ ships inside the binary — one per provider
+// the free tier covers. Adding a provider to the free tier is therefore a
+// data change (drop pack_<provider>_base.json.gz in data/), not a code
+// change: Load picks up whatever is embedded.
+//
+//go:embed data/*.json.gz
 var dataFS embed.FS
-
-const basePackPath = "data/pack_aws_base.json.gz"
 
 // PackFormatVersion is the on-disk pack layout this build understands. A pack
 // declaring a newer version is rejected rather than half-read: a pack is
@@ -134,37 +137,61 @@ func (p *loadedPack) resource(rType string) (*packResource, bool) {
 	return &r, true
 }
 
-// AWS holds the loaded knowledge base. Construct with Load or LoadWith.
-type AWS struct {
+// KnowledgeBase holds the loaded packs, possibly for several providers at
+// once. Resource types are naturally namespaced by their prefix
+// (aws_db_instance, azurerm_mssql_server), so lookups need no provider
+// routing — the packs are simply consulted in reverse load order.
+// Construct with Load or LoadWith.
+type KnowledgeBase struct {
 	// packs are consulted last-first, so a pack overlaid at scan time takes
-	// precedence over the embedded base pack for any type they share.
+	// precedence over an embedded base pack for any type they share.
 	packs []*loadedPack
+
+	// embedded is how many of those packs shipped inside the binary, so
+	// Coverage can tell "extended" apart from "free tier" without caring how
+	// many base packs the free tier happens to contain.
+	embedded int
 }
 
-// Load returns the knowledge base built from the embedded base pack alone —
+// Load returns the knowledge base built from the embedded base packs alone —
 // the free tier, and the fallback whenever no extended pack is available.
-func Load() (*AWS, error) {
-	raw, err := dataFS.Open(basePackPath)
+func Load() (*KnowledgeBase, error) {
+	entries, err := dataFS.ReadDir("data")
 	if err != nil {
-		return nil, fmt.Errorf("opening embedded base pack: %w", err)
+		return nil, fmt.Errorf("reading embedded packs: %w", err)
 	}
-	defer raw.Close()
 
-	base, err := parsePack(raw)
-	if err != nil {
-		return nil, fmt.Errorf("loading embedded base pack: %w", err)
+	kb := &KnowledgeBase{}
+	for _, e := range entries {
+		raw, err := dataFS.Open("data/" + e.Name())
+		if err != nil {
+			return nil, fmt.Errorf("opening embedded pack %s: %w", e.Name(), err)
+		}
+		p, err := parsePack(raw)
+		raw.Close()
+		if err != nil {
+			// An embedded pack that doesn't parse is a broken build, not a
+			// degraded one — it was checked in, so fail loudly at load
+			// rather than quietly scanning with a provider missing.
+			return nil, fmt.Errorf("loading embedded pack %s: %w", e.Name(), err)
+		}
+		kb.packs = append(kb.packs, p)
 	}
-	return &AWS{packs: []*loadedPack{base}}, nil
+	if len(kb.packs) == 0 {
+		return nil, fmt.Errorf("no embedded rule packs — broken build")
+	}
+	kb.embedded = len(kb.packs)
+	return kb, nil
 }
 
 // LoadWith returns the knowledge base with additional packs overlaid on top
-// of the embedded base pack, in the order given. A pack that fails to parse
+// of the embedded base packs, in the order given. A pack that fails to parse
 // is reported but does not prevent loading: losing an extended pack should
 // degrade coverage, never break a customer's CI.
-func LoadWith(extra ...io.Reader) (*AWS, []error) {
+func LoadWith(extra ...io.Reader) (*KnowledgeBase, []error) {
 	var errs []error
 
-	aws, err := Load()
+	kb, err := Load()
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -174,9 +201,9 @@ func LoadWith(extra ...io.Reader) (*AWS, []error) {
 			errs = append(errs, err)
 			continue
 		}
-		aws.packs = append(aws.packs, p)
+		kb.packs = append(kb.packs, p)
 	}
-	return aws, errs
+	return kb, errs
 }
 
 // parsePack reads a gzipped pack from r.
@@ -200,7 +227,7 @@ func parsePack(r io.Reader) (*loadedPack, error) {
 }
 
 // lookup finds a resource type in the most recently overlaid pack that has it.
-func (a *AWS) lookup(rType string) (*packResource, bool) {
+func (a *KnowledgeBase) lookup(rType string) (*packResource, bool) {
 	for i := len(a.packs) - 1; i >= 0; i-- {
 		if r, ok := a.packs[i].resource(rType); ok {
 			return r, true
@@ -213,7 +240,7 @@ func (a *AWS) lookup(rType string) (*packResource, bool) {
 // Types not covered by any loaded pack return false, and the unknown-argument
 // rule skips them entirely — under-detecting is always preferable to flagging
 // valid Terraform.
-func (a *AWS) ResourceSchema(rType string) (*ResourceSchema, bool) {
+func (a *KnowledgeBase) ResourceSchema(rType string) (*ResourceSchema, bool) {
 	r, ok := a.lookup(rType)
 	if !ok || len(r.TopLevel) == 0 {
 		return nil, false
@@ -222,7 +249,7 @@ func (a *AWS) ResourceSchema(rType string) (*ResourceSchema, bool) {
 }
 
 // ForceNew returns the ForceNew arguments for a resource type.
-func (a *AWS) ForceNew(rType string) (*ForceNewSpec, bool) {
+func (a *KnowledgeBase) ForceNew(rType string) (*ForceNewSpec, bool) {
 	r, ok := a.lookup(rType)
 	if !ok || (len(r.ForceNewTopLevel) == 0 && len(r.ForceNewNested) == 0) {
 		return nil, false
@@ -232,14 +259,14 @@ func (a *AWS) ForceNew(rType string) (*ForceNewSpec, bool) {
 
 // IsCritical reports whether destroying this resource type loses data, and so
 // whether it is expected to carry lifecycle { prevent_destroy = true }.
-func (a *AWS) IsCritical(rType string) bool {
+func (a *KnowledgeBase) IsCritical(rType string) bool {
 	r, ok := a.lookup(rType)
 	return ok && r.Critical
 }
 
 // PricingFor returns the coarse monthly cost spec for a resource type.
 // Types without one contribute $0 to a cost estimate rather than a guess.
-func (a *AWS) PricingFor(rType string) (*PricingSpec, bool) {
+func (a *KnowledgeBase) PricingFor(rType string) (*PricingSpec, bool) {
 	r, ok := a.lookup(rType)
 	if !ok || r.Pricing == nil {
 		return nil, false
@@ -250,27 +277,57 @@ func (a *AWS) PricingFor(rType string) (*PricingSpec, bool) {
 // Coverage describes what the loaded packs know, for the scan header and for
 // support questions of the form "why didn't it catch this?".
 type Coverage struct {
-	// Packs lists the loaded pack IDs, base first.
+	// Packs lists the loaded pack IDs, sorted.
 	Packs []string
-	// ProviderVersion is the provider release the outermost pack describes.
-	ProviderVersion string
+	// Providers lists each covered provider with the release its outermost
+	// pack describes, sorted by name. Per provider, not global: the single
+	// ProviderVersion field this replaces was silently overwritten by
+	// whichever pack loaded last, which was already wrong the moment a
+	// second provider's pack sat next to the first.
+	Providers []ProviderCoverage
 	// ResourceTypes is the number of distinct types across all loaded packs.
 	ResourceTypes int
-	// Extended reports whether anything is overlaid on the base pack.
+	// Extended reports whether anything is overlaid on the embedded packs.
 	Extended bool
 }
 
+// ProviderCoverage is one provider's slice of a Coverage.
+type ProviderCoverage struct {
+	Name    string
+	Version string
+}
+
+// VersionOf returns the provider release the packs describe for one
+// provider, or "" if no loaded pack covers it.
+func (c Coverage) VersionOf(provider string) string {
+	for _, p := range c.Providers {
+		if p.Name == provider {
+			return p.Version
+		}
+	}
+	return ""
+}
+
 // Coverage summarises the loaded packs.
-func (a *AWS) Coverage() Coverage {
+func (a *KnowledgeBase) Coverage() Coverage {
 	seen := map[string]bool{}
-	c := Coverage{Extended: len(a.packs) > 1}
+	versions := map[string]string{}
+
+	c := Coverage{Extended: len(a.packs) > a.embedded}
 	for _, p := range a.packs {
 		c.Packs = append(c.Packs, p.ID)
-		c.ProviderVersion = p.ProviderVersion
+		// Later packs overlay earlier ones, so the last version recorded per
+		// provider is the one lookups actually resolve against.
+		versions[p.Provider] = p.ProviderVersion
 		for t := range p.Resources {
 			seen[t] = true
 		}
 	}
+
+	for name, v := range versions {
+		c.Providers = append(c.Providers, ProviderCoverage{Name: name, Version: v})
+	}
+	sort.Slice(c.Providers, func(i, j int) bool { return c.Providers[i].Name < c.Providers[j].Name })
 	c.ResourceTypes = len(seen)
 	sort.Strings(c.Packs)
 	return c

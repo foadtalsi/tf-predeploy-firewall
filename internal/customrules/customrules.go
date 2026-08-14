@@ -91,7 +91,7 @@ func (c *Config) AsEngineRule() rules.Rule {
 	return ruleSet{cfg: c}
 }
 
-func (rs ruleSet) Check(in rules.FileInput, aws *schema.AWS) []report.Finding {
+func (rs ruleSet) Check(in rules.FileInput, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 	for _, res := range in.HeadResources {
 		for _, r := range rs.cfg.Rules {

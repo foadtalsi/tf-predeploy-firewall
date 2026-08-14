@@ -10,7 +10,7 @@ import (
 )
 
 func TestAttachDocURLs(t *testing.T) {
-	aws, err := schema.Load()
+	kb, err := schema.Load()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +23,7 @@ func TestAttachDocURLs(t *testing.T) {
 		{Resource: "aws_not_a_real_type.x"}, // covered by no pack
 		{Resource: "aws_db_instance.a", DocURL: "https://already.set"},
 	}
-	AttachDocURLs(findings, aws)
+	AttachDocURLs(findings, kb)
 
 	if !strings.Contains(findings[0].DocURL, "/docs/resources/db_instance") {
 		t.Errorf("resource finding got %q", findings[0].DocURL)
@@ -51,11 +51,11 @@ func TestAttachDocURLs_NilKnowledgeBaseIsSafe(t *testing.T) {
 
 // The links have to survive the actual scan path, not just the helper.
 func TestRun_AttachesDocURLs(t *testing.T) {
-	aws, _ := schema.Load()
+	kb, _ := schema.Load()
 	src := []byte("resource \"aws_db_instance\" \"prod\" {\n  identifier = \"prod\"\n}\n")
 
 	res, err := Run([]diff.ChangedFile{{Path: "main.tf", HeadContent: src}},
-		aws, []Rule{MissingLifecycleRule{}}, RunOptions{})
+		kb, []Rule{MissingLifecycleRule{}}, RunOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

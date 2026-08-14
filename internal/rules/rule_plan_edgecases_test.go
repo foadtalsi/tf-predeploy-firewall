@@ -18,7 +18,7 @@ func mustLoadEdgeCasePlan(t *testing.T) *planjson.PlanFile {
 }
 
 func TestDriftRule_MatchesModuleAddressAgainstBareChangedAttrs(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadEdgeCasePlan(t)
 
 	// changedAttrs uses the bare "type.name" key the HCL parser produces —
@@ -26,7 +26,7 @@ func TestDriftRule_MatchesModuleAddressAgainstBareChangedAttrs(t *testing.T) {
 	changedAttrs := map[string]map[ChangedAttrKey]bool{
 		"aws_db_instance.primary": {"availability_zone": true},
 	}
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, changedAttrs, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, changedAttrs, kb)
 
 	for _, f := range findings {
 		if f.Resource == "module.db.aws_db_instance.primary" {
@@ -36,10 +36,10 @@ func TestDriftRule_MatchesModuleAddressAgainstBareChangedAttrs(t *testing.T) {
 }
 
 func TestDriftRule_FlagsModuleAddressWhenNotExplained(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadEdgeCasePlan(t)
 
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, kb)
 
 	found := false
 	for _, f := range findings {
@@ -53,10 +53,10 @@ func TestDriftRule_FlagsModuleAddressWhenNotExplained(t *testing.T) {
 }
 
 func TestDriftRule_RedactsSensitiveValues(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadEdgeCasePlan(t)
 
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, kb)
 
 	var kmsFinding *report.Finding
 	for i, f := range findings {
@@ -76,10 +76,10 @@ func TestDriftRule_RedactsSensitiveValues(t *testing.T) {
 }
 
 func TestDriftRule_SkipsDataSources(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	pf := mustLoadEdgeCasePlan(t)
 
-	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, aws)
+	findings := DriftRule{}.Check("plan.json", pf.ResourceChanges, map[string]map[ChangedAttrKey]bool{}, kb)
 
 	for _, f := range findings {
 		if f.Resource == "data.aws_db_instance.lookup" {
@@ -89,7 +89,7 @@ func TestDriftRule_SkipsDataSources(t *testing.T) {
 }
 
 func TestConfirmedReplaceRule_SkipsDataSources(t *testing.T) {
-	aws := mustLoadSchema(t)
+	kb := mustLoadSchema(t)
 	// A data source can never appear with delete/replace actions in
 	// practice, but the rule should filter by mode regardless of actions
 	// as defense in depth.
@@ -101,7 +101,7 @@ func TestConfirmedReplaceRule_SkipsDataSources(t *testing.T) {
 			Change:  planjson.Change{Actions: []string{"delete"}},
 		},
 	}
-	findings := ConfirmedReplaceRule{}.Check("plan.json", changes, aws)
+	findings := ConfirmedReplaceRule{}.Check("plan.json", changes, kb)
 	if len(findings) != 0 {
 		t.Errorf("expected no findings for a data source, got %#v", findings)
 	}

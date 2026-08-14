@@ -16,7 +16,7 @@ import (
 // recreate the resource.
 type ForceNewChangeRule struct{}
 
-func (ForceNewChangeRule) Check(in FileInput, aws *schema.AWS) []report.Finding {
+func (ForceNewChangeRule) Check(in FileInput, kb *schema.KnowledgeBase) []report.Finding {
 	var findings []report.Finding
 
 	for _, res := range in.HeadResources {
@@ -31,13 +31,13 @@ func (ForceNewChangeRule) Check(in FileInput, aws *schema.AWS) []report.Finding 
 			continue
 		}
 
-		spec, known := aws.ForceNew(res.Type)
+		spec, known := kb.ForceNew(res.Type)
 		if !known {
 			continue
 		}
 
 		severity := report.SeverityHigh
-		if aws.IsCritical(res.Type) {
+		if kb.IsCritical(res.Type) {
 			severity = report.SeverityCritical
 		}
 

@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -94,6 +97,7 @@ func main() {
 	licenseAPIBase := flag.String("license-api-base", envOr("TFPDF_LICENSE_API_BASE", licensing.DefaultAPIBase), "control-plane API base URL, override for self-hosted/staging deployments")
 	baselinePath := flag.String("baseline", envOr("TFPDF_BASELINE", ""), "path to a committed baseline file of accepted pre-existing findings. They stay visible in the PR comment but don't block a merge; anything new does. Missing file = no baseline.")
 	writeBaseline := flag.String("write-baseline", "", "write the current findings to this path as the new baseline and exit without failing. Run once when adopting the scanner on an existing repo, then commit the file.")
+	providersFlag := flag.String("providers", envOr("TFPDF_PROVIDERS", "auto"), `comma-separated providers to fetch extended rule packs for ("aws,azurerm"), or "auto" to detect them from the resource types in the scanned files. Only affects which extended packs a licensed scan fetches — the embedded base packs always cover whatever they cover.`)
 	flag.Parse()
 
 	cfg, err := loadConfig(*configPath)
@@ -106,15 +110,10 @@ func main() {
 		applyOrgPolicy(&cfg, *licenseKey, *licenseAPIBase)
 	}
 
-	aws, err := loadKnowledgeBase(*licenseKey, *licenseAPIBase)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
-		os.Exit(2)
-	}
-	coverage := aws.Coverage()
-	fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: rule packs %v (aws provider %s, %d resource types)\n",
-		coverage.Packs, coverage.ProviderVersion, coverage.ResourceTypes)
-
+	// The diff runs before the knowledge base loads, because which extended
+	// packs are worth fetching depends on which providers the changed files
+	// actually use — fetching an Azure pack to scan an AWS repo would be a
+	// network round trip spent on nothing.
 	var changed []diff.ChangedFile
 	if *fullRepoScan {
 		changed, err = diff.AllTerraformFiles(*repoDir)
@@ -125,6 +124,19 @@ func main() {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 		os.Exit(2)
 	}
+
+	kb, err := loadKnowledgeBase(*licenseKey, *licenseAPIBase, resolveProviders(*providersFlag, changed))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+		os.Exit(2)
+	}
+	coverage := kb.Coverage()
+	var providerSummary []string
+	for _, p := range coverage.Providers {
+		providerSummary = append(providerSummary, p.Name+" "+p.Version)
+	}
+	fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: rule packs %v (%s; %d resource types)\n",
+		coverage.Packs, strings.Join(providerSummary, ", "), coverage.ResourceTypes)
 
 	ruleset := rules.DefaultRules()
 	var customRuleSet *customrules.Config
@@ -145,7 +157,7 @@ func main() {
 		ruleset = append(ruleset, customRuleSet.AsEngineRule())
 	}
 
-	result, err := rules.Run(changed, aws, ruleset, rules.RunOptions{
+	result, err := rules.Run(changed, kb, ruleset, rules.RunOptions{
 		GlobalIgnore: cfg.IgnoreRules,
 		// Lets the engine read each scanned file's directory to resolve
 		// `var.x` and `local.y` — a credential one indirection away is the
@@ -164,7 +176,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
 			os.Exit(2)
 		}
-		planFindings := rules.RunPlanRules(*planJSONPath, pf, result.ChangedAttrs, aws, rules.PlanRuleConfig{
+		planFindings := rules.RunPlanRules(*planJSONPath, pf, result.ChangedAttrs, kb, rules.PlanRuleConfig{
 			BlastRadiusThreshold:   cfg.PlanBlastRadiusThreshold,
 			CostImpactThresholdUSD: cfg.CostImpactThresholdUSD,
 			GlobalIgnore:           cfg.IgnoreRules,
@@ -337,37 +349,96 @@ func reportUsage(licenseKey, apiBase string, findings []report.Finding, blocked 
 // error: the scan continues on the base pack. Coverage silently shrinking
 // would be the worst possible failure mode here, so the reduced coverage is
 // always stated out loud rather than inferred from missing findings.
-func loadKnowledgeBase(licenseKey, apiBase string) (*schema.AWS, error) {
-	if licenseKey == "" {
+func loadKnowledgeBase(licenseKey, apiBase string, providers []string) (*schema.KnowledgeBase, error) {
+	if licenseKey == "" || len(providers) == 0 {
 		return schema.Load()
 	}
 
-	pack, err := licensing.NewClient(licenseKey, apiBase).FetchRulePack("aws")
-	switch {
-	case pack == nil:
-		fmt.Fprintf(os.Stderr,
-			"tf-predeploy-firewall: extended rule pack unavailable (%v) — scanning with the free base pack, coverage is reduced\n", err)
-		return schema.Load()
-	case err != nil:
-		// A pack was still produced, so coverage is intact — say that plainly
-		// rather than warning about reduced coverage we didn't actually lose.
-		fmt.Fprintf(os.Stderr,
-			"tf-predeploy-firewall: could not reach the rule pack service (%v) — using the cached extended pack, coverage is unchanged\n", err)
-	case pack.FromCache:
-		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: using the cached extended rule pack")
+	client := licensing.NewClient(licenseKey, apiBase)
+	var overlays []io.Reader
+	for _, provider := range providers {
+		pack, err := client.FetchRulePack(provider)
+		switch {
+		case pack == nil:
+			fmt.Fprintf(os.Stderr,
+				"tf-predeploy-firewall: extended %s rule pack unavailable (%v) — %s coverage falls back to the embedded pack\n",
+				provider, err, provider)
+			continue
+		case err != nil:
+			// A pack was still produced, so coverage is intact — say that
+			// plainly rather than warning about coverage we didn't lose.
+			fmt.Fprintf(os.Stderr,
+				"tf-predeploy-firewall: could not reach the rule pack service (%v) — using the cached extended %s pack, coverage is unchanged\n",
+				err, provider)
+		case pack.FromCache:
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: using the cached extended %s rule pack\n", provider)
+		}
+		overlays = append(overlays, pack.Reader())
 	}
 
-	aws, errs := schema.LoadWith(pack.Reader())
-	if aws == nil {
-		// The embedded base pack itself failed to load — that is a broken
+	kb, errs := schema.LoadWith(overlays...)
+	if kb == nil {
+		// The embedded packs themselves failed to load — that is a broken
 		// build, not a degraded one, and there is nothing to scan with.
 		return nil, fmt.Errorf("loading rule packs: %v", errs)
 	}
 	for _, e := range errs {
 		fmt.Fprintf(os.Stderr,
-			"tf-predeploy-firewall: extended rule pack rejected (%v) — scanning with the free base pack, coverage is reduced\n", e)
+			"tf-predeploy-firewall: extended rule pack rejected (%v) — that provider's coverage falls back to the embedded pack\n", e)
 	}
-	return aws, nil
+	return kb, nil
+}
+
+// fetchableProviders is every provider the control plane can currently serve
+// an extended pack for. Auto-detection is filtered through it so a repo full
+// of random_pet and tls_private_key resources doesn't trigger a doomed pack
+// fetch (and its warning) per provider per scan. --providers overrides the
+// filter for anyone who knows better.
+var fetchableProviders = map[string]bool{
+	"aws":     true,
+	"azurerm": true,
+	"google":  true,
+}
+
+// providerPrefixPattern pulls the provider prefix out of resource and data
+// block headers: `resource "aws_db_instance" …` → aws. The convention —
+// everything before the first underscore names the provider — is universal
+// across registry providers because the registry itself enforces it.
+var providerPrefixPattern = regexp.MustCompile(`(?m)^\s*(?:resource|data)\s+"([a-z][a-z0-9]*)_`)
+
+// resolveProviders turns the --providers flag into the list of extended
+// packs to fetch: an explicit comma-separated list is taken as-is, and
+// "auto" scans the changed files' block headers.
+//
+// Detection reads the raw source rather than waiting for the parser: the
+// knowledge base has to exist before the parse-and-scan pass runs, and a
+// regexp over block headers can't be wrong in a way that matters — a false
+// positive fetches one unneeded pack, a false negative falls back to the
+// embedded packs.
+func resolveProviders(flagValue string, files []diff.ChangedFile) []string {
+	if flagValue != "auto" {
+		var out []string
+		for _, p := range strings.Split(flagValue, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+
+	seen := map[string]bool{}
+	var out []string
+	for _, f := range files {
+		for _, m := range providerPrefixPattern.FindAllSubmatch(f.HeadContent, -1) {
+			p := string(m[1])
+			if !seen[p] && fetchableProviders[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func applyOrgPolicy(cfg *config, licenseKey, apiBase string) {
