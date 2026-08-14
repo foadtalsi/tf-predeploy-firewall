@@ -73,8 +73,8 @@ func RenderMarkdown(findings []Finding, threshold Severity, blocked bool) string
 		b.WriteString("| Severity | File | Line | Category | Resource | Detail |\n")
 		b.WriteString("|---|---|---|---|---|---|\n")
 		for _, f := range active {
-			fmt.Fprintf(&b, "| %s %s | `%s` | %d | %s | `%s` | %s |\n",
-				severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), f.Resource, f.Message)
+			fmt.Fprintf(&b, "| %s %s | `%s` | %d | %s | %s | %s |\n",
+				severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), resourceCell(f), f.Message)
 		}
 	}
 
@@ -102,10 +102,22 @@ func renderWaivers(b *strings.Builder, waived []Finding) {
 	b.WriteString("| Severity | File | Line | Category | Resource | Detail | Accepted because |\n")
 	b.WriteString("|---|---|---|---|---|---|---|\n")
 	for _, f := range waived {
-		fmt.Fprintf(b, "| %s %s | `%s` | %d | %s | `%s` | %s | %s |\n",
-			severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), f.Resource, f.Message, f.WaiverNote)
+		fmt.Fprintf(b, "| %s %s | `%s` | %d | %s | %s | %s | %s |\n",
+			severityEmoji[f.Severity], f.Severity, f.File, f.Line, categoryDisplay(f.Category), resourceCell(f), f.Message, f.WaiverNote)
 	}
 	b.WriteString("\n</details>\n")
+}
+
+// resourceCell renders the resource address, linked to the provider
+// documentation for its type when one is known. The link rides on the
+// address rather than taking a column of its own: a seventh column would
+// cost every row width, on a table that is already wide, to carry the same
+// word on every line.
+func resourceCell(f Finding) string {
+	if f.DocURL == "" {
+		return "`" + f.Resource + "`"
+	}
+	return fmt.Sprintf("[`%s`](%s)", f.Resource, f.DocURL)
 }
 
 // renderSuggestions appends a collapsible "Suggested fixes" block per

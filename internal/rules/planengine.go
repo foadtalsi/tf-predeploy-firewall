@@ -35,7 +35,9 @@ func RunPlanRules(planPath string, pf *planjson.PlanFile, changedAttrs map[strin
 	// No per-line inline ignore directives apply to plan-derived findings
 	// (there's no .tf source line to attach a comment to); only the global
 	// config-level ignore list applies here.
-	return ignore.Apply(findings, nil, cfg.GlobalIgnore)
+	kept := ignore.Apply(findings, nil, cfg.GlobalIgnore)
+	AttachDocURLs(kept, aws)
+	return kept
 }
 
 // DeduplicateForceNewAgainstPlan drops phase-1 ForceNewChangeRule findings

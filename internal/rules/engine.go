@@ -132,8 +132,41 @@ func Run(files []diff.ChangedFile, aws *schema.AWS, ruleset []Rule, opts RunOpti
 		}
 	}
 
+	kept := ignore.Apply(findings, inlineByFile, opts.GlobalIgnore)
+	AttachDocURLs(kept, aws)
+
 	return Result{
-		Findings:     ignore.Apply(findings, inlineByFile, opts.GlobalIgnore),
+		Findings:     kept,
 		ChangedAttrs: changedAttrs,
 	}, nil
+}
+
+// AttachDocURLs fills in each finding's DocURL from its resource address.
+//
+// Done as one pass over the results rather than at each of the two dozen
+// places a finding is constructed: the address already identifies the type
+// unambiguously, so threading a link through every rule would add a
+// parameter everywhere to compute the same thing. Exported because
+// plan-based findings are produced outside Run and deserve the same links.
+//
+// Findings whose type no loaded pack covers keep an empty DocURL — a link to
+// a page that may not exist is worse than none.
+func AttachDocURLs(findings []report.Finding, aws *schema.AWS) {
+	if aws == nil {
+		return
+	}
+	cache := map[string]string{}
+	for i, f := range findings {
+		if f.DocURL != "" || f.Resource == "" {
+			continue
+		}
+		url, seen := cache[f.Resource]
+		if !seen {
+			if rType, isData, ok := parser.TypeFromAddress(f.Resource); ok {
+				url = aws.DocURL(rType, isData)
+			}
+			cache[f.Resource] = url
+		}
+		findings[i].DocURL = url
+	}
 }

@@ -60,6 +60,17 @@ type Finding struct {
 	// a safe, generic fix exists; empty otherwise.
 	Suggestion string
 
+	// DocURL, when set, links to the provider documentation for the resource
+	// type this finding is about, pinned to the provider version the rule
+	// pack describes.
+	//
+	// It is what turns "attribute X is not a known argument of
+	// aws_instance" from an assertion into something checkable. A scanner
+	// that says an argument doesn't exist and offers no way to verify it
+	// gets argued with; one that links the argument list gets believed or
+	// corrected, and both outcomes are better.
+	DocURL string
+
 	// Fix, when set, is the same fix expressed as an exact line replacement,
 	// which is what GitHub's one-click "Commit suggestion" button needs.
 	// See Fix's doc comment for why this is a separate, much rarer field

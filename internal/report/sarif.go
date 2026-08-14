@@ -31,8 +31,18 @@ type sarifRule struct {
 	ID               string              `json:"id"`
 	Name             string              `json:"name"`
 	ShortDescription sarifMessage        `json:"shortDescription"`
+	FullDescription  *sarifMessage       `json:"fullDescription,omitempty"`
+	Help             *sarifHelp          `json:"help,omitempty"`
 	HelpURI          string              `json:"helpUri,omitempty"`
 	Properties       sarifRuleProperties `json:"properties"`
+}
+
+// sarifHelp carries the long-form explanation of a rule. GitHub Code
+// Scanning renders Markdown on the alert page and falls back to Text
+// elsewhere, so both are populated from the same source.
+type sarifHelp struct {
+	Text     string `json:"text"`
+	Markdown string `json:"markdown,omitempty"`
 }
 
 type sarifRuleProperties struct {
@@ -45,6 +55,11 @@ type sarifResult struct {
 	Level     string          `json:"level"`
 	Message   sarifMessage    `json:"message"`
 	Locations []sarifLocation `json:"locations"`
+
+	// Properties carries the per-result provider documentation link. It can't
+	// go on the rule: a rule is one category across every resource type,
+	// while the useful link is to the one type this result is about.
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 type sarifLocation struct {
@@ -120,6 +135,27 @@ var sarifRules = []sarifRule{
 	},
 }
 
+// describedRules is sarifRules with each entry's help text, full description
+// and documentation link filled in from ruleHelps.
+//
+// Kept as a derivation rather than written into the literals above so the two
+// can't drift: a category added to one and forgotten in the other shows up as
+// a rule with no explanation, which the test asserts against.
+func describedRules() []sarifRule {
+	out := make([]sarifRule, len(sarifRules))
+	copy(out, sarifRules)
+
+	for i, r := range out {
+		c := Category(r.ID)
+		out[i].HelpURI = ruleHelpURI(c)
+		if h, ok := ruleHelps[c]; ok {
+			out[i].FullDescription = &sarifMessage{Text: h.fullDescription}
+			out[i].Help = &sarifHelp{Text: h.fullDescription, Markdown: h.markdown}
+		}
+	}
+	return out
+}
+
 var severityToSarifLevel = map[Severity]string{
 	SeverityLow:      "note",
 	SeverityMedium:   "warning",
@@ -132,10 +168,15 @@ var severityToSarifLevel = map[Severity]string{
 func RenderSARIF(findings []Finding) ([]byte, error) {
 	results := make([]sarifResult, 0, len(findings))
 	for _, f := range findings {
+		var props map[string]string
+		if f.DocURL != "" {
+			props = map[string]string{"providerDocs": f.DocURL, "resource": f.Resource}
+		}
 		results = append(results, sarifResult{
-			RuleID:  string(f.Category),
-			Level:   severityToSarifLevel[f.Severity],
-			Message: sarifMessage{Text: f.Message},
+			RuleID:     string(f.Category),
+			Level:      severityToSarifLevel[f.Severity],
+			Message:    sarifMessage{Text: f.Message},
+			Properties: props,
 			Locations: []sarifLocation{{
 				PhysicalLocation: sarifPhysicalLocation{
 					ArtifactLocation: sarifArtifactLocation{
@@ -156,7 +197,7 @@ func RenderSARIF(findings []Finding) ([]byte, error) {
 				Name:           "tf-predeploy-firewall",
 				Version:        "0.1.0",
 				InformationURI: "https://github.com/foadtalsi/tf-predeploy-firewall",
-				Rules:          sarifRules,
+				Rules:          describedRules(),
 			}},
 			Results: results,
 		}},

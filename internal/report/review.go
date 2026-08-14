@@ -56,6 +56,9 @@ func ReviewCommentBody(f Finding) string {
 	if f.Fix.Note != "" {
 		b.WriteString("\n" + f.Fix.Note + "\n")
 	}
+	if f.DocURL != "" {
+		fmt.Fprintf(&b, "\n📖 [Provider documentation for `%s`](%s)\n", f.Resource, f.DocURL)
+	}
 
 	b.WriteString("\n" + FixMarker(f) + "\n")
 	return b.String()

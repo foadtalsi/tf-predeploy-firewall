@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"strings"
+
+	"github.com/hashicorp/hcl/v2"
+)
 
 // Kind distinguishes the kinds of top-level block this package normalizes.
 // They share one Go type because every rule that cares about *values* — a
@@ -88,6 +92,38 @@ type Attribute struct {
 	// `password = var.db_password`, otherwise looks like a false positive to
 	// the person reading it.
 	ResolvedFrom string
+}
+
+// TypeFromAddress reads the provider resource type back out of a Terraform
+// address — the inverse of Address, and of the addresses `terraform show
+// -json` uses, which follow the same grammar.
+//
+// It exists so anything holding only an address (a finding, a plan entry) can
+// still reach the provider's documentation for the type. ok is false for
+// addresses with no type of their own: a module call, or the "-" placeholder
+// a whole-file finding carries.
+func TypeFromAddress(addr string) (rType string, dataSource bool, ok bool) {
+	parts := strings.Split(addr, ".")
+
+	// A plan address can be nested arbitrarily deep in modules
+	// (module.a.module.b.aws_db_instance.this); peel them off.
+	for len(parts) >= 3 && parts[0] == "module" {
+		parts = parts[2:]
+	}
+	if len(parts) < 2 {
+		return "", false, false
+	}
+
+	if parts[0] == "data" {
+		if len(parts) < 3 {
+			return "", false, false
+		}
+		return parts[1], true, true
+	}
+	if parts[0] == "module" {
+		return "", false, false
+	}
+	return parts[0], false, true
 }
 
 // Address returns the canonical identifier for the block, matching the

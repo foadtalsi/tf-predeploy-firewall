@@ -6,6 +6,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Every finding links to the provider documentation** for its resource type,
+  pinned to the provider version the rule pack was generated from. A scanner
+  that says an argument doesn't exist and offers no way to check gets argued
+  with; one that links the argument list gets believed or corrected, and both
+  beat a standoff. The link rides on the resource address in the PR table, in
+  the inline suggestion, and in each SARIF result's properties.
+
+  Packs describe resource types only, so a data source with no resource of the
+  same name (`aws_caller_identity`, `aws_availability_zones`) gets no link.
+  Guessing the URL would work most of the time and send someone to a 404 the
+  rest of the time, which is the worse failure for a link whose whole job is
+  to let a finding be verified.
+
+- **Rules explain themselves in Code Scanning.** Each SARIF rule now carries a
+  full description, rendered help markdown, and a `helpUri` into the new
+  [`docs/rules.md`](docs/rules.md) — what the rule detects, why it is worth
+  interrupting a merge for, and how to suppress or tune it. An alert opened by
+  someone who never ran the scan previously showed a single sentence.
+
+  The documentation file is generated from the same source as the SARIF help,
+  and a test fails if the two drift: a category with no section would be a
+  dead link in somebody's security dashboard.
+
 - **One-click fixes.** Findings whose fix is unambiguous are now posted as
   inline review comments carrying a GitHub `suggestion` block, applied with
   the **Commit suggestion** button rather than retyped. Covers the three

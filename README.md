@@ -252,6 +252,11 @@ Set `suggestions: false` to keep everything in the single summary comment.
 
 This requires `security-events: write` in the workflow's `permissions:` block.
 
+Each rule ships its full explanation inside the SARIF, so a Code Scanning
+alert opened by someone who never ran the scan says what the rule detects, why
+it blocks, and how to suppress it — not just a one-line message. The same text
+is published at [docs/rules.md](docs/rules.md), which every alert links to.
+
 ## Phase 2: analyzing a real `terraform plan` (optional)
 
 Phase 1 above is a pure static scan — no cloud credentials, no state. If your
