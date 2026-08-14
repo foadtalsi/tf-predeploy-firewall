@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v1.1.0] — 2026-08-14
 
 ### Added
 - **High-entropy secret detection.** Known formats (AWS keys, JWTs, PEM
