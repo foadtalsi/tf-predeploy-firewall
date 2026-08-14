@@ -3,6 +3,25 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- **A GCP repo was told it had coverage it never had.** `google` was listed
+  as a fetchable provider in v1.1.0 while no GCP pack was ever generated, so
+  a licensed scan announced that coverage "falls back to the embedded pack"
+  for a provider with no embedded pack — degraded coverage reported where
+  there was none. GCP is removed until a pack ships: a provider is listed
+  once its packs exist, not before.
+
+  The silent half of that defect is fixed too, for every provider. Value-based
+  rules (credentials, entropy, open CIDRs, custom rules) need no schema and
+  fire on any provider, so an uncovered one previously produced a report that
+  looked complete while the schema-driven rules sat inert. The scan now names
+  the uncovered providers and states exactly which checks did and did not run.
+  Utility providers (`random`, `tls`, `null`, …) are exempt — they will never
+  have a pack, and warning about them every scan would train people to skip
+  the line that matters.
+
 ## [v1.1.0] — 2026-08-14
 
 ### Added

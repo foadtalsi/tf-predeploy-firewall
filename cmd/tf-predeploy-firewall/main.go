@@ -189,6 +189,7 @@ func main() {
 	}
 	fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: rule packs %v (%s; %d resource types)\n",
 		coverage.Packs, strings.Join(providerSummary, ", "), coverage.ResourceTypes)
+	warnUncoveredProviders(changed, coverage)
 
 	ruleset := rules.DefaultRules()
 	// The static cost estimator runs only when no plan JSON is supplied —
@@ -464,15 +465,21 @@ func loadKnowledgeBase(licenseKey, apiBase string, providers []string) (*schema.
 	return kb, nil
 }
 
-// fetchableProviders is every provider the control plane can currently serve
-// an extended pack for. Auto-detection is filtered through it so a repo full
-// of random_pet and tls_private_key resources doesn't trigger a doomed pack
+// fetchableProviders is every provider a rule pack exists for — both the
+// free pack embedded in this binary and the extended one the control plane
+// serves. Auto-detection is filtered through it so a repo full of
+// random_pet and tls_private_key resources doesn't trigger a doomed pack
 // fetch (and its warning) per provider per scan. --providers overrides the
 // filter for anyone who knows better.
+//
+// A provider belongs here only once its packs actually ship. Listing one
+// ahead of its pack produces the worst outcome available: the scan warns
+// that coverage "falls back to the embedded pack" for a provider that has
+// no embedded pack, which reads as degraded coverage where there is none
+// at all.
 var fetchableProviders = map[string]bool{
 	"aws":     true,
 	"azurerm": true,
-	"google":  true,
 }
 
 // providerPrefixPattern pulls the provider prefix out of resource and data
@@ -501,12 +508,26 @@ func resolveProviders(flagValue string, files []diff.ChangedFile) []string {
 		return out
 	}
 
+	var out []string
+	for _, p := range detectProviders(files) {
+		if fetchableProviders[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// detectProviders lists every provider prefix appearing in the scanned
+// files, filtered by nothing — the raw answer to "what is this repo made
+// of", which resolveProviders narrows to what can be fetched and
+// warnUncoveredProviders compares against what was actually loaded.
+func detectProviders(files []diff.ChangedFile) []string {
 	seen := map[string]bool{}
 	var out []string
 	for _, f := range files {
 		for _, m := range providerPrefixPattern.FindAllSubmatch(f.HeadContent, -1) {
 			p := string(m[1])
-			if !seen[p] && fetchableProviders[p] {
+			if !seen[p] {
 				seen[p] = true
 				out = append(out, p)
 			}
@@ -514,6 +535,49 @@ func resolveProviders(flagValue string, files []diff.ChangedFile) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// warnUncoveredProviders states, on stderr, which of the scanned providers
+// no loaded rule pack covers.
+//
+// Without this the gap is invisible. Value-based rules — hardcoded
+// credentials, open CIDRs, entropy, custom rules — need no schema and fire
+// normally, so a repo built on an uncovered provider gets a report that
+// looks like it worked while the schema-driven half (unknown arguments,
+// ForceNew, prevent_destroy, cost) sits silently inert. A scan that covers
+// half a repo has to say which half, or "why didn't it catch this?" has no
+// answer.
+//
+// Providers that declare no cloud infrastructure are excluded: random, tls,
+// null and their kind appear in almost every repo, will never have a pack,
+// and warning about them on every scan would train people to skip the line
+// that matters.
+func warnUncoveredProviders(files []diff.ChangedFile, cov schema.Coverage) {
+	covered := map[string]bool{}
+	for _, p := range cov.Providers {
+		covered[p.Name] = true
+	}
+
+	var uncovered []string
+	for _, p := range detectProviders(files) {
+		if !covered[p] && !schemalessProviders[p] {
+			uncovered = append(uncovered, p)
+		}
+	}
+	if len(uncovered) == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr,
+		"tf-predeploy-firewall: no rule pack for %s — those resources were still checked for hardcoded credentials, open CIDRs and your custom rules, but NOT for unknown arguments, destroy/recreate traps, missing prevent_destroy, or cost\n",
+		strings.Join(uncovered, ", "))
+}
+
+// schemalessProviders declare no cloud infrastructure worth a rule pack, so
+// their absence from one is not a coverage gap worth reporting.
+var schemalessProviders = map[string]bool{
+	"random": true, "tls": true, "null": true, "local": true, "time": true,
+	"external": true, "http": true, "template": true, "archive": true,
+	"cloudinit": true, "dns": true, "terraform": true,
 }
 
 func applyOrgPolicy(cfg *config, licenseKey, apiBase string) {

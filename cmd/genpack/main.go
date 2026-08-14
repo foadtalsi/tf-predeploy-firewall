@@ -36,7 +36,7 @@ import (
 
 func main() {
 	var (
-		provider     = flag.String("provider", "aws", "provider short name (aws, azurerm, google) — names the pack, and defaults the address, curated-file and output paths")
+		provider     = flag.String("provider", "aws", "provider short name (aws, azurerm) — names the pack, and defaults the address, curated-file and output paths")
 		schemaPath   = flag.String("provider-schema", "", "path to `terraform providers schema -json` output (required)")
 		srcPath      = flag.String("provider-src", "", "path to a provider source checkout, for ForceNew extraction (optional but strongly recommended; the extractor understands SDKv2 and Plugin Framework layouts)")
 		providerAddr = flag.String("provider-address", "", "provider address inside the schema JSON (default registry.terraform.io/hashicorp/<provider>)")

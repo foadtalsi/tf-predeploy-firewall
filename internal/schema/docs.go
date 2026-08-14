@@ -12,7 +12,6 @@ import (
 var registryNamespace = map[string]string{
 	"aws":     "hashicorp",
 	"azurerm": "hashicorp",
-	"google":  "hashicorp",
 }
 
 // DocURL returns the Terraform Registry documentation page for a resource
