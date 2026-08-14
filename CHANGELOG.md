@@ -6,6 +6,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Rule packs refresh themselves weekly.** A scheduled workflow resolves the
+  newest AWS and Azure provider releases, regenerates both packs, verifies
+  the scanner still builds and passes against them, and opens one PR per
+  provider when anything changed.
+
+  Staleness here is not reduced coverage, it is false positives: arguments
+  added by a new provider release are absent from an old pack, so the
+  unknown-attribute rule reports valid Terraform as hallucinated — at
+  severity high, which blocks a PR. Both providers ship roughly weekly.
+
+  It opens a PR rather than pushing: a pack change alters what every
+  customer's CI blocks on, and the generation summary (types covered,
+  ForceNew resolution rate) is exactly what a human should glance at first —
+  a sharp drop in that rate means the provider restructured its source and
+  the extractor needs attention, not that the data changed.
+
 - **Unpinned module and provider versions are flagged.** A registry module
   with no `version`, a git source with no `?ref=`, a `?ref=main` anyone can
   move, or a provider in `required_providers` with no constraint. Two
