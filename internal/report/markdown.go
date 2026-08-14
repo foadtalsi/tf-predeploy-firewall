@@ -21,6 +21,7 @@ var severityEmoji = map[Severity]string{
 
 var categoryLabel = map[Category]string{
 	CategoryUnknownAttribute: "Unknown/hallucinated attribute",
+	CategoryUnpinnedVersion:  "Unpinned module or provider version",
 	CategoryTutorialPattern:  "Tutorial-copy pattern",
 	CategoryForceNewChange:   "ForceNew change on stateful resource",
 	CategoryMissingLifecycle: "Missing prevent_destroy",

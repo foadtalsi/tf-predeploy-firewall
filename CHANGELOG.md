@@ -6,6 +6,21 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **Unpinned module and provider versions are flagged.** A registry module
+  with no `version`, a git source with no `?ref=`, a `?ref=main` anyone can
+  move, or a provider in `required_providers` with no constraint. Two
+  problems, and the second is the serious one: the plan a reviewer approved
+  and the plan that runs an hour later can differ with no commit here to
+  explain it, and whoever can push to that branch decides what runs against
+  your cloud account with your credentials.
+
+  It belongs beside the hallucination checks because generated Terraform
+  almost never writes a version constraint — a model asked for "a VPC
+  module" emits a source and moves on. Local modules (`./modules/vpc`) are
+  never flagged: this repository's history is their version. Nor is a ref
+  whose shape isn't recognised, since accusing someone's release scheme of
+  being a branch would be a false positive.
+
 - **`.tfvars` files are scanned.** They were invisible, which was the widest
   gap between what this tool claimed and what it did: a `.tfvars` file is by
   design the place values live, so someone told to move a password out of

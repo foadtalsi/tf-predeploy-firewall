@@ -11,6 +11,7 @@ Detects:
 - **Tutorial-copy patterns** — hardcoded credentials (by attribute name, by known token formats, and by **entropy**: a 30-character random string is flagged as a probable machine-generated secret even when no known format matches), `0.0.0.0/0` CIDRs, placeholder names (`example`, `test`, `my-bucket`...). Also applied to Terragrunt's `inputs`/`remote_state.config` maps in `terragrunt.hcl` (see below), not just `.tf` resource attributes.
 - **ForceNew changes** — edits to attributes known to force destroy+recreate on stateful resources (RDS, EBS, ElastiCache...).
 - **Missing `prevent_destroy`** — critical stateful resources without a `lifecycle { prevent_destroy = true }` guard.
+- **Unpinned versions** — module sources with no `version`/`?ref=` (or a `?ref=main` that anyone can move) and providers with no version constraint. Generated Terraform almost never writes one, and an unpinned dependency means the plan that was reviewed isn't necessarily the plan that runs.
 
 ## Rule packs: what's free and what a plan buys
 

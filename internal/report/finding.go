@@ -31,6 +31,7 @@ type Category string
 
 const (
 	CategoryUnknownAttribute Category = "unknown_attribute"
+	CategoryUnpinnedVersion  Category = "unpinned_version"
 	CategoryTutorialPattern  Category = "tutorial_pattern"
 	CategoryForceNewChange   Category = "force_new_change"
 	CategoryMissingLifecycle Category = "missing_lifecycle"

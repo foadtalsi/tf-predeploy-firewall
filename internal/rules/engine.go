@@ -59,6 +59,7 @@ func DefaultRules() []Rule {
 		TutorialPatternRule{},
 		ForceNewChangeRule{},
 		MissingLifecycleRule{},
+		UnpinnedVersionRule{},
 	}
 }
 

@@ -58,6 +58,70 @@ Suppress a single line with ` + "`# tf-firewall-ignore: unknown_attribute`" + `,
 or the whole category with ` + "`ignore_rules`" + ` in the config.`,
 	},
 
+	CategoryUnpinnedVersion: {
+		fullDescription: "A module source or provider requirement with no version pin. The plan that was reviewed and the plan that runs later can differ with no commit in this repository to explain why.",
+		markdown: `## What this means
+
+A dependency floats instead of naming a version: a registry module with no
+` + "`version`" + `, a git source with no ` + "`?ref=`" + `, or a ` + "`?ref=main`" + `
+that points at a branch someone can push to. Or a provider in
+` + "`required_providers`" + ` with no ` + "`version`" + ` constraint.
+
+## Why it matters
+
+Two distinct problems, and the second is the serious one:
+
+**Reproducibility.** The plan a reviewer approved and the plan that runs an
+hour later can differ, because a third party published a release or moved a
+branch. Nothing in this repository records that, so when the apply goes
+wrong there is no commit to look at.
+
+**Supply chain.** Whoever can push to that branch decides what Terraform
+runs against your cloud account, with your credentials. A pinned tag can
+still be moved; a commit SHA cannot.
+
+This rule sits next to the AI-hallucination checks for a reason: generated
+Terraform almost never writes a version constraint. A model asked for "a VPC
+module" emits a source and moves on.
+
+## How to fix it
+
+` + "```hcl" + `
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"                          # registry: add version
+}
+
+module "internal" {
+  source = "git::https://github.com/org/mod.git?ref=v1.4.2"   # tag…
+}
+
+module "critical" {
+  source = "git::https://github.com/org/mod.git?ref=9f8a1c2"  # …or a SHA
+}
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
+` + "```" + `
+
+A ` + "`.terraform.lock.hcl`" + ` committed alongside pins provider versions
+exactly, and is worth having regardless of the constraint above.
+
+## If you disagree
+
+A local module (` + "`./modules/vpc`" + `) is versioned by this repository's
+own history and is never flagged. If you deliberately track a branch — an
+internal module you also own, released continuously — suppress with
+` + "`# tf-firewall-ignore: unpinned_version`" + `, or the category with
+` + "`ignore_rules`" + `.`,
+	},
+
 	CategoryTutorialPattern: {
 		fullDescription: "A value that looks copied from documentation rather than chosen: a credential written as a string literal, a CIDR open to the whole internet, or a placeholder name.",
 		markdown: `## What this means

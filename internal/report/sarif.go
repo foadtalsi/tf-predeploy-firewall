@@ -92,6 +92,12 @@ var sarifRules = []sarifRule{
 		Properties:       sarifRuleProperties{Tags: []string{"terraform", "ai-hallucination"}, Severity: "error"},
 	},
 	{
+		ID:               string(CategoryUnpinnedVersion),
+		Name:             "UnpinnedVersion",
+		ShortDescription: sarifMessage{Text: "Module source or provider requirement with no version pin"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "supply-chain", "reproducibility"}, Severity: "warning"},
+	},
+	{
 		ID:               string(CategoryTutorialPattern),
 		Name:             "TutorialPattern",
 		ShortDescription: sarifMessage{Text: "Tutorial copy-paste pattern (hardcoded credential, open CIDR, generic name)"},
