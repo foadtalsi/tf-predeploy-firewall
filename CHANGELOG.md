@@ -5,6 +5,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **`.tfvars` files are scanned.** They were invisible, which was the widest
+  gap between what this tool claimed and what it did: a `.tfvars` file is by
+  design the place values live, so someone told to move a password out of
+  `main.tf` very often moves it into `terraform.tfvars` and commits that.
+  The tool's own suggested fix even recommended "a tfvars file that isn't
+  committed" — while never checking whether one was.
+
+  `terraform.tfvars`, `*.auto.tfvars` and their `.json` forms are all
+  covered, in every scan mode, with nested objects and lists walked so a
+  credential inside a map of settings is found too. Values are judged by
+  exactly the same standard as resource attributes — the credential-name,
+  known-format, entropy and open-CIDR checks are shared, not reimplemented.
+
+  Only git-tracked files reach the scanner, so a properly gitignored
+  `.tfvars` is never flagged. And because the same scan runs pre-commit, the
+  advice is worded as the condition it is: rotation is required *if the file
+  is already committed*, not asserted as fact when nothing is disclosed yet.
+
 ### Fixed
 - **A GCP repo was told it had coverage it never had.** `google` was listed
   as a fetchable provider in v1.1.0 while no GCP pack was ever generated, so

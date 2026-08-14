@@ -62,9 +62,20 @@ var benignPrefixes = []string{
 	"/subscriptions/", "urn:",
 }
 
-// looksLikeSecret reports whether a literal string value has the statistical
+// LooksLikeSecret reports whether a literal string value has the statistical
 // signature of a machine-generated secret, along with the measured entropy
 // for the finding message.
+//
+// Exported alongside IsCredentialAttrName, MatchCredentialValuePattern and
+// IsOpenCIDR so the non-resource scanners (internal/tfvars,
+// internal/terragrunt) judge a value by exactly the same standard as a
+// resource attribute. A secret is no less committed for sitting in a
+// .tfvars file, and two divergent definitions of "looks like a secret"
+// would be a bug waiting to happen.
+func LooksLikeSecret(value string) (float64, bool) {
+	return looksLikeSecret(value)
+}
+
 func looksLikeSecret(value string) (float64, bool) {
 	if len(value) < entropyMinLength {
 		return 0, false

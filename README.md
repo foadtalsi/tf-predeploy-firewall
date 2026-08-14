@@ -130,6 +130,12 @@ Beyond `resource` blocks, the scanner reads:
   Module inputs are someone else's variables, so there is no schema to check
   argument *names* against — but their *values* are checked in full.
 - **`data` sources**, for the same value-based checks.
+- **`.tfvars` files** (`terraform.tfvars`, `*.auto.tfvars`, and their `.json`
+  forms). This is where values live by design, so it is where a secret moved
+  out of `main.tf` most often lands. Nested objects and lists are walked, so
+  a credential inside a map of settings is found too. Only files git actually
+  tracks are scanned — a properly gitignored `.tfvars` is never seen, which is
+  the correct answer: the finding is "this secret is in the repository".
 - **`locals` and `variable` defaults**, to resolve references. A
   `password = var.db_password` whose variable declares
   `default = "changeme"` is a hardcoded credential one indirection away, and

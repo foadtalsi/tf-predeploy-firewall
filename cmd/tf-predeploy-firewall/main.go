@@ -28,6 +28,7 @@ import (
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/rules"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/schema"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/terragrunt"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/tfvars"
 	"gopkg.in/yaml.v3"
 )
 
@@ -273,6 +274,32 @@ func main() {
 		terragruntFindings = append(terragruntFindings, found...)
 	}
 	findings = append(findings, ignore.Apply(terragruntFindings, nil, cfg.IgnoreRules)...)
+
+	var tfvarsChanged []diff.ChangedFile
+	switch {
+	case *staged:
+		tfvarsChanged, err = diff.StagedTfvarsFiles(*repoDir)
+	case *uncommitted:
+		tfvarsChanged, err = diff.UncommittedTfvarsFiles(*repoDir)
+	case *fullRepoScan:
+		tfvarsChanged, err = diff.AllTfvarsFiles(*repoDir)
+	default:
+		tfvarsChanged, err = diff.ChangedTfvarsFiles(*repoDir, *baseRef, *headRef)
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+		os.Exit(2)
+	}
+	var tfvarsFindings []report.Finding
+	for _, f := range tfvarsChanged {
+		found, err := tfvars.ScanFile(f.Path, f.HeadContent)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: %v\n", err)
+			continue
+		}
+		tfvarsFindings = append(tfvarsFindings, found...)
+	}
+	findings = append(findings, ignore.Apply(tfvarsFindings, nil, cfg.IgnoreRules)...)
 
 	findings = ignore.ApplyPathRules(findings, cfg.ignorePathRules())
 
