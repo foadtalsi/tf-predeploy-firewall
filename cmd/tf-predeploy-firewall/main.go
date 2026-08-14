@@ -18,7 +18,9 @@ import (
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/baseline"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/customrules"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/diff"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/forge"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/githubpr"
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/gitlabmr"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/ignore"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/licensing"
 	"github.com/foadtalsi/tf-predeploy-firewall/internal/planjson"
@@ -102,12 +104,13 @@ func count(bs ...bool) int {
 
 func main() {
 	repoDir := flag.String("repo-dir", ".", "path to the git repository to scan")
-	baseRef := flag.String("base-ref", envOr("GITHUB_BASE_REF", "origin/main"), "git ref to diff against (PR base)")
+	baseRef := flag.String("base-ref", defaultBaseRef(), "git ref to diff against (PR/MR base)")
 	headRef := flag.String("head-ref", "HEAD", "git ref containing the proposed changes")
 	fullRepoScan := flag.Bool("full-repo-scan", false, "scan every .tf file in repo-dir instead of just the PR diff — for a scheduled drift audit of already-merged code (e.g. cron), not a PR check. ForceNew-change detection naturally finds nothing (there's no diff), but unknown-attribute, tutorial-pattern, and missing-lifecycle findings run at full strength against current content.")
 	configPath := flag.String("config", envOr("SCANNER_CONFIG", "config/default.yml"), "path to YAML config")
-	postComment := flag.Bool("post-comment", os.Getenv("GITHUB_TOKEN") != "", "post/update a PR comment with the results")
+	postComment := flag.Bool("post-comment", defaultPostComment(), "post/update a PR/MR comment with the results")
 	sarifOut := flag.String("sarif-output", "", "write SARIF 2.1.0 JSON to this file (for GitHub Code Scanning)")
+	codeQualityOut := flag.String("codequality-output", "", "write a GitLab Code Quality report to this file — declare it under artifacts:reports:codequality and findings render in the MR widget, no token needed")
 	planJSONPath := flag.String("plan-json", "", "path to `terraform show -json <planfile>` output (phase 2: adds confirmed-replace, drift, and blast-radius findings). Optional — this tool never runs terraform or touches cloud credentials itself.")
 	licenseKey := flag.String("license-key", envOr("TFPDF_LICENSE_KEY", ""), "paid-plan API key. Entirely optional — leave unset to run the scanner exactly as the free, open-source tool it has always been. When set, each scan is reported to the billing/usage service for quota enforcement.")
 	licenseAPIBase := flag.String("license-api-base", envOr("TFPDF_LICENSE_API_BASE", licensing.DefaultAPIBase), "control-plane API base URL, override for self-hosted/staging deployments")
@@ -331,6 +334,17 @@ func main() {
 		}
 	}
 
+	if *codeQualityOut != "" {
+		// GitLab's MR-widget counterpart to SARIF; RenderCodeQuality skips
+		// waived findings itself.
+		cqBytes, err := report.RenderCodeQuality(findings)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to render Code Quality report: %v\n", err)
+		} else if err := os.WriteFile(*codeQualityOut, cqBytes, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: failed to write Code Quality report: %v\n", err)
+		}
+	}
+
 	if blocked {
 		os.Exit(1)
 	}
@@ -343,9 +357,9 @@ func main() {
 // NOT block the scan — a billing hiccup on our end should never be the
 // reason a paying customer's PR check goes red.
 func reportUsage(licenseKey, apiBase string, findings []report.Finding, blocked bool) (quotaExceeded bool) {
-	repoFullName := os.Getenv("GITHUB_REPOSITORY")
+	repoFullName := repoFullNameFromEnv()
 	if repoFullName == "" {
-		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: TFPDF_LICENSE_KEY is set but GITHUB_REPOSITORY is not — skipping usage reporting for this run")
+		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: TFPDF_LICENSE_KEY is set but neither GITHUB_REPOSITORY nor CI_PROJECT_PATH is — skipping usage reporting for this run")
 		return false
 	}
 
@@ -489,7 +503,7 @@ func resolveProviders(flagValue string, files []diff.ChangedFile) []string {
 
 func applyOrgPolicy(cfg *config, licenseKey, apiBase string) {
 	client := licensing.NewClient(licenseKey, apiBase)
-	policy, err := client.GetPolicy(os.Getenv("GITHUB_REPOSITORY"))
+	policy, err := client.GetPolicy(repoFullNameFromEnv())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: fetching org policy failed, using local config (%v)\n", err)
 		return
@@ -535,7 +549,7 @@ func applyOrgPolicy(cfg *config, licenseKey, apiBase string) {
 // applyOrgPolicy — a control-plane hiccup must never silently waive (or
 // fail to waive) a finding.
 func applyWaivers(findings []report.Finding, licenseKey, apiBase string) []report.Finding {
-	repoFullName := os.Getenv("GITHUB_REPOSITORY")
+	repoFullName := repoFullNameFromEnv()
 	if repoFullName == "" {
 		return findings
 	}
@@ -646,14 +660,44 @@ func loadConfig(path string) (config, error) {
 	return cfg, nil
 }
 
-// postToPR reads GitHub Actions context (GITHUB_TOKEN, GITHUB_REPOSITORY,
-// GITHUB_EVENT_PATH) to upsert the report as a PR comment.
+// postToPR upserts the report as a PR/MR comment on whichever forge this
+// run's CI environment belongs to.
 func postToPR(body string) error {
-	client, err := githubPRClient()
+	f, _, err := activeForge()
 	if err != nil {
 		return err
 	}
-	return client.UpsertComment(body, report.Marker)
+	return f.UpsertComment(body, report.Marker)
+}
+
+// activeForge picks the code host from the CI environment: GitLab CI when
+// its predefined variables are present, GitHub otherwise (the historical
+// default, and what action.yml provides). Returns the forge, the head SHA
+// the scan ran against (empty when unknowable), and how to render an inline
+// suggestion body — the one-click fence grammar is the one thing the two
+// hosts genuinely disagree on.
+func activeForge() (forge.Forge, string, error) {
+	if os.Getenv("GITLAB_CI") != "" {
+		client, err := gitlabmr.FromEnv()
+		if err != nil {
+			return nil, "", err
+		}
+		return client, os.Getenv("CI_MERGE_REQUEST_SOURCE_BRANCH_SHA"), nil
+	}
+	client, err := githubPRClient()
+	if err != nil {
+		return nil, "", err
+	}
+	return client, headSHAFromEvent(), nil
+}
+
+// suggestionBodyFor returns the renderer matching the active forge's
+// suggestion grammar.
+func suggestionBodyFor() func(report.Finding) string {
+	if os.Getenv("GITLAB_CI") != "" {
+		return report.GitLabSuggestionBody
+	}
+	return report.ReviewCommentBody
 }
 
 // maxInlineSuggestions caps how many inline comments one review will carry.
@@ -672,7 +716,8 @@ const maxInlineSuggestions = 20
 // the convenience and nothing else. It never touches the exit code — the
 // block decision is the enforcement mechanism.
 func postSuggestions(findings []report.Finding) {
-	var comments []githubpr.ReviewComment
+	render := suggestionBodyFor()
+	var comments []forge.InlineComment
 	dropped := 0
 
 	for _, f := range findings {
@@ -684,11 +729,11 @@ func postSuggestions(findings []report.Finding) {
 			dropped++
 			continue
 		}
-		comments = append(comments, githubpr.ReviewComment{
+		comments = append(comments, forge.InlineComment{
 			Path:      f.File,
 			StartLine: f.Fix.StartLine,
 			Line:      f.Fix.EndLine,
-			Body:      report.ReviewCommentBody(f),
+			Body:      render(f),
 			Marker:    report.FixMarker(f),
 		})
 	}
@@ -702,7 +747,7 @@ func postSuggestions(findings []report.Finding) {
 			dropped, maxInlineSuggestions)
 	}
 
-	client, err := githubPRClient()
+	client, sha, err := activeForge()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: skipping inline suggestions: %v\n", err)
 		return
@@ -716,7 +761,7 @@ func postSuggestions(findings []report.Finding) {
 			"They are generated, not reviewed by a human; read each one before applying it.",
 		len(comments))
 
-	outcome, err := client.PostSuggestions(summary, comments, headSHAFromEvent())
+	outcome, err := client.PostSuggestions(summary, comments, sha)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tf-predeploy-firewall: posting inline suggestions failed: %v\n", err)
 		return
@@ -797,6 +842,13 @@ func requestSecondReviewerIfCritical(findings []report.Finding, cfg config) {
 	if len(cfg.RequireSecondReviewerUsers) == 0 && len(cfg.RequireSecondReviewerTeams) == 0 {
 		return
 	}
+	if os.Getenv("GITLAB_CI") != "" {
+		// GitLab's native mechanism for this is approval rules, configured
+		// once on the project — better than anything this tool could do
+		// per-MR, so it points there instead of half-imitating it.
+		fmt.Fprintln(os.Stderr, "tf-predeploy-firewall: require_second_reviewer_* is GitHub-only — on GitLab, use a merge request approval rule (Settings → Merge requests → Approvals)")
+		return
+	}
 	hasCritical := false
 	for _, f := range findings {
 		if !f.Waived && f.Severity == report.SeverityCritical {
@@ -849,4 +901,36 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// repoFullNameFromEnv is the org/repo identity used for licensing (usage,
+// waivers, org policy) on whichever CI this run is on. The control plane
+// keys on the string itself, so "group/project" from GitLab is as good an
+// identity as "owner/repo" from GitHub.
+func repoFullNameFromEnv() string {
+	if v := os.Getenv("GITHUB_REPOSITORY"); v != "" {
+		return v
+	}
+	return os.Getenv("CI_PROJECT_PATH")
+}
+
+// defaultBaseRef reads the PR/MR target branch from whichever CI provides
+// it. Both CIs hand over a bare branch name; the origin/ prefix is what a
+// fetched checkout actually has.
+func defaultBaseRef() string {
+	if v := os.Getenv("GITHUB_BASE_REF"); v != "" {
+		return "origin/" + strings.TrimPrefix(v, "origin/")
+	}
+	if v := os.Getenv("CI_MERGE_REQUEST_TARGET_BRANCH_NAME"); v != "" {
+		return "origin/" + v
+	}
+	return "origin/main"
+}
+
+// defaultPostComment: post when a token for the ambient forge is present.
+func defaultPostComment() bool {
+	if os.Getenv("GITLAB_CI") != "" {
+		return os.Getenv("TFPDF_GITLAB_TOKEN") != "" || os.Getenv("GITLAB_TOKEN") != ""
+	}
+	return os.Getenv("GITHUB_TOKEN") != ""
 }

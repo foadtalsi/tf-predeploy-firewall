@@ -1,0 +1,42 @@
+# TF Pre-Deploy Firewall on GitLab CI — copy into .gitlab-ci.yml (or
+# include: it) and adjust the stage name.
+#
+# What you get, mirroring the GitHub Action:
+#   - the scan report upserted as one MR note (never a new note per push)
+#   - applicable fixes as inline suggestions with GitLab's "Apply suggestion"
+#     button
+#   - findings in the MR's Code Quality widget, diffed against the target
+#     branch — this part needs no token at all
+#   - the job fails when a finding reaches block_threshold, so a required
+#     pipeline blocks the merge
+#
+# Setup, once per project (or group):
+#   1. Create a project access token with the `api` scope and the Reporter
+#      role (Settings → Access tokens). CI_JOB_TOKEN cannot post notes.
+#   2. Save it as a masked CI/CD variable named TFPDF_GITLAB_TOKEN
+#      (Settings → CI/CD → Variables).
+# Skipping setup still works: you keep the Code Quality widget and the
+# failing job, just no MR comment and no one-click suggestions.
+
+tf-predeploy-firewall:
+  stage: test
+  image: golang:1.23-alpine
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - "**/*.tf"
+        - "**/terragrunt.hcl"
+  variables:
+    # The scanner diffs against the MR target branch, so the fetch must
+    # reach it. GIT_DEPTH: 0 is the simplest correct setting.
+    GIT_DEPTH: "0"
+  before_script:
+    - apk add --no-cache git
+    - go install github.com/foadtalsi/tf-predeploy-firewall/cmd/tf-predeploy-firewall@v1
+  script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - tf-predeploy-firewall --codequality-output gl-code-quality-report.json
+  artifacts:
+    when: always # the report matters most when the job failed
+    reports:
+      codequality: gl-code-quality-report.json

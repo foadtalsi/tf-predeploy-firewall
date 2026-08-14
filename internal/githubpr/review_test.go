@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/forge"
 )
 
 // reviewServer stands in for the three endpoints PostSuggestions touches.
@@ -58,7 +60,7 @@ func (s *reviewServer) start(t *testing.T) *httptest.Server {
 const twoHunkPatch = "@@ -1,3 +1,4 @@\n resource \"aws_db_instance\" \"prod\" {\n-  old = 1\n+  new = 1\n+  password = \"x\"\n }\n@@ -20,2 +21,3 @@\n context\n+added\n"
 
 func TestPatchLineNumbers_CountsAddedAndContextButNotDeleted(t *testing.T) {
-	got := patchLineNumbers(twoHunkPatch)
+	got := forge.PatchLineNumbers(twoHunkPatch)
 
 	// First hunk starts at new-file line 1: header(1), new(2), password(3), }(4).
 	// The deleted "old = 1" must not consume a number.

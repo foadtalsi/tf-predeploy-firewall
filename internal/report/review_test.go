@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -95,5 +96,65 @@ func TestFixMarker_IsAnHTMLComment(t *testing.T) {
 	m := FixMarker(fixFinding())
 	if !strings.HasPrefix(m, "<!--") || !strings.HasSuffix(m, "-->") {
 		t.Errorf("marker %q would render as visible text", m)
+	}
+}
+
+// GitLab's fence is range-relative to its anchored line: a fix replacing
+// lines 12-15, anchored at 12, must say `suggestion:-0+3`. Getting the
+// offset wrong replaces the wrong lines — with one click.
+func TestGitLabSuggestionBody_FenceCarriesTheRangeOffset(t *testing.T) {
+	f := fixFinding() // StartLine 12, EndLine 12: single line
+	if body := GitLabSuggestionBody(f); !strings.Contains(body, "```suggestion:-0+0\n") {
+		t.Errorf("single-line fix must use -0+0, got:\n%s", body)
+	}
+
+	f.Fix.EndLine = 15
+	if body := GitLabSuggestionBody(f); !strings.Contains(body, "```suggestion:-0+3\n") {
+		t.Errorf("a 12-15 fix anchored at 12 must use -0+3, got:\n%s", body)
+	}
+	// The marker must be identical across both grammars: the same fix posted
+	// on either forge is the same fix.
+	if FixMarker(f) != FixMarker(f) {
+		t.Error("marker must be grammar-independent")
+	}
+}
+
+func TestRenderCodeQuality(t *testing.T) {
+	f := fixFinding()
+	waived := fixFinding()
+	waived.Waived = true
+	waived.Resource = "aws_db_instance.accepted"
+
+	out, err := RenderCodeQuality([]Finding{f, waived})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var issues []map[string]any
+	if err := json.Unmarshal(out, &issues); err != nil {
+		t.Fatalf("not valid JSON: %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("waived findings are decisions, not open issues; got %d entries", len(issues))
+	}
+	is := issues[0]
+	if is["severity"] != "minor" { // medium → minor
+		t.Errorf("severity = %v", is["severity"])
+	}
+	if is["fingerprint"] == "" {
+		t.Error("no fingerprint — GitLab would treat every pipeline's findings as new")
+	}
+	loc := is["location"].(map[string]any)
+	if loc["path"] != "rds.tf" {
+		t.Errorf("path = %v", loc["path"])
+	}
+
+	// Line-independent fingerprint: a rebase must not churn identities.
+	moved := f
+	moved.Line = 400
+	out2, _ := RenderCodeQuality([]Finding{moved})
+	var issues2 []map[string]any
+	json.Unmarshal(out2, &issues2)
+	if issues2[0]["fingerprint"] != is["fingerprint"] {
+		t.Error("fingerprint must not depend on the line number")
 	}
 }

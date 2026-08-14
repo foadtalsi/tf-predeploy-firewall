@@ -6,6 +6,25 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- **GitLab support.** The scanner detects GitLab CI's predefined variables
+  and speaks merge requests natively: the report upserts as one MR note,
+  applicable fixes post as inline discussions with the **Apply suggestion**
+  button (GitLab's fence is range-relative — `suggestion:-0+2` — where
+  GitHub's replaces the anchored range; the scanner renders whichever
+  grammar the ambient forge uses, from the same Fix), and a new
+  `--codequality-output` writes the Code Quality report GitLab's MR widget
+  renders with no token at all. Suggestions refuse to post when the MR head
+  moved since the scan — pinning one-click fixes to lines that no longer say
+  what the scan saw is the one failure this feature must never have.
+  Licensing identity falls back from `GITHUB_REPOSITORY` to
+  `CI_PROJECT_PATH`, and the base ref defaults from
+  `CI_MERGE_REQUEST_TARGET_BRANCH_NAME`. See
+  [docs/gitlab-ci.example.yml](docs/gitlab-ci.example.yml).
+
+  The host-neutral parts (inline comment shape, diff-hunk arithmetic,
+  outcome accounting) moved to `internal/forge`, which is what a Bitbucket
+  client would implement if demand ever justifies one.
+
 - **Azure support.** Rule packs for azurerm 4.81.0, generated the same way
   the AWS ones are: the full argument surface from `terraform providers
   schema -json` (1,141 resource types), ForceNew flags extracted from the

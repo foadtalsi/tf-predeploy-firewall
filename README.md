@@ -472,6 +472,31 @@ judgment calls rather than facts the provider exposes:
 Curated entries are validated against the generated schema, so a type that a
 provider renames or removes is reported rather than silently ignored.
 
+## GitLab
+
+The same binary runs as a GitLab CI job — it detects GitLab's predefined
+variables and speaks merge requests natively:
+
+- the report is upserted as **one MR note**, updated on every push;
+- applicable fixes become inline suggestions with GitLab's **Apply
+  suggestion** button (the fence grammar differs from GitHub's; the scanner
+  renders the right one);
+- `--codequality-output` writes a **Code Quality report** for the MR widget —
+  findings render in the UI, diffed against the target branch, with *no
+  token needed*;
+- exit code 1 at the block threshold fails the job, so a required pipeline
+  blocks the merge.
+
+Copy [docs/gitlab-ci.example.yml](docs/gitlab-ci.example.yml) into your
+`.gitlab-ci.yml`. For the MR note and suggestions, add a project access
+token (scope `api`, role Reporter) as a CI/CD variable named
+`TFPDF_GITLAB_TOKEN` — `CI_JOB_TOKEN` cannot post notes. Without it you
+still get the widget and the failing job.
+
+`require_second_reviewer_*` is GitHub-only: GitLab's approval rules
+(Settings → Merge requests → Approvals) do that job better than any per-MR
+API call could.
+
 ## Running it locally
 
 The scanner is a single static binary — the GitHub Action is just one way to

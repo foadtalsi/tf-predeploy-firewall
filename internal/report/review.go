@@ -42,12 +42,28 @@ func HasFixMarker(commentBody string, f Finding) bool {
 // summary comment: an inline comment is read where it lands, in the diff,
 // by someone who may never scroll down to the table.
 func ReviewCommentBody(f Finding) string {
+	// GitHub's fence replaces exactly the comment's anchored line range, so
+	// the plain header carries no range of its own.
+	return suggestionBody(f, "```suggestion")
+}
+
+// GitLabSuggestionBody is ReviewCommentBody in GitLab's fence grammar.
+//
+// GitLab anchors an inline comment to a single line and expresses the
+// replaced range in the fence itself: ```suggestion:-0+2 replaces the
+// anchored line plus the two below it. The comment is anchored at the fix's
+// first line, so the offset is simply the range height.
+func GitLabSuggestionBody(f Finding) string {
+	return suggestionBody(f, fmt.Sprintf("```suggestion:-0+%d", f.Fix.EndLine-f.Fix.StartLine))
+}
+
+func suggestionBody(f Finding, fenceHeader string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "**%s %s — %s**\n\n", severityEmoji[f.Severity], f.Severity, categoryDisplay(f.Category))
 	b.WriteString(f.Message + "\n\n")
 
-	b.WriteString("```suggestion\n")
+	b.WriteString(fenceHeader + "\n")
 	if text := f.Fix.Text(); text != "" {
 		b.WriteString(text + "\n")
 	}

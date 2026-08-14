@@ -6,41 +6,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
+
+	"github.com/foadtalsi/tf-predeploy-firewall/internal/forge"
 )
 
-// ReviewComment is one inline comment to attach to a line of the PR diff.
-type ReviewComment struct {
-	// Path is the file path as GitHub knows it: relative to the repository
-	// root, which is what the scanner already reports.
-	Path string
+// ReviewComment and ReviewOutcome are the forge-neutral types, aliased so
+// existing callers and tests keep reading naturally.
+type ReviewComment = forge.InlineComment
 
-	// StartLine and Line bound the commented range in the file's post-change
-	// state, inclusive. A single-line comment sets them equal (or leaves
-	// StartLine zero).
-	StartLine int
-	Line      int
-
-	Body string
-
-	// Marker uniquely identifies this comment's content. If a review comment
-	// already on the PR contains it, this one is skipped — see the package
-	// note on PostSuggestions about why duplicates are the failure mode that
-	// matters here.
-	Marker string
-}
-
-// ReviewOutcome accounts for every comment handed to PostSuggestions.
-//
-// Nothing is dropped silently: a suggestion that never appears because its
-// line isn't in the diff looks identical, from the outside, to a scanner
-// that didn't find anything — so the caller gets the numbers and logs them.
-type ReviewOutcome struct {
-	Posted       int
-	AlreadyThere int
-	OutsideDiff  int
-}
+type ReviewOutcome = forge.SuggestionOutcome
 
 // PostSuggestions attaches comments to the PR as a single review.
 //
@@ -92,7 +67,7 @@ func (c *Client) PostSuggestions(summary string, comments []ReviewComment, commi
 			continue
 		}
 		inBatch[cm.Marker] = true
-		if !linesInDiff(diffLines, cm) {
+		if !forge.LinesInDiff(diffLines, cm) {
 			out.OutsideDiff++
 			continue
 		}
@@ -143,23 +118,6 @@ func (c *Client) PostSuggestions(summary string, comments []ReviewComment, commi
 	return out, nil
 }
 
-func linesInDiff(diffLines map[string]map[int]bool, cm ReviewComment) bool {
-	inFile, ok := diffLines[cm.Path]
-	if !ok {
-		return false
-	}
-	start := cm.StartLine
-	if start <= 0 {
-		start = cm.Line
-	}
-	for l := start; l <= cm.Line; l++ {
-		if !inFile[l] {
-			return false
-		}
-	}
-	return true
-}
-
 // commentableLines maps each changed file to the set of line numbers, in the
 // post-change file, that GitHub will accept a review comment on. Both added
 // and context lines qualify; only the deleted ones don't, since they have no
@@ -182,67 +140,13 @@ func (c *Client) commentableLines() (map[string]map[int]bool, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			out[f.Filename] = patchLineNumbers(f.Patch)
+			out[f.Filename] = forge.PatchLineNumbers(f.Patch)
 		}
 		if len(files) < 100 {
 			break
 		}
 	}
 	return out, nil
-}
-
-// patchLineNumbers walks a unified diff hunk by hunk and returns the new-file
-// line numbers it covers.
-func patchLineNumbers(patch string) map[int]bool {
-	lines := map[int]bool{}
-	newLine := 0
-
-	// The trailing newline would otherwise yield one phantom line past the
-	// end of the last hunk, and a comment there is a 422.
-	for _, l := range strings.Split(strings.TrimSuffix(patch, "\n"), "\n") {
-		if strings.HasPrefix(l, "@@") {
-			if n, ok := hunkNewStart(l); ok {
-				newLine = n
-			}
-			continue
-		}
-		if newLine == 0 {
-			continue // text before the first hunk header
-		}
-		switch {
-		case strings.HasPrefix(l, "+"), strings.HasPrefix(l, " "), l == "":
-			// Added or unchanged: this line exists in the new file. An empty
-			// string is an unchanged blank line whose leading space was
-			// trimmed somewhere along the way.
-			lines[newLine] = true
-			newLine++
-		case strings.HasPrefix(l, "-"):
-			// Deleted: present only in the old file, so it has no new-file
-			// line number and the counter must not advance.
-		default:
-			// "\ No newline at end of file" and anything else unrecognized.
-		}
-	}
-	return lines
-}
-
-// hunkNewStart reads the post-change starting line out of a hunk header,
-// e.g. "@@ -12,7 +14,9 @@ resource ..." -> 14.
-func hunkNewStart(header string) (int, bool) {
-	plus := strings.Index(header, "+")
-	if plus < 0 {
-		return 0, false
-	}
-	rest := header[plus+1:]
-	end := strings.IndexAny(rest, ", ")
-	if end < 0 {
-		return 0, false
-	}
-	n, err := strconv.Atoi(rest[:end])
-	if err != nil || n < 1 {
-		return 0, false
-	}
-	return n, true
 }
 
 // existingReviewComments returns every inline review comment body already on
