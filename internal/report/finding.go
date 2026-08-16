@@ -36,6 +36,19 @@ const (
 	CategoryForceNewChange   Category = "force_new_change"
 	CategoryMissingLifecycle Category = "missing_lifecycle"
 
+	// Guards that were explicitly switched off. Every rule behind these
+	// matches a value someone wrote — never an absent attribute — because a
+	// missing setting is the provider default on hundreds of resource types
+	// and reporting those is how a scanner earns the mute button.
+	//
+	// They are four categories rather than one because suppression is
+	// per-category: a team that has decided its buckets are public should be
+	// able to say so without also silencing unencrypted volumes.
+	CategoryPublicExposure     Category = "public_exposure"
+	CategoryEncryptionDisabled Category = "encryption_disabled"
+	CategoryPermissiveIAM      Category = "permissive_iam"
+	CategoryAuditDisabled      Category = "audit_disabled"
+
 	// Phase 2 categories: require a `terraform show -json` plan supplied
 	// via --plan-json. Unlike the categories above, these are derived from
 	// Terraform's own diff engine, not a heuristic over the .tf source.

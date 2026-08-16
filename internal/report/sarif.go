@@ -115,6 +115,35 @@ var sarifRules = []sarifRule{
 		ShortDescription: sarifMessage{Text: "Stateful resource missing lifecycle { prevent_destroy = true }"},
 		Properties:       sarifRuleProperties{Tags: []string{"terraform", "data-safety"}, Severity: "warning"},
 	},
+	// The insecure_config group. Severity here is SARIF's own notion, not the
+	// scanner's: it decides how GitHub Code Scanning ranks the alert, and
+	// "error" is what puts an alert above the fold in a dashboard somebody
+	// checks weekly. These four earn it because every one of them reports a
+	// value that was written down rather than a default left alone.
+	{
+		ID:               string(CategoryPublicExposure),
+		Name:             "PublicExposure",
+		ShortDescription: sarifMessage{Text: "A resource or its data explicitly placed on the public internet"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "security", "exposure"}, Severity: "error"},
+	},
+	{
+		ID:               string(CategoryEncryptionDisabled),
+		Name:             "EncryptionDisabled",
+		ShortDescription: sarifMessage{Text: "Encryption at rest or in transit switched off, or a TLS policy permitting TLS 1.0/1.1"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "security", "encryption"}, Severity: "error"},
+	},
+	{
+		ID:               string(CategoryPermissiveIAM),
+		Name:             "PermissiveIAM",
+		ShortDescription: sarifMessage{Text: "IAM policy granting every action, or granting to every principal with no condition"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "security", "iam", "least-privilege"}, Severity: "error"},
+	},
+	{
+		ID:               string(CategoryAuditDisabled),
+		Name:             "AuditDisabled",
+		ShortDescription: sarifMessage{Text: "An audit trail or diagnostic setting explicitly disabled"},
+		Properties:       sarifRuleProperties{Tags: []string{"terraform", "security", "audit", "compliance"}, Severity: "warning"},
+	},
 	{
 		ID:               string(CategoryConfirmedReplace),
 		Name:             "ConfirmedReplace",

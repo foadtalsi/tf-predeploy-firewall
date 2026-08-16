@@ -223,6 +223,8 @@ func compiledEngine(spec *ruledef.Rule, opts Options) (Rule, bool, error) {
 		return MissingLifecycleRule{}, true, nil
 	case "unpinned_version":
 		return UnpinnedVersionRule{}, true, nil
+	case "iam_wildcard":
+		return IAMWildcardRule{}, true, nil
 
 	case "static_cost":
 		threshold := opts.CostThresholdUSD

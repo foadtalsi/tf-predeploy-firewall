@@ -249,6 +249,217 @@ everywhere.
 
 ---
 
+## public_exposure
+
+**Reachable from the internet**
+
+A setting that places a resource, or the data in it, on the public internet — an explicit value, not an omitted default.
+
+### What this means
+
+Something in this resource was set to a value that makes it reachable from
+outside your network: a database given a public address, a bucket ACL that
+grants to everyone, a public-access block switched off, or an instance left
+answering the older metadata service.
+
+Each of these is an attribute somebody typed. This category never reports a
+missing setting — an absent `publicly_accessible` is the safe default on
+every type here, and flagging defaults is how a scanner gets muted.
+
+### Why it matters
+
+Public exposure is the shortest path there is between a configuration
+mistake and a breach, and it needs no other bug to be exploitable. A
+publicly-addressable database is protected by nothing but its security
+group; a `public-read` bucket is protected by nothing at all. The IMDSv1
+case is one step longer and just as well-trodden: any server-side request
+forgery in software on the instance can read the instance role's temporary
+credentials from 169.254.169.254, which is the shape of the 2019 Capital One
+breach.
+
+### How to fix it
+
+- `publicly_accessible = true` → set it to `false` and reach the database
+  from inside the VPC: a bastion, a VPN, or an SSM Session Manager
+  port-forward.
+- `acl = "public-read"` → serve the objects through CloudFront with an
+  origin access identity, and leave the bucket private. Note that
+  `authenticated-read` means every AWS user anywhere, not every user of
+  your account.
+- `block_public_*  = false` → set them back to `true`. This resource exists
+  to make the bucket un-publishable regardless of any future ACL or policy;
+  with a switch off, that guarantee is gone.
+- `http_tokens = "optional"` → `"required"`. IMDSv2 needs a PUT to obtain a
+  token first, which an SSRF cannot perform.
+
+### If you disagree
+
+A deliberately public bucket or a throwaway database is a real thing to
+have. Suppress the single line with `# tf-firewall-ignore: public_exposure`,
+which keeps the decision next to the code that made it, or the whole
+category with `ignore_rules` in the config.
+
+---
+
+## encryption_disabled
+
+**Encryption switched off**
+
+Encryption at rest or in transit explicitly disabled, or a TLS policy that still permits TLS 1.0/1.1.
+
+### What this means
+
+An attribute that turns encryption on was set to `false`, or a TLS policy
+names a protocol version that is no longer considered secure.
+
+As with everything in this group, only written values are reported. A
+resource with no `encrypted` attribute at all is not a finding here.
+
+### Why it matters
+
+Encryption at rest is the control that makes a stolen disk, a leaked
+snapshot or a mis-shared backup a non-event rather than a disclosure. On
+most resource types it is also **ForceNew**: it cannot be turned on later
+without replacing the resource and moving the data, so it is decided in the
+commit that creates it or not at all. That is the reason this is worth
+stopping a merge for and a missing tag is not.
+
+Encryption in transit is what stops anything on the network path reading the
+traffic — inside a VPC that includes any other compromised workload in it.
+
+TLS 1.0 and 1.1 are deprecated by RFC 8996, outside the PCI DSS accepted
+set, and refused by current browsers. A policy naming them is nearly always
+a value copied from an old example rather than a compatibility requirement
+somebody measured.
+
+### How to fix it
+
+Set the flag to `true`. If the resource already exists, check the plan
+before applying: for at-rest encryption on most types, Terraform will show a
+replacement, and the data has to be migrated deliberately rather than by
+letting the apply do it.
+
+For a TLS policy, move to the current recommended set — on an AWS load
+balancer that is `ELBSecurityPolicy-TLS13-1-2-2021-06` or later.
+
+### If you disagree
+
+A genuinely old client population is a real constraint, and the teams that
+have one know they have one. `# tf-firewall-ignore: encryption_disabled` on
+the line, or `ignore_rules` for the category.
+
+---
+
+## permissive_iam
+
+**Wildcard IAM policy**
+
+An IAM policy document granting every action, or granting to every principal with no condition narrowing it.
+
+### What this means
+
+A policy attached to this resource contains `Action: "*"` — every action in
+every AWS service — or names `Principal: "*"` with no `Condition` limiting
+who that is.
+
+The check reads the policy from source rather than from the resource model,
+because the form nearly everyone writes is `jsonencode({ … })`: a function
+call over an object, which no value matcher can see inside. Heredoc and
+plain-JSON policies are read the same way.
+
+### Why it matters
+
+`Action: "*"` with `Resource: "*"` is administrator access. It includes the
+IAM actions, which means a holder can grant itself anything it was not
+already given — so the blast radius of any compromise of that role is the
+whole account, and no later tightening of other policies constrains it.
+
+`Principal: "*"` on a resource policy means every AWS account on earth, not
+every principal in yours. It is the difference between an internal bucket
+and a public one, written in a place people rarely re-read.
+
+Both are what a language model produces when it does not know the exact
+action names, because a wildcard is the answer that always works.
+
+### How to fix it
+
+Name the actions the workload actually performs and the resources it
+performs them on:
+
+```hcl
+Action   = ["s3:GetObject", "s3:PutObject"]
+Resource = ["${aws_s3_bucket.data.arn}/*"]
+```
+
+If a public principal is genuinely wanted, narrow it with a condition —
+`aws:PrincipalOrgID` for org-wide access, `aws:SourceArn` for a specific
+service:
+
+```hcl
+Condition = {
+  StringEquals = { "aws:PrincipalOrgID" = "o-example" }
+}
+```
+
+### What this deliberately does not report
+
+`Resource: "*"` on its own. A large family of actions takes no resource ARN
+at all — `s3:ListAllMyBuckets`, `ec2:Describe*`, most of `iam:List*` — so a
+rule that flagged it would fire on a large share of correct policies. It is
+reported only alongside a wildcard action, where the pair means
+administrator.
+
+A `Principal: "*"` in a document that also carries a `Condition`. That is
+the org-wide pattern and it is correct.
+
+### If you disagree
+
+A break-glass role or a deliberately public read policy is legitimate.
+`# tf-firewall-ignore: permissive_iam`, or `ignore_rules` for the category.
+
+---
+
+## audit_disabled
+
+**Audit logging switched off**
+
+A trail or diagnostic setting whose logging is explicitly disabled — the record of what happened, turned off in configuration.
+
+### What this means
+
+A resource whose only job is to keep a record has `enable_logging = false`
+or `enabled = false`.
+
+Scoped tightly by resource type on purpose. `enabled = false` appears on
+hundreds of unrelated blocks, and matching the bare attribute name would
+report a paused autoscaling schedule as a compliance failure.
+
+### Why it matters
+
+An audit trail is the only thing that can answer what happened, after the
+fact, when it matters. Its value is entirely retrospective: it has to have
+been running *before* the incident, so a trail switched off today is a
+question that becomes unanswerable for every day it stays off. Unlike most
+findings, this one cannot be fixed retroactively.
+
+It is also, in most regulated frameworks, a control that is asserted rather
+than checked — SOC 2, PCI DSS and ISO 27001 all assume the log exists.
+
+### How to fix it
+
+Set it back to `true`. If the trail is disabled because it is noisy or
+expensive, the usual answers are an event selector that narrows what is
+recorded, or a lifecycle policy on the destination bucket — both keep the
+record while reducing what it costs.
+
+### If you disagree
+
+A trail deliberately parked in a sandbox account is reasonable.
+`# tf-firewall-ignore: audit_disabled` on the line, or `ignore_rules` for
+the category.
+
+---
+
 ## confirmed_replace
 
 **Confirmed destroy/replace (from terraform plan)**

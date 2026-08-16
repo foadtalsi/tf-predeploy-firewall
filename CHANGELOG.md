@@ -5,6 +5,74 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Eleven new detectors for guards that were explicitly switched off**, in
+  four new categories: `public_exposure`, `encryption_disabled`,
+  `permissive_iam` and `audit_disabled`.
+
+  Found by measurement rather than by brainstorm. A corpus of 132 lines of
+  realistic generated Terraform — a public database, a world-readable bucket,
+  an S3 public-access block with all four switches off, IMDSv1, unencrypted
+  volumes, a plaintext-capable TLS policy, a disabled CloudTrail, and three
+  shapes of wildcard IAM policy — produced **five findings, all of them the
+  same rule (`missing_lifecycle`), none of them blocking**. Fourteen genuinely
+  dangerous lines, none reported. The same corpus now produces twenty-two
+  findings and blocks the merge.
+
+  What is new:
+
+  - `public_data_store` — `publicly_accessible = true` on RDS, Aurora,
+    Redshift, DMS.
+  - `public_acl` — `public-read`, `public-read-write`, and `authenticated-read`,
+    which reads as a restriction and means every AWS user on earth.
+  - `s3_public_access_block_disabled` — any of the four switches set to
+    `false`, on the resource whose entire purpose is that they are true.
+  - `imds_v1_allowed` — `http_tokens = "optional"`, the SSRF-to-credentials
+    path of the 2019 Capital One breach.
+  - `encryption_at_rest_disabled` / `encryption_in_transit_disabled` — six and
+    four attribute spellings respectively, set to `false`.
+  - `weak_tls_policy` — a policy still naming TLS 1.0/1.1.
+  - `audit_logging_disabled` — a trail switched off, scoped by resource type
+    so a paused autoscaling schedule is not reported as a compliance failure.
+  - `skip_final_snapshot` — filed under `missing_lifecycle`, because it is the
+    same concern the reader already has documentation for.
+  - `iam_wildcard` (compiled) and two declarative rules for
+    `aws_iam_policy_document`.
+
+  **Written values only, never an absent one.** That is the discipline the
+  whole group is built on: a missing `encrypted` is the provider default on
+  hundreds of resource types, and a scanner reporting defaults gets muted,
+  taking its true positives with it. `encrypted = false` is a decision
+  somebody made and a reviewer can be asked about.
+
+  Deliberately not reported: `Resource: "*"` on its own, since a large family
+  of actions takes no ARN (`s3:ListAllMyBuckets`, `ec2:Describe*`); a
+  `Principal: "*"` narrowed by any `Condition`, which is the correct org-wide
+  pattern; and an HTTP listener, because a port-80 listener that redirects to
+  443 is right and the matcher cannot see the sibling block that would tell
+  them apart.
+
+  Verified against noise as well as detection: zero findings from these
+  categories on 28 files of real production Terraform, and a
+  `insecure_config_clean.tf` fixture of correct code is pinned in the same
+  golden file as the positive corpus — so widening a pattern to catch one
+  more real case shows up immediately as noise appearing in the clean half.
+
+- **`iam_wildcard`, a compiled rule, because the matcher cannot see into a
+  policy.** The form the AWS documentation uses and generated Terraform
+  reproduces is `policy = jsonencode({…})` — a function call over an object,
+  which the parser resolves to nothing, so `value_matches` has nothing to
+  match against. Writing the rule only for heredoc policies, which do arrive
+  as literals, would have caught the rarer spelling and missed the common one.
+  It reads the attribute's raw source range instead, the same technique
+  `unpinned_version` already uses, and reports the line the wildcard is
+  actually on rather than the line the attribute starts on.
+
+- **A second golden file, run against the full rule set.** The existing one
+  covers a single category's detectors, which cannot show a new rule
+  double-reporting a line another rule already covers. `testdata/golden/insecure_config.txt`
+  runs every default rule over both the positive and the negative fixture.
+
 ### Fixed
 - **A credential in a nested block was found by nothing at all.** Not a gap
   but a dead zone, produced by two rules interacting: the value-pattern

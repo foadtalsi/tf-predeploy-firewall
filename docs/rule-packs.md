@@ -178,6 +178,7 @@ and documentation here — only the walk is code.
 | `force_new_change` | needs the base revision: a ForceNew attribute is only a finding when its value actually changed |
 | `missing_lifecycle` | needs the stateful-type list, and writes a whole `lifecycle` block into the source |
 | `unpinned_version` | needs brace-matched scanning of raw source — `terraform { required_providers {} }` is not a resource block |
+| `iam_wildcard` | a policy body is nearly always `jsonencode({…})`, an expression the parser resolves to nothing, so the check reads the attribute's raw source range instead |
 | `static_cost` | needs per-type pricing and arithmetic against the base revision |
 | `confirmed_replace`, `unexpected_drift`, `large_blast_radius`, `plan_cost_impact` | read terraform's JSON plan rather than source |
 

@@ -6,7 +6,9 @@
 block_threshold: high
 
 # Categories to suppress globally (across all files, all resources).
-# Valid values: unknown_attribute, tutorial_pattern, force_new_change, missing_lifecycle,
+# Valid values: unknown_attribute, unpinned_version, tutorial_pattern,
+# force_new_change, missing_lifecycle, public_exposure, encryption_disabled,
+# permissive_iam, audit_disabled,
 # confirmed_replace, unexpected_drift, large_blast_radius, cost_impact
 # Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
 ignore_rules: []

@@ -12,6 +12,15 @@ Detects:
 - **ForceNew changes** — edits to attributes known to force destroy+recreate on stateful resources (RDS, EBS, ElastiCache...).
 - **Missing `prevent_destroy`** — critical stateful resources without a `lifecycle { prevent_destroy = true }` guard.
 - **Unpinned versions** — module sources with no `version`/`?ref=` (or a `?ref=main` that anyone can move) and providers with no version constraint. Generated Terraform almost never writes one, and an unpinned dependency means the plan that was reviewed isn't necessarily the plan that runs.
+- **Guards explicitly switched off** — `publicly_accessible = true` on a database, a public bucket ACL, an S3 public-access block turned off, IMDSv1 left allowed, encryption at rest or in transit set to `false`, a TLS policy still permitting TLS 1.0/1.1, an audit trail disabled, `skip_final_snapshot = true`.
+- **Wildcard IAM policies** — `Action: "*"` or a `Principal: "*"` with no condition narrowing it, read out of `jsonencode({…})` and heredoc policy documents alike.
+
+Those last two groups report **written values only, never an absent one**.
+A missing `encrypted` is the provider default on hundreds of resource types,
+and a scanner that reports defaults is a scanner people mute — taking its
+true positives with it. `encrypted = false` is a decision somebody made and a
+reviewer can be asked about. For the same reason, `Resource: "*"` on its own
+is not a finding: a large family of actions takes no ARN at all.
 
 ## Rule packs: what's free and what a plan buys
 

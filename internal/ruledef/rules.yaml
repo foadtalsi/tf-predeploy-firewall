@@ -285,6 +285,297 @@ rules:
       threshold_usd: "0"
 
   # ---------------------------------------------------------------------
+  # insecure_config — a guard someone explicitly switched off.
+  #
+  # Every rule below matches a value that is *written down*, never an
+  # absence. That is the whole discipline of this group: `encrypted = false`
+  # is a decision somebody made and a reviewer can be asked about, while a
+  # missing `encrypted` is the provider default on hundreds of resource
+  # types and flagging it would bury the real ones. Absence-based checks are
+  # what generic posture scanners do, and they are why those scanners get
+  # muted.
+  #
+  # Severity follows how certain the finding is, not how frightening the
+  # subject sounds. `high` blocks at the default threshold, so it is reserved
+  # for values with no good reason to exist; `medium` is for settings that
+  # are wrong often enough to raise, and legitimate often enough that
+  # stopping the merge would be wrong.
+  # ---------------------------------------------------------------------
+
+  # Reachable from the internet. The single most-exploited misconfiguration
+  # class there is, and one an LLM produces readily because
+  # `publicly_accessible = true` is what makes a copy-pasted tutorial work
+  # from a laptop.
+  #
+  # Scoped to the types where it means "on the public internet" rather than
+  # "in a public subnet": these four attach a routable address to a data
+  # store. High, not critical — a throwaway dev database is a real use, and
+  # critical here is reserved for a credential that is definitely leaked.
+  - id: public_data_store
+    category: public_exposure
+    severity: high
+    match:
+      scope: attribute
+      resource_types:
+        - aws_db_instance
+        - aws_rds_cluster_instance
+        - aws_redshift_cluster
+        - aws_dms_replication_instance
+      attr_names: [publicly_accessible]
+      literal: true
+      value_matches: '^true$'
+    message: '{resource} sets publicly_accessible = true — this attaches a public IP and puts the data store on the internet, where only its security group stands between it and the world'
+    suggestion: |-
+      publicly_accessible = false
+
+      # and reach it from inside the VPC instead — a bastion, VPN, or
+      # SSM Session Manager port-forward.
+    fix:
+      action: replace_attr_line
+      lines:
+        - 'publicly_accessible = false'
+
+  # Canned ACLs that grant to AllUsers or AuthenticatedUsers. A public bucket
+  # is sometimes deliberate, which is why this is high rather than critical —
+  # but the deliberate version is nearly always a static site, and the right
+  # shape for that is CloudFront with an origin access identity, not an open
+  # bucket that also answers to anyone who finds its name.
+  #
+  # "authenticated-read" is included and is the least obvious of the three:
+  # it reads as a restriction, and it means every authenticated AWS user
+  # anywhere, not every user of your account.
+  - id: public_acl
+    category: public_exposure
+    severity: high
+    match:
+      scope: any_attribute
+      attr_names: [acl]
+      literal: true
+      value_matches: '^(public-read|public-read-write|authenticated-read)$'
+    message: '{location}acl = {value_q} grants access outside this account — "public-read" and "public-read-write" are open to anyone on the internet, and "authenticated-read" is open to every AWS user everywhere, not just yours'
+
+  # aws_s3_bucket_public_access_block exists to make a bucket un-publishable
+  # regardless of what any ACL or policy says. Setting one of its four
+  # switches to false is the act of removing that backstop, and it is only
+  # ever written deliberately: the resource's whole purpose is to be true.
+  - id: s3_public_access_block_disabled
+    category: public_exposure
+    severity: high
+    match:
+      scope: attribute
+      resource_types: [aws_s3_bucket_public_access_block]
+      attr_names:
+        - block_public_acls
+        - block_public_policy
+        - ignore_public_acls
+        - restrict_public_buckets
+      literal: true
+      value_matches: '^false$'
+    message: '{attr} = false on {resource} — this resource exists to stop the bucket being made public by any future ACL or policy, and this switch removes that guarantee'
+    fix:
+      action: replace_attr_line
+      lines:
+        - '{attr} = true'
+
+  # IMDSv1. The instance metadata service hands out the role's temporary
+  # credentials to anything that can make an HTTP request from the instance —
+  # so any server-side request forgery in an application running there
+  # becomes credential theft. IMDSv2 requires a PUT to get a token first,
+  # which an SSRF cannot perform.
+  #
+  # Medium rather than high: some agents and older SDKs still speak v1 only,
+  # so this is a "justify it" finding, not a "stop the merge" one.
+  - id: imds_v1_allowed
+    category: public_exposure
+    severity: medium
+    match:
+      scope: block_attribute
+      block_types: [metadata_options]
+      attr_names: [http_tokens]
+      literal: true
+      value_matches: '^optional$'
+    message: 'metadata_options.http_tokens = "optional" on {resource} allows IMDSv1 — any SSRF in software running on this instance can then read its IAM credentials from 169.254.169.254'
+    suggestion: |-
+      metadata_options {
+        http_tokens = "required"
+      }
+    fix:
+      action: replace_attr_line
+      lines:
+        - '{attr} = "required"'
+
+  # ---------------------------------------------------------------------
+
+  # Encryption at rest, explicitly turned off. In every provider below the
+  # attribute defaults to enabled or the resource is created unencrypted only
+  # if asked — so `false` here is always a written decision.
+  #
+  # These cannot be fixed by flipping the flag on an existing resource: for
+  # most of them encryption at rest is ForceNew, which is why the message
+  # says so rather than offering a one-line fix that would quietly schedule a
+  # replacement.
+  - id: encryption_at_rest_disabled
+    category: encryption_disabled
+    severity: high
+    match:
+      scope: any_attribute
+      attr_names:
+        - storage_encrypted
+        - encrypted
+        - at_rest_encryption_enabled
+        - encryption_enabled
+        - enable_encryption
+        - infrastructure_encryption_enabled
+      literal: true
+      value_matches: '^false$'
+    message: '{location}{attr} = false disables encryption at rest on {resource} — on most types this cannot be turned on later without replacing the resource, so it is decided here or not at all'
+
+  # Encryption in transit, explicitly turned off. Distinct from the at-rest
+  # group because the remediation and the exposure are different: this is
+  # data readable by anything on the network path, and it is usually a
+  # non-destructive flag to flip.
+  - id: encryption_in_transit_disabled
+    category: encryption_disabled
+    severity: high
+    match:
+      scope: any_attribute
+      attr_names:
+        - transit_encryption_enabled
+        - encrypt_in_transit
+        - enable_https_traffic_only
+        - https_only
+      literal: true
+      value_matches: '^false$'
+    message: '{location}{attr} = false disables encryption in transit on {resource} — traffic to it is readable by anything on the network path between client and service'
+    fix:
+      action: replace_attr_line
+      lines:
+        - '{attr} = true'
+
+  # TLS 1.0 and 1.1 are deprecated by the IETF (RFC 8996), removed from the
+  # PCI DSS accepted set, and refused by current browsers. A policy naming
+  # them is nearly always a value copied from an old example rather than a
+  # compatibility requirement someone measured.
+  #
+  # Medium: a genuinely old client population is a real constraint, and the
+  # people who have one know they have one.
+  - id: weak_tls_policy
+    category: encryption_disabled
+    severity: medium
+    match:
+      scope: any_attribute
+      attr_names: [ssl_policy, security_policy, min_tls_version, minimum_tls_version, tls_policy]
+      literal: true
+      value_matches: '(?i)(TLS-?1[._-]?[01]|TLSv1[._]?[01]?$|^1\.[01]$)'
+    message: '{location}{attr} = {value_q} permits TLS 1.0/1.1 on {resource} — both are deprecated by RFC 8996, outside the PCI DSS accepted set, and refused by current browsers'
+
+  # ---------------------------------------------------------------------
+
+  # An audit trail switched off. Unlike a missing log setting — which is a
+  # default on most resource types and not worth reporting — writing
+  # `enable_logging = false` on a trail is turning off the record of who did
+  # what, on the resource whose only job is to keep it.
+  #
+  # Scoped by resource type on purpose. `enabled = false` appears on hundreds
+  # of unrelated blocks, and matching the bare name would report a disabled
+  # autoscaling schedule as a compliance failure.
+  - id: audit_logging_disabled
+    category: audit_disabled
+    severity: high
+    match:
+      scope: attribute
+      resource_types:
+        - aws_cloudtrail
+        - aws_flow_log
+        - azurerm_monitor_diagnostic_setting
+      attr_names: [enable_logging, enabled]
+      literal: true
+      value_matches: '^false$'
+    message: '{attr} = false on {resource} disables the audit trail itself — this is the record used to answer what happened, and it is being switched off in configuration rather than by an attacker'
+    fix:
+      action: replace_attr_line
+      lines:
+        - '{attr} = true'
+
+  # ---------------------------------------------------------------------
+
+  # skip_final_snapshot lives under missing_lifecycle rather than in its own
+  # category because it is the same concern the reader already has docs for:
+  # nothing stands between a destroy and permanent loss. prevent_destroy
+  # refuses the destroy; a final snapshot survives it. A resource with
+  # neither has no recovery path at all.
+  #
+  # Medium because throwaway environments legitimately set it, and because it
+  # is only a loss when combined with an actual destroy.
+  - id: skip_final_snapshot
+    category: missing_lifecycle
+    severity: medium
+    match:
+      scope: attribute
+      resource_types:
+        - aws_db_instance
+        - aws_rds_cluster
+        - aws_docdb_cluster
+        - aws_neptune_cluster
+        - aws_redshift_cluster
+      attr_names: [skip_final_snapshot]
+      literal: true
+      value_matches: '^true$'
+    message: 'skip_final_snapshot = true on {resource} — a destroy of this database keeps nothing, so recovery after a mistaken apply is impossible rather than slow'
+    suggestion: |-
+      skip_final_snapshot       = false
+      final_snapshot_identifier = "{name}-final"
+
+  # ---------------------------------------------------------------------
+
+  # IAM policy documents with a wildcard. Compiled rather than declarative
+  # because the policy body is nearly always jsonencode({…}) — an expression,
+  # not a literal, so no matcher can see inside it. See rule_iam_wildcard.go.
+  - id: iam_wildcard
+    category: permissive_iam
+    severity: high
+    engine: iam_wildcard
+
+  # The aws_iam_policy_document data source is the one policy form that IS
+  # declarative: its statements are real HCL blocks, so `actions = ["*"]`
+  # reaches the resource model as a literal and needs no compiled traversal.
+  #
+  # A single-element list flattens to its element, which is what makes the
+  # anchored pattern below correct: it matches ["*"] and not
+  # ["s3:*", "ec2:*"], where each element is a scoped wildcard and the
+  # combination is ordinary least-privilege work in progress.
+  - id: iam_document_wildcard_action
+    category: permissive_iam
+    severity: high
+    match:
+      scope: block_attribute
+      resource_types: [aws_iam_policy_document]
+      block_types: [statement]
+      attr_names: [actions]
+      literal: true
+      value_matches: '^\*$'
+    message: 'statement in {resource} sets actions = ["*"] — every action in every AWS service, including the IAM calls that would let a holder grant itself anything else'
+    suggestion: |-
+      actions = ["s3:GetObject", "s3:PutObject"]
+
+  # Deliberately not paired with a resources = ["*"] rule. A wildcard
+  # resource alone is unavoidable for the many actions whose API takes no
+  # ARN — s3:ListAllMyBuckets, ec2:Describe*, most of iam:List* — so
+  # reporting it would fire on a large share of correct policies. It is only
+  # a finding next to a wildcard action, and that pair is caught above.
+  - id: iam_document_wildcard_principal
+    category: permissive_iam
+    severity: high
+    match:
+      scope: block_attribute
+      resource_types: [aws_iam_policy_document]
+      block_types: [principals]
+      attr_names: [identifiers]
+      literal: true
+      value_matches: '^\*$'
+    message: 'principals block in {resource} names identifiers = ["*"] — this grants the statement to every AWS account on earth, not to every principal in yours'
+
+  # ---------------------------------------------------------------------
   # Plan-based. These read terraform's own JSON plan rather than source, so
   # they have no line to anchor to and no source to match against.
   # ---------------------------------------------------------------------
@@ -652,3 +943,206 @@ docs:
       reserved instances, no savings plans, no data transfer, no per-request
       charges. Treat a finding as a prompt to look, not as a quote. Set
       `cost_impact_threshold_usd: 0` to switch the category off.
+
+  # -------------------------------------------------------------------
+  # insecure_config group. These four share a discipline worth stating in
+  # each entry: every rule behind them matches a value somebody wrote, never
+  # a missing one. That is what separates them from a posture scanner, and
+  # it is why the "If you disagree" section can be short — the finding is
+  # never about a default you did not choose.
+  # -------------------------------------------------------------------
+
+  - category: public_exposure
+    title: Reachable from the internet
+    full_description: A setting that places a resource, or the data in it, on the public internet — an explicit value, not an omitted default.
+    markdown: |-
+      ## What this means
+
+      Something in this resource was set to a value that makes it reachable from
+      outside your network: a database given a public address, a bucket ACL that
+      grants to everyone, a public-access block switched off, or an instance left
+      answering the older metadata service.
+
+      Each of these is an attribute somebody typed. This category never reports a
+      missing setting — an absent `publicly_accessible` is the safe default on
+      every type here, and flagging defaults is how a scanner gets muted.
+
+      ## Why it matters
+
+      Public exposure is the shortest path there is between a configuration
+      mistake and a breach, and it needs no other bug to be exploitable. A
+      publicly-addressable database is protected by nothing but its security
+      group; a `public-read` bucket is protected by nothing at all. The IMDSv1
+      case is one step longer and just as well-trodden: any server-side request
+      forgery in software on the instance can read the instance role's temporary
+      credentials from 169.254.169.254, which is the shape of the 2019 Capital One
+      breach.
+
+      ## How to fix it
+
+      - `publicly_accessible = true` → set it to `false` and reach the database
+        from inside the VPC: a bastion, a VPN, or an SSM Session Manager
+        port-forward.
+      - `acl = "public-read"` → serve the objects through CloudFront with an
+        origin access identity, and leave the bucket private. Note that
+        `authenticated-read` means every AWS user anywhere, not every user of
+        your account.
+      - `block_public_*  = false` → set them back to `true`. This resource exists
+        to make the bucket un-publishable regardless of any future ACL or policy;
+        with a switch off, that guarantee is gone.
+      - `http_tokens = "optional"` → `"required"`. IMDSv2 needs a PUT to obtain a
+        token first, which an SSRF cannot perform.
+
+      ## If you disagree
+
+      A deliberately public bucket or a throwaway database is a real thing to
+      have. Suppress the single line with `# tf-firewall-ignore: public_exposure`,
+      which keeps the decision next to the code that made it, or the whole
+      category with `ignore_rules` in the config.
+
+  - category: encryption_disabled
+    title: Encryption switched off
+    full_description: Encryption at rest or in transit explicitly disabled, or a TLS policy that still permits TLS 1.0/1.1.
+    markdown: |-
+      ## What this means
+
+      An attribute that turns encryption on was set to `false`, or a TLS policy
+      names a protocol version that is no longer considered secure.
+
+      As with everything in this group, only written values are reported. A
+      resource with no `encrypted` attribute at all is not a finding here.
+
+      ## Why it matters
+
+      Encryption at rest is the control that makes a stolen disk, a leaked
+      snapshot or a mis-shared backup a non-event rather than a disclosure. On
+      most resource types it is also **ForceNew**: it cannot be turned on later
+      without replacing the resource and moving the data, so it is decided in the
+      commit that creates it or not at all. That is the reason this is worth
+      stopping a merge for and a missing tag is not.
+
+      Encryption in transit is what stops anything on the network path reading the
+      traffic — inside a VPC that includes any other compromised workload in it.
+
+      TLS 1.0 and 1.1 are deprecated by RFC 8996, outside the PCI DSS accepted
+      set, and refused by current browsers. A policy naming them is nearly always
+      a value copied from an old example rather than a compatibility requirement
+      somebody measured.
+
+      ## How to fix it
+
+      Set the flag to `true`. If the resource already exists, check the plan
+      before applying: for at-rest encryption on most types, Terraform will show a
+      replacement, and the data has to be migrated deliberately rather than by
+      letting the apply do it.
+
+      For a TLS policy, move to the current recommended set — on an AWS load
+      balancer that is `ELBSecurityPolicy-TLS13-1-2-2021-06` or later.
+
+      ## If you disagree
+
+      A genuinely old client population is a real constraint, and the teams that
+      have one know they have one. `# tf-firewall-ignore: encryption_disabled` on
+      the line, or `ignore_rules` for the category.
+
+  - category: permissive_iam
+    title: Wildcard IAM policy
+    full_description: An IAM policy document granting every action, or granting to every principal with no condition narrowing it.
+    markdown: |-
+      ## What this means
+
+      A policy attached to this resource contains `Action: "*"` — every action in
+      every AWS service — or names `Principal: "*"` with no `Condition` limiting
+      who that is.
+
+      The check reads the policy from source rather than from the resource model,
+      because the form nearly everyone writes is `jsonencode({ … })`: a function
+      call over an object, which no value matcher can see inside. Heredoc and
+      plain-JSON policies are read the same way.
+
+      ## Why it matters
+
+      `Action: "*"` with `Resource: "*"` is administrator access. It includes the
+      IAM actions, which means a holder can grant itself anything it was not
+      already given — so the blast radius of any compromise of that role is the
+      whole account, and no later tightening of other policies constrains it.
+
+      `Principal: "*"` on a resource policy means every AWS account on earth, not
+      every principal in yours. It is the difference between an internal bucket
+      and a public one, written in a place people rarely re-read.
+
+      Both are what a language model produces when it does not know the exact
+      action names, because a wildcard is the answer that always works.
+
+      ## How to fix it
+
+      Name the actions the workload actually performs and the resources it
+      performs them on:
+
+      ```hcl
+      Action   = ["s3:GetObject", "s3:PutObject"]
+      Resource = ["${aws_s3_bucket.data.arn}/*"]
+      ```
+
+      If a public principal is genuinely wanted, narrow it with a condition —
+      `aws:PrincipalOrgID` for org-wide access, `aws:SourceArn` for a specific
+      service:
+
+      ```hcl
+      Condition = {
+        StringEquals = { "aws:PrincipalOrgID" = "o-example" }
+      }
+      ```
+
+      ## What this deliberately does not report
+
+      `Resource: "*"` on its own. A large family of actions takes no resource ARN
+      at all — `s3:ListAllMyBuckets`, `ec2:Describe*`, most of `iam:List*` — so a
+      rule that flagged it would fire on a large share of correct policies. It is
+      reported only alongside a wildcard action, where the pair means
+      administrator.
+
+      A `Principal: "*"` in a document that also carries a `Condition`. That is
+      the org-wide pattern and it is correct.
+
+      ## If you disagree
+
+      A break-glass role or a deliberately public read policy is legitimate.
+      `# tf-firewall-ignore: permissive_iam`, or `ignore_rules` for the category.
+
+  - category: audit_disabled
+    title: Audit logging switched off
+    full_description: A trail or diagnostic setting whose logging is explicitly disabled — the record of what happened, turned off in configuration.
+    markdown: |-
+      ## What this means
+
+      A resource whose only job is to keep a record has `enable_logging = false`
+      or `enabled = false`.
+
+      Scoped tightly by resource type on purpose. `enabled = false` appears on
+      hundreds of unrelated blocks, and matching the bare attribute name would
+      report a paused autoscaling schedule as a compliance failure.
+
+      ## Why it matters
+
+      An audit trail is the only thing that can answer what happened, after the
+      fact, when it matters. Its value is entirely retrospective: it has to have
+      been running *before* the incident, so a trail switched off today is a
+      question that becomes unanswerable for every day it stays off. Unlike most
+      findings, this one cannot be fixed retroactively.
+
+      It is also, in most regulated frameworks, a control that is asserted rather
+      than checked — SOC 2, PCI DSS and ISO 27001 all assume the log exists.
+
+      ## How to fix it
+
+      Set it back to `true`. If the trail is disabled because it is noisy or
+      expensive, the usual answers are an event selector that narrows what is
+      recorded, or a lifecycle policy on the destination bucket — both keep the
+      record while reducing what it costs.
+
+      ## If you disagree
+
+      A trail deliberately parked in a sandbox account is reasonable.
+      `# tf-firewall-ignore: audit_disabled` on the line, or `ignore_rules` for
+      the category.
