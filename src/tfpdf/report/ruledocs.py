@@ -96,8 +96,8 @@ def rule_help_uri(c: Category | str) -> str:
     return f"{DOCS_BASE_URL}#{c}"
 
 
-_DOCS_PREAMBLE = """<!-- Generated from internal/ruledef/rules.yaml. Do not edit by hand:
-     edit the pack, then run "go test ./internal/report -run TestRuleDocs -update". -->
+_DOCS_PREAMBLE = """<!-- Generated from tfpdf/ruledef/rules.py. Do not edit by hand:
+     edit the pack, then run "pytest --update-docs". -->
 
 # Rules
 

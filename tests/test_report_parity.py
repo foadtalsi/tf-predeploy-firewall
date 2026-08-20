@@ -181,6 +181,14 @@ def test_rule_docs_match_the_committed_go_generated_file(
     drapeau `-update` de Go. Il ne touche pas à `data/rules.md` — c'est l'oracle,
     et un test qui pourrait réécrire ce contre quoi il compare ne vérifierait
     rien.
+
+    Une divergence, voulue, et la seule : le commentaire de provenance en tête.
+    Go dit que le fichier vient de `internal/ruledef/rules.yaml` et se régénère
+    par `go test`. Ni l'un ni l'autre n'existe ici — les règles sont écrites en
+    Python et le fichier se régénère par `pytest --update-docs`. Une doc qui
+    enverrait le lecteur lancer une commande disparue serait fausse, alors que
+    cette divergence-ci est vérifiée juste en dessous. Tout ce qui suit ces deux
+    lignes reste comparé octet pour octet.
     """
     got = render_rule_docs()
 
@@ -191,4 +199,15 @@ def test_rule_docs_match_the_committed_go_generated_file(
         pytest.skip(f"wrote {out}")
 
     want = (DATA / "rules.md").read_text(encoding="utf-8")
-    assert got == want
+
+    got_preamble, got_body = got.split("-->", 1)
+    want_preamble, want_body = want.split("-->", 1)
+
+    # La divergence est nommée, pas seulement tolérée : ces assertions échouent
+    # si le préambule Python repart vers du Go, et si l'oracle cesse d'être
+    # celui qu'on croit.
+    assert "tfpdf/ruledef/rules.py" in got_preamble
+    assert "pytest --update-docs" in got_preamble
+    assert "internal/ruledef/rules.yaml" in want_preamble
+
+    assert got_body == want_body

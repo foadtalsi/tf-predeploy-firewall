@@ -190,7 +190,7 @@ def test_the_console_scripts_point_at_functions_that_exist() -> None:
 @pytest.mark.parametrize(
     "resource",
     [
-        "tfpdf/ruledef/rules.yaml",
+        "tfpdf/ruledef/rules.py",
         "tfpdf/config/default.yml",
         "tfpdf/schema/data/pack_aws_base.json.gz",
         "tfpdf/schema/data/pack_azurerm_base.json.gz",

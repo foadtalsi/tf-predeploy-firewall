@@ -10,7 +10,7 @@ format de règles n'a pas le vocabulaire : une recherche dans le schéma du
 fournisseur, une comparaison avec la révision de base, ou un balayage à
 accolades appariées de la source brute. Les règles déclarent toujours leur
 identité, leur sévérité, leur formulation et leur documentation dans
-`ruledef/rules.yaml` — seul le parcours est du code.
+`ruledef/rules.py` — seul le parcours est du code.
 """
 
 from __future__ import annotations

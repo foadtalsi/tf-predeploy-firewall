@@ -171,7 +171,7 @@ def from_pack(p: Pack, opts: Options) -> list[Rule]:
 def default_rules(opts: Options) -> list[Rule]:
     """Le jeu de règles intégré, dans l'ordre du pack.
 
-    Les règles elles-mêmes sont des déclarations dans `ruledef/rules.yaml`, pas
+    Les règles elles-mêmes sont des déclarations dans `ruledef/rules.py`, pas
     du code : ce que chacune cherche, comment sa découverte est formulée et ce
     que dit la documentation sont tous des données. Ceci ne fait que résoudre
     ces déclarations en forme exécutable.
