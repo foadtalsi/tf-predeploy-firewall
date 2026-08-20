@@ -1,0 +1,220 @@
+# Publie une version quand une étiquette de version est poussée.
+#
+# Ce workflow existe à cause d'un échec précis : `v0` avait été étiquetée en
+# juillet et n'avait jamais bougé, pendant que trois semaines de travail —
+# dont un correctif de faux positifs qui bloquait des PR sur du Terraform
+# valide — s'accumulaient sur main. Chaque workflow épinglé sur `@v0`
+# continuait d'exécuter la version de juillet. Le travail était fait et livré
+# à personne.
+#
+# Les utilisateurs d'Actions épinglent une étiquette majeure mouvante (`@v1`),
+# comme le fait actions/checkout. Cette étiquette doit être redirigée à chaque
+# publication, sinon la même dérive revient — c'est ce workflow qui le fait,
+# plutôt que la mémoire de quelqu'un.
+#
+# Pour publier :
+#   1. Placer les changements sous un titre `## [vX.Y.Z] — DATE` du CHANGELOG
+#   2. git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# Tout le reste est automatique : les tests tournent sur l'arbre étiqueté,
+# l'alias majeur se déplace, le paquet part sur PyPI, et les notes de version
+# viennent de la section du changelog.
+
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Étiquette existante à (re)publier, p. ex. v1.0.0"
+        required: true
+
+jobs:
+  # L'étiquette est ce que les gens exécutent : elle est donc vérifiée pour
+  # elle-même, plutôt qu'en supposant que main était vert quand elle a été
+  # posée.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests
+      - run: ruff format --check src tests
+      - run: mypy
+      - run: pytest -q
+
+      # L'Action est une action Docker : si cette image ne se construit pas,
+      # l'action est cassée pour tout le monde et rien d'autre ne l'attraperait.
+      - name: Build the action image
+        run: docker build -t tf-predeploy-firewall:${{ github.sha }} .
+
+      # Une version dont le scanner ne saurait pas charger son propre pack de
+      # règles embarqué échouerait à chaque scan. Bon marché à vérifier,
+      # catastrophique à manquer.
+      #
+      # Ce test est plus important en Python qu'il ne l'était en Go : le pack
+      # est chargé par `importlib.resources`, donc l'oublier dans la
+      # configuration du wheel produit une image qui se construit, démarre, et
+      # échoue au premier fichier scanné.
+      - name: Smoke-test the built image
+        run: |
+          mkdir -p /tmp/smoke && cd /tmp/smoke && git init -q .
+          cat > main.tf <<'EOF'
+          resource "aws_instance" "app" {
+            ami           = "ami-0abcdef1234567890"
+            instance_type = "m5.large"
+            hibernation   = true
+            launch_template { id = "lt-0123456789" }
+            totally_made_up_argument = "hallucinated"
+          }
+          EOF
+          git add -A && git -c user.email=ci@example.com -c user.name=CI commit -qm smoke
+          docker run --rm -v /tmp/smoke:/repo -w /repo \
+            tf-predeploy-firewall:${{ github.sha }} \
+            --repo-dir /repo --full-repo-scan --post-comment=false \
+            --config /dev/null > /tmp/out.txt 2>/tmp/err.txt || true
+          cat /tmp/err.txt /tmp/out.txt
+
+          # Des arguments valides que l'ancien schéma curé signalait à tort
+          # doivent rester propres...
+          for arg in hibernation launch_template; do
+            if grep -q "\"$arg\"" /tmp/out.txt; then
+              echo "RÉGRESSION : '$arg' est un argument valide mais a été signalé"; exit 1
+            fi
+          done
+          # ...et un argument réellement inventé doit toujours être attrapé.
+          grep -q "totally_made_up_argument" /tmp/out.txt \
+            || { echo "RÉGRESSION : argument halluciné non détecté"; exit 1; }
+          echo "smoke test passé"
+
+  # Séparé de `release` parce qu'il lui faut un jeton OIDC que rien d'autre ne
+  # doit avoir : la publication PyPI se fait par Trusted Publishing, sans
+  # aucun jeton d'API stocké en secret de dépôt.
+  #
+  # À configurer une fois sur pypi.org : Publishing -> Add a new publisher,
+  # avec ce dépôt, ce workflow (`release.yml`) et cet environnement (`pypi`).
+  pypi:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install build
+      - run: python -m build
+
+      # `python -m build` produit un wheel depuis un sdist qu'il vient de
+      # construire, mais ne vérifie pas que le wheel contient ce qu'il faut.
+      # Les packs de règles sont des fichiers de données lus par
+      # `importlib.resources` : absents du wheel, l'installation réussit et
+      # chaque scan échoue.
+      - name: The wheel carries its rule packs
+        run: |
+          python -m zipfile -l dist/*.whl > /tmp/contents.txt
+          for f in pack_aws_base.json.gz pack_azurerm_base.json.gz default.yml; do
+            grep -q "$f" /tmp/contents.txt || { echo "$f absent du wheel"; exit 1; }
+          done
+          echo "packs et configuration présents"
+
+      # Installé depuis le wheel construit, dans un environnement neuf, et non
+      # depuis l'arbre source : c'est la seule façon de vérifier ce que les
+      # gens reçoivent réellement.
+      - name: The wheel installs and runs
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install --quiet dist/*.whl
+          /tmp/fresh/bin/tf-predeploy-firewall --version
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    needs: [verify, pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve the version being released
+        id: v
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "major=${TAG%%.*}" >> "$GITHUB_OUTPUT"
+
+      # Extrait la section de ce changelog. Des notes générées depuis les
+      # sujets de commit disent ce qui a changé ; celles-ci disent pourquoi.
+      - name: Extract release notes
+        run: |
+          awk -v tag="${{ steps.v.outputs.tag }}" '
+            $0 ~ "^## \\[" tag "\\]" { grab = 1; next }
+            grab && /^## / { exit }
+            grab { print }
+          ' CHANGELOG.md > /tmp/notes.md
+          if [ ! -s /tmp/notes.md ]; then
+            echo "Aucune section CHANGELOG pour ${{ steps.v.outputs.tag }}" >&2
+            exit 1
+          fi
+          cat /tmp/notes.md
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Le wheel et le sdist sont attachés à la release GitHub en plus d'aller
+      # sur PyPI, pour qu'une installation soit possible sans dépendre de PyPI.
+      #
+      # Ce qui a disparu avec le Go, et qu'il faut dire : il n'y a plus de
+      # binaires précompilés. Go les croisait pour cinq plateformes
+      # gratuitement ; Python n'a pas d'équivalent sans PyInstaller, qui est un
+      # projet en soi. L'usage local passe donc par `pip install`, ou par le
+      # hook pre-commit qui construit son propre venv (voir
+      # .pre-commit-hooks.yaml).
+      - name: Build the distributions
+        run: |
+          pip install build
+          python -m build
+          (cd dist && sha256sum * > checksums.txt && cat checksums.txt)
+
+      # Tout l'intérêt de ce workflow. Sans cela l'étiquette majeure dérive de
+      # nouveau derrière main et les gens exécutent en silence une vieille
+      # version.
+      - name: Move the major alias tag
+        run: |
+          MAJOR="${{ steps.v.outputs.major }}"
+          git tag -f "$MAJOR" "${{ steps.v.outputs.tag }}"
+          git push -f origin "refs/tags/$MAJOR"
+          echo "$MAJOR pointe désormais sur ${{ steps.v.outputs.tag }}"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.v.outputs.tag }}" \
+            --title "${{ steps.v.outputs.tag }}" \
+            --notes-file /tmp/notes.md \
+            --verify-tag dist/* 2>/dev/null \
+          || { gh release edit "${{ steps.v.outputs.tag }}" \
+                 --title "${{ steps.v.outputs.tag }}" \
+                 --notes-file /tmp/notes.md; \
+               gh release upload "${{ steps.v.outputs.tag }}" dist/* --clobber; }

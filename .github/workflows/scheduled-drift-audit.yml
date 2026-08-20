@@ -1,0 +1,37 @@
+# Example: a scheduled audit of already-merged Terraform, independent of
+# any PR. Catches drift between what a repo's schema/rule coverage was
+# when code merged and what it is now — code that was clean last month can
+# become non-compliant purely because this tool's detection grew, with no
+# change to the .tf files themselves.
+#
+# Copy this file (with path adjustments) into your own repo's
+# .github/workflows/ alongside the PR-triggered workflow, not instead of it.
+
+name: tf-predeploy-firewall-drift-audit
+on:
+  schedule:
+    - cron: "0 6 * * 1" # every Monday at 06:00 UTC
+  workflow_dispatch: {} # allow a manual run from the Actions tab too
+
+permissions:
+  contents: read
+  security-events: write # upload SARIF to GitHub Code Scanning
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: foadtalsi/tf-predeploy-firewall@v1
+        with:
+          full-repo-scan: "true"
+          block-threshold: high
+          sarif-output: tf-firewall-audit.sarif
+          # No github-token / post-comment here — there's no PR to comment
+          # on for a scheduled run.
+
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tf-firewall-audit.sarif

@@ -1,0 +1,227 @@
+# Regenerates the rule packs from the latest provider releases and opens a
+# PR when anything changed.
+#
+# Rule packs are generated data, and their whole value is being an accurate
+# description of a provider release. AWS and Azure each ship roughly weekly,
+# so a pack left alone drifts in the one direction that hurts: arguments
+# added by a new release are not in the pack, and the unknown-attribute rule
+# reports valid Terraform as hallucinated — at severity high, which blocks a
+# PR. Staleness here is not reduced coverage, it is false positives.
+#
+# It opens a PR rather than pushing to main deliberately. A pack change is a
+# change to what every customer's CI will and won't block on, and the diff
+# stat (types added, ForceNew resolution rate) is exactly the thing a human
+# should glance at before that ships.
+
+name: Refresh rule packs
+
+on:
+  schedule:
+    # Monday morning, after the previous week's provider releases have
+    # settled. UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Only refresh this provider (blank = all)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    strategy:
+      # One PR per provider: an AWS pack change and an Azure pack change are
+      # unrelated events, and reviewing them together means reviewing
+      # neither. fail-fast off so one provider's bad day doesn't cancel the
+      # other's refresh.
+      fail-fast: false
+      matrix:
+        provider: [aws, azurerm]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # Go reste nécessaire pour une seule chose : l'extracteur ForceNew.
+      # `terraform providers schema -json` n'expose pas ForceNew, et la seule
+      # source qui fasse autorité est la déclaration de schéma en Go du
+      # fournisseur, lue avec go/ast. Le porter voudrait dire écrire un
+      # analyseur de Go.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Skip providers not selected by a manual run
+        id: gate
+        run: |
+          WANTED="${{ github.event.inputs.provider }}"
+          if [ -n "$WANTED" ] && [ "$WANTED" != "${{ matrix.provider }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The provider's own schema output is the authority on the argument
+      # surface. Resolving with no version constraint is the point: this job
+      # exists to pick up whatever is newest.
+      - name: Resolve and fetch the latest provider release
+        if: steps.gate.outputs.skip == 'false'
+        id: provider
+        run: |
+          mkdir -p /tmp/schema && cd /tmp/schema
+          cat > main.tf <<EOF
+          terraform {
+            required_providers {
+              ${{ matrix.provider }} = {
+                source = "hashicorp/${{ matrix.provider }}"
+              }
+            }
+          }
+          EOF
+          terraform init -input=false >/dev/null
+          VERSION=$(terraform version -json | jq -r '.provider_selections | to_entries[0].value')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          terraform providers schema -json > /tmp/schema/schema.json
+          echo "resolved ${{ matrix.provider }} $VERSION"
+
+      # ForceNew flags are not in the schema JSON at all; they only exist in
+      # the provider's Go source. Sparse checkout keeps this to the service
+      # packages instead of cloning a multi-gigabyte repository.
+      - name: Fetch the provider source for ForceNew extraction
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          case "${{ matrix.provider }}" in
+            aws)     REPO=terraform-provider-aws;     PATHS="internal/service names" ;;
+            azurerm) REPO=terraform-provider-azurerm; PATHS="internal/services internal/sdk" ;;
+          esac
+          git clone --quiet --depth 1 \
+            --branch "v${{ steps.provider.outputs.version }}" \
+            --filter=blob:none --sparse \
+            "https://github.com/hashicorp/$REPO" /tmp/provider-src
+          git -C /tmp/provider-src sparse-checkout set $PATHS
+
+      # En deux temps, là où le Go n'en demandait qu'un : l'extracteur écrit
+      # son index en JSON, et le générateur Python le consomme. C'est la
+      # frontière voulue — l'index comme fichier peut être relu, comparé d'une
+      # version de fournisseur à l'autre, et consommé par un générateur qui
+      # n'est pas celui qui l'a produit.
+      #
+      # STOPGAP : l'extracteur est tiré du module Go publié. Cela fonctionne
+      # tant que l'étiquette existe, et ce n'est pas une réponse durable — cet
+      # extracteur est une pièce permanente de la chaîne des packs, pas un
+      # échafaudage de portage, et sa place est dans ce dépôt (874 lignes, sous
+      # tools/). À trancher avant de retirer l'arbre Go.
+      - name: Extract the ForceNew index
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          go run github.com/foadtalsi/tf-predeploy-firewall/cmd/genpack@v1 \
+            --provider "${{ matrix.provider }}" \
+            --provider-src /tmp/provider-src \
+            --emit-forcenew-index "/tmp/${{ matrix.provider }}_forcenew.json"
+          python -c "
+          import json, sys
+          index = json.load(open('/tmp/${{ matrix.provider }}_forcenew.json'))
+          stats = index.get('stats', {})
+          print('index ForceNew :', len(index.get('top_level', {})), 'types,', stats)
+          if not index.get('top_level'):
+              sys.exit('index vide — l extracteur n a rien reconnu dans cette version du fournisseur')
+          "
+
+      - name: Generate the packs
+        if: steps.gate.outputs.skip == 'false'
+        id: gen
+        run: |
+          pip install -e .
+          tfpdf-genpack \
+            --provider "${{ matrix.provider }}" \
+            --provider-schema /tmp/schema/schema.json \
+            --force-new-index "/tmp/${{ matrix.provider }}_forcenew.json" \
+            --provider-version "${{ steps.provider.outputs.version }}" \
+            | tee /tmp/genpack.log
+
+      # A regenerated pack that breaks the scanner must never reach a PR
+      # that looks routine enough to merge on sight.
+      - name: Verify the scanner still passes against the new pack
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          pip install -e ".[dev]"
+          ruff check src tests
+          mypy
+          pytest -q
+
+      - name: Open a PR if the pack changed
+        if: steps.gate.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Through the environment rather than inline ${{ }} in the script:
+          # these values reach a heredoc and a PR body, and passing them as
+          # variables keeps the script one thing bash can reason about.
+          PACK_PROVIDER: ${{ matrix.provider }}
+          PACK_VERSION: ${{ steps.provider.outputs.version }}
+        run: |
+          if git diff --quiet -- src/tfpdf/schema/data/; then
+            echo "$PACK_PROVIDER pack unchanged at $PACK_VERSION; nothing to do"
+            exit 0
+          fi
+
+          BRANCH="rule-packs/$PACK_PROVIDER-$PACK_VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add src/tfpdf/schema/data/
+          git commit -m "regenerate the $PACK_PROVIDER rule pack for $PACK_VERSION"
+          git push -f origin "$BRANCH"
+
+          # The full pack is not committed here — it is generated into dist/
+          # and published to the control plane separately. The PR body says
+          # so, because a reviewer seeing only the base pack change would
+          # otherwise assume paid customers were already updated.
+          # Quoted delimiter: genpack's output is interpolated into this
+          # heredoc by Actions before bash sees it, and an unquoted one would
+          # subject whatever it printed to shell expansion.
+          cat > /tmp/pr-body.md <<'BODY'
+          Automated weekly refresh against **PROVIDER VERSION**.
+
+          ```
+          GENPACK_SUMMARY
+          ```
+
+          Ruff, mypy et les tests passent contre le pack régénéré.
+
+          **What this PR does not do:** the extended (paid) pack is written to
+          `dist/` and is not committed here. Merging this updates the free
+          embedded pack only — copy `dist/pack_PROVIDER_full.json.gz` into the
+          control plane repo to update licensed customers.
+
+          Worth a glance before merging: a large drop in the ForceNew
+          resolution rate above usually means the provider restructured its
+          source and the extractor needs attention, not that the data
+          genuinely changed.
+          BODY
+
+          python3 - "$PACK_PROVIDER" "$PACK_VERSION" /tmp/genpack.log <<'PY'
+          import sys
+          provider, version, logpath = sys.argv[1], sys.argv[2], sys.argv[3]
+          body = open("/tmp/pr-body.md").read()
+          body = body.replace("PROVIDER VERSION", f"{provider} {version}")
+          body = body.replace("GENPACK_SUMMARY", open(logpath).read().strip())
+          body = body.replace("pack_PROVIDER_full", f"pack_{provider}_full")
+          open("/tmp/pr-body.md", "w").write(body)
+          PY
+
+          gh pr create --head "$BRANCH" --base main \
+            --title "Regenerate the $PACK_PROVIDER rule pack ($PACK_VERSION)" \
+            --body-file /tmp/pr-body.md \
+            || echo "a PR for $BRANCH already exists; branch updated"
