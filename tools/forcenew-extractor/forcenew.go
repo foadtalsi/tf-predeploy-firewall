@@ -99,7 +99,7 @@ func extractForceNew(srcRoot string) (*forceNewIndex, error) {
 		if err != nil {
 			// A package we can't parse is a gap in coverage, not a reason to
 			// abandon the other 270.
-			fmt.Fprintf(os.Stderr, "genpack: skipping %s: %v\n", e.Name(), err)
+			fmt.Fprintf(os.Stderr, "forcenew-extractor: skipping %s: %v\n", e.Name(), err)
 			continue
 		}
 		collectSDKResources(pkg, namesConsts, idx)

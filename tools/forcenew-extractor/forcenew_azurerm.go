@@ -40,7 +40,7 @@ func extractForceNewAzurerm(srcRoot string) (*forceNewIndex, error) {
 		}
 		pkg, err := parsePackage(filepath.Join(serviceRoot, e.Name()))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "genpack: skipping %s: %v\n", e.Name(), err)
+			fmt.Fprintf(os.Stderr, "forcenew-extractor: skipping %s: %v\n", e.Name(), err)
 			continue
 		}
 		collectAzurermUntyped(pkg, idx)

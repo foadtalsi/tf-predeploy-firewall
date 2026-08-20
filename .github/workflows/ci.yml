@@ -94,6 +94,31 @@ jobs:
             exit 1
           fi
 
+  # L'extracteur ForceNew vit dans ce dépôt, il est donc testé avec lui. Il ne
+  # tourne qu'une fois par semaine, dans refresh-rule-packs.yml — sans ce job,
+  # une régression y resterait invisible jusqu'au lundi suivant, et se
+  # manifesterait comme un pack silencieusement appauvri plutôt que comme une
+  # erreur.
+  forcenew-extractor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          # Cache désactivé : l'extracteur n'a aucune dépendance hors stdlib et
+          # n'a donc pas de go.sum. setup-go échoue s'il en cherche un absent.
+          cache: false
+
+      - name: Vet and test the extractor
+        working-directory: tools/forcenew-extractor
+        run: |
+          gofmt -l . | tee /tmp/unformatted
+          test ! -s /tmp/unformatted
+          go vet ./...
+          go test ./...
+
   docker:
     runs-on: ubuntu-latest
     needs: test

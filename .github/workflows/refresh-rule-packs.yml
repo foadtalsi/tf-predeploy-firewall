@@ -50,11 +50,12 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      # Go reste nécessaire pour une seule chose : l'extracteur ForceNew.
-      # `terraform providers schema -json` n'expose pas ForceNew, et la seule
-      # source qui fasse autorité est la déclaration de schéma en Go du
+      # Go reste nécessaire pour une seule chose : l'extracteur ForceNew, sous
+      # tools/. `terraform providers schema -json` n'expose pas ForceNew, et la
+      # seule source qui fasse autorité est la déclaration de schéma en Go du
       # fournisseur, lue avec go/ast. Le porter voudrait dire écrire un
-      # analyseur de Go.
+      # analyseur de Go. C'est le seul travail auquel ce toolchain sert ici :
+      # rien de ce que `pip install` fait n'en a besoin.
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
@@ -118,18 +119,21 @@ jobs:
       # version de fournisseur à l'autre, et consommé par un générateur qui
       # n'est pas celui qui l'a produit.
       #
-      # STOPGAP : l'extracteur est tiré du module Go publié. Cela fonctionne
-      # tant que l'étiquette existe, et ce n'est pas une réponse durable — cet
-      # extracteur est une pièce permanente de la chaîne des packs, pas un
-      # échafaudage de portage, et sa place est dans ce dépôt (874 lignes, sous
-      # tools/). À trancher avant de retirer l'arbre Go.
+      # L'extracteur est construit depuis tools/, dans ce dépôt. Il était tiré
+      # du module publié en `go run ...@v1`, ce qui faisait dépendre la chaîne
+      # des packs d'une étiquette de version d'un arbre destiné à disparaître.
       - name: Extract the ForceNew index
         if: steps.gate.outputs.skip == 'false'
         run: |
-          go run github.com/foadtalsi/tf-predeploy-firewall/cmd/genpack@v1 \
+          # -C parce que l'extracteur est son propre module Go : il n'y a pas
+          # de go.mod à la racine, et `pip install` ne doit pas en trouver un.
+          # Les chemins passés sont absolus, le changement de répertoire est
+          # donc sans effet sur eux.
+          go run -C tools/forcenew-extractor . \
             --provider "${{ matrix.provider }}" \
             --provider-src /tmp/provider-src \
-            --emit-forcenew-index "/tmp/${{ matrix.provider }}_forcenew.json"
+            --provider-version "${{ steps.provider.outputs.version }}" \
+            --out "/tmp/${{ matrix.provider }}_forcenew.json"
           python -c "
           import json, sys
           index = json.load(open('/tmp/${{ matrix.provider }}_forcenew.json'))
