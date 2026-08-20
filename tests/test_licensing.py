@@ -257,8 +257,8 @@ def test_fetch_rule_pack_downloads_and_caches(isolated_cache: Path) -> None:
     with StubServer(handler) as srv:
         client = new_client("test-key", srv.url)
 
-        pack, err = client.fetch_rule_pack("aws")
-        assert err is None
+        pack, exception = client.fetch_rule_pack("aws")
+        assert exception is None
         assert pack is not None
         assert pack.data == b"PACKBODY"
         assert pack.etag == '"v1"'
@@ -283,9 +283,9 @@ def test_fetch_rule_pack_revalidates_with_etag_after_ttl(isolated_cache: Path) -
     _seed_cache(isolated_cache, "aws", "CACHEDBODY", '"v1"', 2 * PACK_CACHE_TTL_SECONDS)
 
     with StubServer(handler) as srv:
-        pack, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
+        pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
 
-    assert err is None
+    assert exception is None
     assert seen["if_none_match"] == '"v1"'
     assert pack is not None
     assert pack.data == b"CACHEDBODY", "a 304 reuses the cached body"
@@ -302,35 +302,35 @@ def test_fetch_rule_pack_falls_back_to_cache_when_service_is_down(
     _seed_cache(isolated_cache, "aws", "CACHEDBODY", '"v1"', 2 * PACK_CACHE_TTL_SECONDS)
 
     with StubServer(lambda r: Response(status=500, raw=b"boom")) as srv:
-        pack, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
+        pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
 
     assert pack is not None, "the cached pack must be used despite the outage"
     assert pack.data == b"CACHEDBODY"
     assert pack.from_cache
-    assert err is not None, "the fallback is still reported, so the scan can warn"
+    assert exception is not None, "the fallback is still reported, so the scan can warn"
 
 
 def test_fetch_rule_pack_no_cache_and_service_down_returns_error(
     isolated_cache: Path,
 ) -> None:
     with StubServer(lambda r: Response(status=500, raw=b"boom")) as srv:
-        pack, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
+        pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
     assert pack is None
-    assert err is not None, "the caller turns this into a warning"
+    assert exception is not None, "the caller turns this into a warning"
 
 
 def test_fetch_rule_pack_unauthorized_is_reported_clearly(isolated_cache: Path) -> None:
     with StubServer(lambda r: Response(status=403, body={})) as srv:
-        _, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
-    assert err is not None
-    assert "plan" in str(err), "the error should point at the plan"
+        _, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
+    assert exception is not None
+    assert "plan" in str(exception), "the error should point at the plan"
 
 
 def test_fetch_rule_pack_empty_body_is_rejected(isolated_cache: Path) -> None:
     with StubServer(lambda r: Response(status=200, raw=b"")) as srv:
-        pack, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
+        pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
     assert pack is None, "an empty body must not be cached as a valid pack"
-    assert err is not None
+    assert exception is not None
 
 
 def test_fetch_rule_pack_synthesises_etag_when_absent(isolated_cache: Path) -> None:
@@ -338,8 +338,8 @@ def test_fetch_rule_pack_synthesises_etag_when_absent(isolated_cache: Path) -> N
     stable, pour que le scan suivant puisse revalider au lieu de retélécharger
     indéfiniment."""
     with StubServer(lambda r: Response(raw=b"PACKBODY")) as srv:
-        pack, err = new_client("test-key", srv.url).fetch_rule_pack("aws")
-    assert err is None
+        pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
+    assert exception is None
     assert pack is not None and pack.etag
 
 

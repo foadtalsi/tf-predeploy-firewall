@@ -107,7 +107,7 @@ class Client:
                 for f in result.findings
             ]
 
-        resp = request_raw(
+        response = request_raw(
             "POST",
             self.api_base + "/v1/usage/scan",
             {**self._headers(), "Content-Type": "application/json"},
@@ -115,20 +115,20 @@ class Client:
             timeout=self.timeout,
         )
 
-        if resp.status == 401:
+        if response.status == 401:
             raise LicensingError("invalid or revoked API key")
-        if resp.status != 200:
+        if response.status != 200:
             raise LicensingError(
-                f"licensing service returned {resp.status}: {resp.body.decode(errors='replace')}"
+                f"licensing service returned {response.status}: {response.body.decode(errors='replace')}"
             )
 
         try:
-            doc = json.loads(resp.body) if resp.body else {}
+            document = json.loads(response.body) if response.body else {}
         except json.JSONDecodeError as exc:
             raise LicensingError(f"parsing licensing response: {exc}") from exc
-        if not isinstance(doc, dict):
+        if not isinstance(document, dict):
             raise LicensingError("parsing licensing response: not an object")
-        return bool(doc.get("allowed", False)), str(doc.get("reason", ""))
+        return bool(document.get("allowed", False)), str(document.get("reason", ""))
 
     # --- policy -----------------------------------------------------------
 
@@ -147,18 +147,18 @@ class Client:
         if repo_full_name:
             url += "?repo=" + quote(repo_full_name, safe="")
 
-        resp = request_raw("GET", url, self._headers(), timeout=self.timeout)
-        if resp.status == 401:
+        response = request_raw("GET", url, self._headers(), timeout=self.timeout)
+        if response.status == 401:
             raise LicensingError("invalid or revoked API key")
-        if resp.status != 200:
-            raise LicensingError(f"licensing service returned {resp.status}")
+        if response.status != 200:
+            raise LicensingError(f"licensing service returned {response.status}")
 
         try:
-            doc = json.loads(resp.body) if resp.body else {}
+            document = json.loads(response.body) if response.body else {}
         except json.JSONDecodeError as exc:
             raise LicensingError(f"parsing policy response: {exc}") from exc
 
-        policy = policy_from_json(doc)
+        policy = policy_from_json(document)
         return None if policy.is_empty() else policy
 
     # --- waivers ----------------------------------------------------------
@@ -170,17 +170,17 @@ class Client:
         Rend une liste vide, et non une erreur, quand il n'y en a aucune.
         """
         url = self.api_base + "/v1/waivers?repo=" + quote(repo_full_name, safe="")
-        resp = request_raw("GET", url, self._headers(), timeout=self.timeout)
-        if resp.status == 401:
+        response = request_raw("GET", url, self._headers(), timeout=self.timeout)
+        if response.status == 401:
             raise LicensingError("invalid or revoked API key")
-        if resp.status != 200:
-            raise LicensingError(f"licensing service returned {resp.status}")
+        if response.status != 200:
+            raise LicensingError(f"licensing service returned {response.status}")
 
         try:
-            doc = json.loads(resp.body) if resp.body else []
+            document = json.loads(response.body) if response.body else []
         except json.JSONDecodeError as exc:
             raise LicensingError(f"parsing waivers response: {exc}") from exc
-        return waivers_from_json(doc)
+        return waivers_from_json(document)
 
     # --- rule packs -------------------------------------------------------
 

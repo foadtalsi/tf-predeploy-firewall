@@ -93,35 +93,35 @@ class StubServer:
                 raw = self.rfile.read(length) if length else b""
                 body = json.loads(raw) if raw else None
 
-                req = Request(
+                request = Request(
                     method=self.command,
                     path=parsed.path,
                     query=parse_qs(parsed.query),
                     headers=dict(self.headers),
                     body=body,
                 )
-                server.requests.append(req)
+                server.requests.append(request)
 
-                resp = server._handler(req)
+                response = server._handler(request)
 
                 # 304 carries no body by definition, and sending one makes the
                 # client wait for bytes that never come.
-                if resp.status == 304:
+                if response.status == 304:
                     self.send_response(304)
-                    for k, v in resp.headers.items():
+                    for k, v in response.headers.items():
                         self.send_header(k, v)
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                     return
 
-                if resp.raw is not None:
-                    payload, content_type = resp.raw, "application/octet-stream"
+                if response.raw is not None:
+                    payload, content_type = response.raw, "application/octet-stream"
                 else:
-                    payload, content_type = json.dumps(resp.body).encode(), "application/json"
+                    payload, content_type = json.dumps(response.body).encode(), "application/json"
 
-                self.send_response(resp.status)
+                self.send_response(response.status)
                 self.send_header("Content-Type", content_type)
-                for k, v in resp.headers.items():
+                for k, v in response.headers.items():
                     self.send_header(k, v)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()

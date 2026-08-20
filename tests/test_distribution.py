@@ -177,8 +177,8 @@ def test_the_console_scripts_point_at_functions_that_exist() -> None:
     import importlib
     import tomllib
 
-    doc = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    entries = doc["project"]["scripts"]
+    document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    entries = document["project"]["scripts"]
     assert set(entries) == {"tf-predeploy-firewall", "tfpdf-genpack"}
 
     for name, target in entries.items():
@@ -219,8 +219,8 @@ def test_the_runtime_dependency_list_is_still_one_line() -> None:
     honnête."""
     import tomllib
 
-    doc = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    deps = doc["project"]["dependencies"]
+    document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    deps = document["project"]["dependencies"]
     assert len(deps) == 1, f"runtime dependencies grew to {deps}"
     assert deps[0].startswith("PyYAML")
 

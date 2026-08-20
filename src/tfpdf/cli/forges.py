@@ -43,8 +43,8 @@ class _Forge(Protocol):
     def upsert_comment(self, body: str, marker: str) -> None: ...
 
 
-def _warn(msg: str) -> None:
-    print("tf-predeploy-firewall: " + msg, file=sys.stderr)
+def _warn(message: str) -> None:
+    print("tf-predeploy-firewall: " + message, file=sys.stderr)
 
 
 def repo_full_name_from_env() -> str:
@@ -254,7 +254,7 @@ def post_suggestions(findings: list[Finding]) -> None:
         )
 
 
-def request_second_reviewer_if_critical(findings: list[Finding], cfg: Config) -> None:
+def request_second_reviewer_if_critical(findings: list[Finding], config: Config) -> None:
     """Demande une relecture aux utilisateurs et groupes configurés dès qu'au
     moins une découverte de sévérité critique est présente.
 
@@ -264,7 +264,7 @@ def request_second_reviewer_if_critical(findings: list[Finding], cfg: Config) ->
     véritable mécanisme d'application ; ceci n'est qu'un coup de coude poli
     par-dessus.
     """
-    if not cfg.require_second_reviewer_users and not cfg.require_second_reviewer_teams:
+    if not config.require_second_reviewer_users and not config.require_second_reviewer_teams:
         return
     if os.environ.get("GITLAB_CI"):
         # GitLab's native mechanism for this is approval rules, configured once
@@ -285,7 +285,7 @@ def request_second_reviewer_if_critical(findings: list[Finding], cfg: Config) ->
         return
     try:
         client.request_reviewers(
-            cfg.require_second_reviewer_users, cfg.require_second_reviewer_teams
+            config.require_second_reviewer_users, config.require_second_reviewer_teams
         )
     except Exception as exc:
         _warn(f"requesting second reviewer failed: {exc}")

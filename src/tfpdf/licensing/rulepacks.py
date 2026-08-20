@@ -100,11 +100,11 @@ def fetch_rule_pack(
 
     try:
         fetched = _download_rule_pack(api_base, api_key, provider, cached)
-        err: Exception | None = None
+        exception: Exception | None = None
     except Exception as exc:
-        fetched, err = None, exc
+        fetched, exception = None, exc
 
-    if err is None and fetched is not None:
+    if exception is None and fetched is not None:
         if cache_dir is not None:
             # A cache we cannot write is not worth failing over; the next scan
             # simply downloads again.
@@ -112,7 +112,7 @@ def fetch_rule_pack(
                 write_cached_pack(cache_dir, provider, fetched)
         return fetched, None
 
-    if err is None and fetched is None and cached is not None:
+    if exception is None and fetched is None and cached is not None:
         # 304 Not Modified: the cache is still correct, just stale-dated.
         if cache_dir is not None:
             with contextlib.suppress(OSError):
@@ -122,9 +122,11 @@ def fetch_rule_pack(
 
     if cached is not None:
         cached.from_cache = True
-        return cached, RuntimeError(f"using cached rule pack: {err}")
+        return cached, RuntimeError(f"using cached rule pack: {exception}")
 
-    return None, err if err is not None else NoPackAvailableError("no extended rule pack available")
+    return None, exception if exception is not None else NoPackAvailableError(
+        "no extended rule pack available"
+    )
 
 
 def _download_rule_pack(
@@ -136,7 +138,7 @@ def _download_rule_pack(
     if cached is not None and cached.etag:
         headers["If-None-Match"] = cached.etag
 
-    resp: RawResponse = request_raw(
+    response: RawResponse = request_raw(
         "GET",
         f"{api_base}/v1/rulepacks/{provider}",
         headers,
@@ -144,22 +146,22 @@ def _download_rule_pack(
         max_bytes=_MAX_PACK_BYTES,
     )
 
-    if resp.status == 304:
+    if response.status == 304:
         return None
-    if resp.status in (401, 403):
-        raise RuntimeError(f"rule pack refused ({resp.status}) — check the license key's plan")
-    if resp.status == 404:
+    if response.status in (401, 403):
+        raise RuntimeError(f"rule pack refused ({response.status}) — check the license key's plan")
+    if response.status == 404:
         raise RuntimeError(f'no rule pack published for provider "{provider}"')
-    if resp.status != 200:
-        raise RuntimeError(f"rule pack service returned {resp.status}")
+    if response.status != 200:
+        raise RuntimeError(f"rule pack service returned {response.status}")
 
-    if not resp.body:
+    if not response.body:
         raise RuntimeError("rule pack service returned an empty body")
 
-    etag = resp.header("ETag")
+    etag = response.header("ETag")
     if not etag:
-        etag = '"' + hashlib.sha256(resp.body).hexdigest() + '"'
-    return RulePack(provider=provider, data=resp.body, etag=etag)
+        etag = '"' + hashlib.sha256(response.body).hexdigest() + '"'
+    return RulePack(provider=provider, data=response.body, etag=etag)
 
 
 # ---------------------------------------------------------------------------

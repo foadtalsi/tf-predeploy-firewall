@@ -189,7 +189,7 @@ class Parser:
                 self._peek(),
             )
             self._recover_to_newline()
-        attr = Attribute(
+        attribute = Attribute(
             name=ident.text,
             expr=expr,
             src_range=Range(self.filename, ident.range.start, end),
@@ -202,7 +202,7 @@ class Parser:
                 f"Argument {ident.text!r} was already set in this block.",
                 ident,
             )
-        body.attributes[ident.text] = attr
+        body.attributes[ident.text] = attribute
 
     def _parse_block(self, body: Body, ident: Token) -> None:
         labels: list[str] = []
@@ -709,7 +709,7 @@ def _number_literal(tok: Token, p: Parser) -> cty.Value:
 
 
 def parse_config(
-    src: bytes | str, filename: str = "", start: Pos | None = None
+    source: bytes | str, filename: str = "", start: Pos | None = None
 ) -> tuple[File, Diagnostics]:
     """Analyse un fichier HCL entier. À l'image de `hclsyntax.ParseConfig`.
 
@@ -718,11 +718,11 @@ def parse_config(
     veulent du tout-ou-rien vérifient eux-mêmes `diags.has_errors()`, ce que
     fait `parser.parse_file`.
     """
-    raw = src.encode("utf-8") if isinstance(src, str) else src
+    raw = source.encode("utf-8") if isinstance(source, str) else source
     lexer = Lexer(raw, filename, start)
     tokens = lexer.tokens()
     p = Parser(tokens, filename)
     body = p.parse_body(end=T.EOF)
     diags = Diagnostics(lexer.diags)
     diags.extend(p.diags)
-    return File(body=body, src=raw, filename=filename), diags
+    return File(body=body, source=raw, filename=filename), diags

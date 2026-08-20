@@ -45,7 +45,7 @@ class Expression(ABC):
     range: Range
 
     @abstractmethod
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         """Évalue. Rend (valeur, diagnostics) ; vérifier `diags.has_errors()`
         avant de faire confiance à la valeur, exactement comme le font les
         appelants Go."""
@@ -61,11 +61,11 @@ class Expression(ABC):
 
 @dataclass(slots=True)
 class LiteralValueExpr(Expression):
-    val: Value
+    value_: Value
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        return self.val, Diagnostics()
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        return self.value_, Diagnostics()
 
 
 @dataclass(slots=True)
@@ -76,8 +76,8 @@ class ScopeTraversalExpr(Expression):
     traversal: Traversal
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        return self.traversal.traverse(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        return self.traversal.traverse(context)
 
     def variables(self) -> list[Traversal]:
         return [self.traversal]
@@ -92,8 +92,8 @@ class RelativeTraversalExpr(Expression):
     traversal: Traversal
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        current, diags = self.source.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        current, diags = self.source.value(context)
         if diags.has_errors():
             return cty.DYNAMIC_VAL, diags
 
@@ -125,14 +125,14 @@ class TemplateExpr(Expression):
     parts: list[Expression]
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         if not self.parts:
             return cty.EMPTY_STRING, Diagnostics()
 
         diags = Diagnostics()
-        buf: list[str] = []
+        buffer: list[str] = []
         for part in self.parts:
-            v, part_diags = part.value(ctx)
+            v, part_diags = part.value(context)
             diags.extend(part_diags)
             if part_diags.has_errors():
                 return cty.DYNAMIC_VAL, diags
@@ -158,8 +158,8 @@ class TemplateExpr(Expression):
                         part.range,
                     )
                 )
-            buf.append(text)
-        return cty.string_val("".join(buf)), diags
+            buffer.append(text)
+        return cty.string_val("".join(buffer)), diags
 
     def is_string_literal(self) -> bool:
         return all(isinstance(p, LiteralValueExpr) for p in self.parts)
@@ -184,8 +184,8 @@ class TemplateWrapExpr(Expression):
     wrapped: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        return self.wrapped.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        return self.wrapped.value(context)
 
     def variables(self) -> list[Traversal]:
         return self.wrapped.variables()
@@ -199,11 +199,11 @@ class TupleConsExpr(Expression):
     exprs: list[Expression]
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         diags = Diagnostics()
         out: list[Value] = []
         for e in self.exprs:
-            v, d = e.value(ctx)
+            v, d = e.value(context)
             diags.extend(d)
             if d.has_errors():
                 return cty.DYNAMIC_VAL, diags
@@ -228,11 +228,11 @@ class ObjectConsExpr(Expression):
     items: list[ObjectConsItem]
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         diags = Diagnostics()
         out: dict[str, Value] = {}
         for item in self.items:
-            kv, kd = item.key.value(ctx)
+            kv, kd = item.key.value(context)
             diags.extend(kd)
             if kd.has_errors():
                 return cty.DYNAMIC_VAL, diags
@@ -241,7 +241,7 @@ class ObjectConsExpr(Expression):
                 return cty.DYNAMIC_VAL, diags.extended(
                     error("Invalid object key", "Object keys must be strings.", item.key.range)
                 )
-            vv, vd = item.value_expr.value(ctx)
+            vv, vd = item.value_expr.value(context)
             diags.extend(vd)
             if vd.has_errors():
                 return cty.DYNAMIC_VAL, diags
@@ -270,11 +270,11 @@ class ObjectConsKeyExpr(Expression):
     wrapped: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         bare = self._bare_name()
         if bare is not None:
             return cty.string_val(bare), Diagnostics()
-        return self.wrapped.value(ctx)
+        return self.wrapped.value(context)
 
     def _bare_name(self) -> str | None:
         if isinstance(self.wrapped, ScopeTraversalExpr) and len(self.wrapped.traversal) == 1:
@@ -295,8 +295,8 @@ class ParenthesesExpr(Expression):
     wrapped: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        return self.wrapped.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        return self.wrapped.value(context)
 
     def variables(self) -> list[Traversal]:
         return self.wrapped.variables()
@@ -308,8 +308,8 @@ class UnaryOpExpr(Expression):
     operand: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        v, diags = self.operand.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        v, diags = self.operand.value(context)
         if diags.has_errors() or v.is_unknown() or v.is_null():
             return cty.DYNAMIC_VAL, diags
         if self.op == "-":
@@ -341,11 +341,11 @@ class BinaryOpExpr(Expression):
     rhs: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        lv, ld = self.lhs.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        lv, ld = self.lhs.value(context)
         if ld.has_errors():
             return cty.DYNAMIC_VAL, ld
-        rv, rd = self.rhs.value(ctx)
+        rv, rd = self.rhs.value(context)
         if rd.has_errors():
             return cty.DYNAMIC_VAL, rd
         diags = ld.extended(rd)
@@ -415,8 +415,8 @@ class ConditionalExpr(Expression):
     false_result: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        cv, diags = self.condition.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        cv, diags = self.condition.value(context)
         if diags.has_errors():
             return cty.DYNAMIC_VAL, diags
         if cv.is_unknown() or cv.is_null() or cv.type is not cty.BOOL:
@@ -425,7 +425,7 @@ class ConditionalExpr(Expression):
             # false positive gets in.
             return cty.DYNAMIC_VAL, diags
         branch = self.true_result if cv.true() else self.false_result
-        return branch.value(ctx)
+        return branch.value(context)
 
     def variables(self) -> list[Traversal]:
         return (
@@ -441,11 +441,11 @@ class IndexExpr(Expression):
     key: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        cv, cd = self.collection.value(ctx)
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+        cv, cd = self.collection.value(context)
         if cd.has_errors():
             return cty.DYNAMIC_VAL, cd
-        kv, kd = self.key.value(ctx)
+        kv, kd = self.key.value(context)
         if kd.has_errors():
             return cty.DYNAMIC_VAL, kd
         if cv.is_unknown() or kv.is_unknown() or cv.is_null():
@@ -474,7 +474,7 @@ class SplatExpr(Expression):
     source: Expression
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         return cty.DYNAMIC_VAL, error(
             "Splat expressions are not statically evaluable", subject=self.range
         )
@@ -498,7 +498,7 @@ class FunctionCallExpr(Expression):
     expand_final: bool = False
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         return cty.DYNAMIC_VAL, error(
             "Function calls not allowed",
             f"Cannot statically evaluate a call to {self.name!r}.",
@@ -530,7 +530,7 @@ class ForExpr(Expression):
     group: bool = False
     range: Range = field(default_factory=Range)
 
-    def value(self, ctx: EvalContext | None = None) -> tuple[Value, Diagnostics]:
+    def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
         return cty.DYNAMIC_VAL, error(
             "For expressions are not statically evaluable", subject=self.range
         )
@@ -583,5 +583,5 @@ class Body:
 @dataclass(slots=True)
 class File:
     body: Body
-    src: bytes
+    source: bytes
     filename: str

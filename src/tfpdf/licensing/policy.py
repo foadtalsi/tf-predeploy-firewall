@@ -62,31 +62,31 @@ class Policy:
         )
 
 
-def policy_from_json(doc: Any) -> Policy:
+def policy_from_json(document: Any) -> Policy:
     """Décode un document de politique, en traitant une clé absente comme
     « pas de surcharge »."""
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         return Policy()
 
     def opt_str(key: str) -> str | None:
-        v = doc.get(key)
+        v = document.get(key)
         return str(v) if v is not None else None
 
     def opt_list(key: str) -> list[str] | None:
-        v = doc.get(key)
+        v = document.get(key)
         return [str(x) for x in v] if isinstance(v, list) else None
 
     return Policy(
         block_threshold=opt_str("block_threshold"),
         ignore_rules=opt_list("ignore_rules"),
         plan_blast_radius_threshold=(
-            int(doc["plan_blast_radius_threshold"])
-            if doc.get("plan_blast_radius_threshold") is not None
+            int(document["plan_blast_radius_threshold"])
+            if document.get("plan_blast_radius_threshold") is not None
             else None
         ),
         cost_impact_threshold_usd=(
-            float(doc["cost_impact_threshold_usd"])
-            if doc.get("cost_impact_threshold_usd") is not None
+            float(document["cost_impact_threshold_usd"])
+            if document.get("cost_impact_threshold_usd") is not None
             else None
         ),
         custom_rules_yaml=opt_str("custom_rules_yaml"),

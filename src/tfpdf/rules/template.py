@@ -30,7 +30,7 @@ _GO_ESCAPES = {
 }
 
 
-def expand(tmpl: str, variables: dict[str, str]) -> str:
+def expand(template: str, variables: dict[str, str]) -> str:
     """Substitue les jetons connus et laisse tout le reste octet pour octet.
 
     Les jetons inconnus survivent intacts à dessein : les templates de correctif
@@ -38,7 +38,7 @@ def expand(tmpl: str, variables: dict[str, str]) -> str:
     et un moteur qui les avalerait ou lèverait dessus ne pourrait pas écrire de
     Terraform.
     """
-    if not tmpl:
+    if not template:
         return ""
 
     def repl(m: re.Match[str]) -> str:
@@ -47,7 +47,7 @@ def expand(tmpl: str, variables: dict[str, str]) -> str:
             return tok  # an interpolation, not a placeholder
         return variables.get(m.group(1), tok)
 
-    return _TEMPLATE_TOKEN.sub(repl, tmpl)
+    return _TEMPLATE_TOKEN.sub(repl, template)
 
 
 def expand_all(tmpls: list[str], variables: dict[str, str]) -> list[str]:

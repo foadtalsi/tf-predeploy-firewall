@@ -20,11 +20,11 @@ from .config import Config
 from .forges import repo_full_name_from_env
 
 
-def _warn(msg: str) -> None:
-    print("tf-predeploy-firewall: " + msg, file=sys.stderr)
+def _warn(message: str) -> None:
+    print("tf-predeploy-firewall: " + message, file=sys.stderr)
 
 
-def apply_org_policy(cfg: Config, license_key: str, api_base: str) -> None:
+def apply_org_policy(config: Config, license_key: str, api_base: str) -> None:
     """Récupère la politique Growth gérée centralement pour l'organisation, s'il
     y en a une, et la fusionne sur `cfg` sur place.
 
@@ -43,26 +43,26 @@ def apply_org_policy(cfg: Config, license_key: str, api_base: str) -> None:
         return
 
     if policy.block_threshold is not None and not os.environ.get("SCANNER_BLOCK_THRESHOLD"):
-        cfg.block_threshold = policy.block_threshold
+        config.block_threshold = policy.block_threshold
     if policy.ignore_rules:
         # Centralized policy replaces the repo-local ignore list rather than
         # merging with it — the whole point of a team policy is that a single
         # repo's config.yml can't quietly opt out of it.
-        cfg.ignore_rules = list(policy.ignore_rules)
+        config.ignore_rules = list(policy.ignore_rules)
     if policy.plan_blast_radius_threshold is not None and not os.environ.get(
         "SCANNER_PLAN_BLAST_RADIUS_THRESHOLD"
     ):
-        cfg.plan_blast_radius_threshold = policy.plan_blast_radius_threshold
+        config.plan_blast_radius_threshold = policy.plan_blast_radius_threshold
     if policy.cost_impact_threshold_usd is not None and not os.environ.get(
         "SCANNER_COST_IMPACT_THRESHOLD_USD"
     ):
-        cfg.cost_impact_threshold_usd = policy.cost_impact_threshold_usd
+        config.cost_impact_threshold_usd = policy.cost_impact_threshold_usd
     if policy.custom_rules_yaml is not None:
-        cfg.custom_rules_yaml_override = policy.custom_rules_yaml
+        config.custom_rules_yaml_override = policy.custom_rules_yaml
     if policy.require_second_reviewer_users:
-        cfg.require_second_reviewer_users = list(policy.require_second_reviewer_users)
+        config.require_second_reviewer_users = list(policy.require_second_reviewer_users)
     if policy.require_second_reviewer_teams:
-        cfg.require_second_reviewer_teams = list(policy.require_second_reviewer_teams)
+        config.require_second_reviewer_teams = list(policy.require_second_reviewer_teams)
 
 
 def apply_waivers(findings: list[Finding], license_key: str, api_base: str) -> list[Finding]:

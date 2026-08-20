@@ -42,7 +42,7 @@ def is_tfvars_path(path: str) -> bool:
     return path.endswith((".tfvars", ".tfvars.json"))
 
 
-def scan_file(path: str, src: bytes) -> list[Finding]:
+def scan_file(path: str, source: bytes) -> list[Finding]:
     """Scanne un fichier .tfvars (ou .tfvars.json) à la recherche
     d'identifiants en dur et de blocs CIDR grand ouverts.
 
@@ -51,12 +51,12 @@ def scan_file(path: str, src: bytes) -> list[Finding]:
     une lacune que l'appelant doit signaler, pas une qu'il doit masquer.
     """
     if path.endswith(".json"):
-        return _scan_json(path, src)
-    return _scan_hcl(path, src)
+        return _scan_json(path, source)
+    return _scan_hcl(path, source)
 
 
-def _scan_hcl(path: str, src: bytes) -> list[Finding]:
-    file, diags = hcl.parse_config(src, path)
+def _scan_hcl(path: str, source: bytes) -> list[Finding]:
+    file, diags = hcl.parse_config(source, path)
     if diags.has_errors():
         raise HCLParseError(diags)
 
@@ -64,12 +64,12 @@ def _scan_hcl(path: str, src: bytes) -> list[Finding]:
     # no blocks. Anything block-shaped is not a variable assignment and has no
     # value to judge.
     findings: list[Finding] = []
-    for name, attr in file.body.attributes.items():
-        findings.extend(_scan_value(path, name, attr, attr.src_range.start.line))
+    for name, attribute in file.body.attributes.items():
+        findings.extend(_scan_value(path, name, attribute, attribute.src_range.start.line))
     return findings
 
 
-def _scan_value(path: str, name: str, attr: hcl.Attribute, line: int) -> list[Finding]:
+def _scan_value(path: str, name: str, attribute: hcl.Attribute, line: int) -> list[Finding]:
     """Évalue la valeur d'une variable et la juge.
 
     Les valeurs qui référencent quoi que ce soit — un appel de fonction, une
@@ -78,7 +78,7 @@ def _scan_value(path: str, name: str, attr: hcl.Attribute, line: int) -> list[Fi
     valeur, parce qu'une supposition est précisément par où entre un faux
     positif.
     """
-    v, diags = attr.expr.value(None)
+    v, diags = attribute.expr.value(None)
     if diags.has_errors() or v.is_null() or not v.is_wholly_known():
         return []
     return _judge(path, name, v, line)
@@ -117,7 +117,7 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
     # the credential-ness lives in "password", not in "db.password".
     leaf = name.rsplit(".", 1)[-1]
 
-    def finding(severity: Severity, msg: str) -> list[Finding]:
+    def finding(severity: Severity, message: str) -> list[Finding]:
         return [
             Finding(
                 file=path,
@@ -125,7 +125,7 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
                 category=Category.TUTORIAL_PATTERN,
                 severity=severity,
                 resource=name,
-                message=msg,
+                message=message,
             )
         ]
 
@@ -155,18 +155,18 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
     return []
 
 
-def _scan_json(path: str, src: bytes) -> list[Finding]:
+def _scan_json(path: str, source: bytes) -> list[Finding]:
     """La forme .tfvars.json, que l'automatisation a tendance à générer et que
     l'analyseur HCL ne sait pas lire."""
     try:
-        doc = json.loads(src)
+        document = json.loads(source)
     except json.JSONDecodeError as exc:
         raise ValueError(f"json parse error in {path}: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise ValueError(f"json parse error in {path}: top level is not an object")
 
     findings: list[Finding] = []
-    for name, v in doc.items():
+    for name, v in document.items():
         findings.extend(_judge_json(path, name, v))
     return findings
 

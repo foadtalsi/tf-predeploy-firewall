@@ -24,7 +24,7 @@ class AttrLocation:
     ressource, ou un attribut à l'intérieur d'un de ses blocs imbriqués."""
 
     name: str
-    attr: Attribute
+    attribute: Attribute
     #: None for a top-level attribute.
     block: NestedBlock | None = None
 
@@ -76,7 +76,7 @@ class DeclarativeRule:
 
         if m.scope in ("attribute", "any_attribute"):
             out.extend(
-                AttrLocation(name=name, attr=res.attributes[name])
+                AttrLocation(name=name, attribute=res.attributes[name])
                 for name in sorted(res.attributes)
             )
         if m.scope in ("block_attribute", "any_attribute"):
@@ -84,7 +84,7 @@ class DeclarativeRule:
                 if m.block_types and blk.type not in m.block_types:
                     continue
                 out.extend(
-                    AttrLocation(name=name, attr=blk.attributes[name], block=blk)
+                    AttrLocation(name=name, attribute=blk.attributes[name], block=blk)
                     for name in sorted(blk.attributes)
                 )
         return out
@@ -96,7 +96,7 @@ class DeclarativeRule:
             m = spec.match
             if m is None or not matches_resource(m, res):
                 continue
-            bits, ok = matches_attr(m, loc.name, loc.attr)
+            bits, ok = matches_attr(m, loc.name, loc.attribute)
             if not ok:
                 continue
             return self._finding(in_, spec, res, loc, bits)
@@ -125,11 +125,11 @@ class DeclarativeRule:
         variables = base_vars(res)
         variables["attr"] = loc.name
         variables["attr_q"] = go_quote(loc.name)
-        variables["value"] = loc.attr.raw_value
-        variables["value_q"] = go_quote(loc.attr.raw_value)
-        variables["length"] = str(byte_len(loc.attr.raw_value))
+        variables["value"] = loc.attribute.raw_value
+        variables["value_q"] = go_quote(loc.attribute.raw_value)
+        variables["length"] = str(byte_len(loc.attribute.raw_value))
         variables["label"] = spec.label
-        variables["via"] = via_suffix(loc.attr)
+        variables["via"] = via_suffix(loc.attribute)
         variables["bits"] = f"{bits:.1f}"
 
         block_type = ""
@@ -143,7 +143,7 @@ class DeclarativeRule:
 
         return Finding(
             file=in_.path,
-            line=loc.attr.range.start.line,
+            line=loc.attribute.range.start.line,
             category=Category(spec.category),
             severity=Severity(spec.severity),
             resource=res.address(),
@@ -153,7 +153,9 @@ class DeclarativeRule:
         )
 
 
-def build_fix(spec: Rule, src: bytes, loc: AttrLocation, variables: dict[str, str]) -> Fix | None:
+def build_fix(
+    spec: Rule, source: bytes, loc: AttrLocation, variables: dict[str, str]
+) -> Fix | None:
     """Rend un correctif déclaratif, ou None quand il ne peut pas être produit
     exactement.
 
@@ -167,11 +169,11 @@ def build_fix(spec: Rule, src: bytes, loc: AttrLocation, variables: dict[str, st
     # this finding already reads `password = var.db_password` and is correct.
     # Rewriting it to point at a different variable would fix nothing while
     # looking like it had — the value lives in the declaration elsewhere.
-    if spec.fix.skip_when_resolved and loc.attr.resolved_from:
+    if spec.fix.skip_when_resolved and loc.attribute.resolved_from:
         return None
 
     lines = expand_all(spec.fix.lines, variables)
-    edit = replace_attr_line(src, loc.attr.range, loc.name, lines[0])
+    edit = replace_attr_line(source, loc.attribute.range, loc.name, lines[0])
     if edit is None:
         return None
     return Fix(
@@ -199,12 +201,12 @@ def matches_resource(m: Match, res: Resource) -> bool:
     return not (m.resource_types and res.type not in m.resource_types)
 
 
-def matches_attr(m: Match, name: str, attr: Attribute) -> tuple[float, bool]:
+def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool]:
     """Applique chaque condition au niveau de la valeur, en rendant la mesure
     produite par le prédicat pour que le message puisse la citer."""
-    if m.literal is not None and m.literal != attr.is_literal:
+    if m.literal is not None and m.literal != attribute.is_literal:
         return 0.0, False
-    if m.min_length > 0 and byte_len(attr.raw_value) < m.min_length:
+    if m.min_length > 0 and byte_len(attribute.raw_value) < m.min_length:
         return 0.0, False
 
     if m.attr_names and name not in m.attr_names:
@@ -216,12 +218,12 @@ def matches_attr(m: Match, name: str, attr: Attribute) -> tuple[float, bool]:
     if m.attr_name_contains and m.attr_name_contains.lower() not in name.lower():
         return 0.0, False
 
-    if m.value_not_one_of and attr.raw_value in m.value_not_one_of:
+    if m.value_not_one_of and attribute.raw_value in m.value_not_one_of:
         return 0.0, False
-    if m.value_contains and m.value_contains not in attr.raw_value:
+    if m.value_contains and m.value_contains not in attribute.raw_value:
         return 0.0, False
     if m.value_re is not None:
-        found = m.value_re.search(attr.raw_value)
+        found = m.value_re.search(attribute.raw_value)
         if found is None or not found.group(0):
             return 0.0, False
         # The confirmation judges the substring the regex found, not the whole
@@ -230,7 +232,7 @@ def matches_attr(m: Match, name: str, attr: Attribute) -> tuple[float, bool]:
         if m.confirm and not CONFIRM_PREDICATES[m.confirm](found.group(0)):
             return 0.0, False
     if m.predicate:
-        bits, ok = VALUE_PREDICATES[m.predicate](attr.raw_value)
+        bits, ok = VALUE_PREDICATES[m.predicate](attribute.raw_value)
         if not ok:
             return 0.0, False
         return bits, True

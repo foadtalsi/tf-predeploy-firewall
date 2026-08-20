@@ -381,13 +381,13 @@ class UnpinnedVersionRule:
 
 
 def _check_module_source(path: str, res: Resource) -> list[Finding]:
-    src = res.attributes.get("source")
-    if src is None or not src.is_literal or not src.raw_value:
+    source = res.attributes.get("source")
+    if source is None or not source.is_literal or not source.raw_value:
         return []
-    value = src.raw_value
-    line = src.range.start.line
+    value = source.raw_value
+    line = source.range.start.line
 
-    def finding(msg: str, suggestion: str) -> list[Finding]:
+    def finding(message: str, suggestion: str) -> list[Finding]:
         return [
             Finding(
                 file=path,
@@ -395,7 +395,7 @@ def _check_module_source(path: str, res: Resource) -> list[Finding]:
                 category=Category.UNPINNED_VERSION,
                 severity=Severity.MEDIUM,
                 resource=res.address(),
-                message=msg,
+                message=message,
                 suggestion=suggestion,
             )
         ]
@@ -448,7 +448,7 @@ def _is_git_source(value: str) -> bool:
     )
 
 
-def _check_required_providers(path: str, src: bytes) -> list[Finding]:
+def _check_required_providers(path: str, source: bytes) -> list[Finding]:
     """Signale les fournisseurs déclarés sans contrainte de version.
 
     Ceci lit le texte source plutôt que les ressources analysées, parce que
@@ -458,9 +458,9 @@ def _check_required_providers(path: str, src: bytes) -> list[Finding]:
     assez étroit pour être sûr, et évite de faire grossir le parseur pour une
     seule règle.
     """
-    if not src:
+    if not source:
         return []
-    text = src.decode("utf-8", errors="replace")
+    text = source.decode("utf-8", errors="replace")
     found = _required_providers_body(text)
     if found is None:
         return []
@@ -492,24 +492,24 @@ def _check_required_providers(path: str, src: bytes) -> list[Finding]:
     return findings
 
 
-def _required_providers_body(src: str) -> tuple[str, int] | None:
+def _required_providers_body(source: str) -> tuple[str, int] | None:
     """Le texte à l'intérieur de `required_providers { … }` et la ligne où il
     commence, par appariement d'accolades depuis le mot-clé."""
-    idx = src.find("required_providers")
-    if idx < 0:
+    index = source.find("required_providers")
+    if index < 0:
         return None
-    open_idx = src.find("{", idx)
+    open_idx = source.find("{", index)
     if open_idx < 0:
         return None
 
     depth = 0
-    for i in range(open_idx, len(src)):
-        if src[i] == "{":
+    for i in range(open_idx, len(source)):
+        if source[i] == "{":
             depth += 1
-        elif src[i] == "}":
+        elif source[i] == "}":
             depth -= 1
             if depth == 0:
-                return src[open_idx + 1 : i], src[:open_idx].count("\n") + 1
+                return source[open_idx + 1 : i], source[:open_idx].count("\n") + 1
     return None  # unbalanced; the HCL parser will report it
 
 
@@ -610,15 +610,15 @@ class IAMWildcardRule:
             for name in sorted(res.attributes):
                 if name not in _POLICY_ATTR_NAMES:
                     continue
-                attr = res.attributes[name]
-                body = attr.range.slice(in_.head_source).decode("utf-8", errors="replace")
+                attribute = res.attributes[name]
+                body = attribute.range.slice(in_.head_source).decode("utf-8", errors="replace")
                 if not body:
                     continue
-                findings.extend(_check_policy_body(in_.path, res, attr, body))
+                findings.extend(_check_policy_body(in_.path, res, attribute, body))
         return findings
 
 
-def _check_policy_body(path: str, res: Resource, attr: Attribute, body: str) -> list[Finding]:
+def _check_policy_body(path: str, res: Resource, attribute: Attribute, body: str) -> list[Finding]:
     findings: list[Finding] = []
 
     m = _WILDCARD_ACTION_RE.search(body)
@@ -638,7 +638,7 @@ def _check_policy_body(path: str, res: Resource, attr: Attribute, body: str) -> 
         findings.append(
             Finding(
                 file=path,
-                line=_line_of_offset(body, m.start(), attr.range.start.line),
+                line=_line_of_offset(body, m.start(), attribute.range.start.line),
                 category=Category.PERMISSIVE_IAM,
                 severity=Severity.HIGH,
                 resource=res.address(),
@@ -661,7 +661,7 @@ def _check_policy_body(path: str, res: Resource, attr: Attribute, body: str) -> 
             findings.append(
                 Finding(
                     file=path,
-                    line=_line_of_offset(body, pm.start(), attr.range.start.line),
+                    line=_line_of_offset(body, pm.start(), attribute.range.start.line),
                     category=Category.PERMISSIVE_IAM,
                     severity=Severity.HIGH,
                     resource=res.address(),
@@ -789,9 +789,9 @@ def _pricing_attr_value(res: Resource, spec: PricingSpec) -> str:
     taille que le scanner ne peut pas voir."""
     if not spec.attribute:
         return ""
-    attr = res.attributes.get(spec.attribute)
-    if attr is not None and attr.is_literal:
-        return attr.raw_value
+    attribute = res.attributes.get(spec.attribute)
+    if attribute is not None and attribute.is_literal:
+        return attribute.raw_value
     return ""
 
 
@@ -799,9 +799,9 @@ def _pricing_attr_line(res: Resource, spec: PricingSpec) -> int:
     """Ancre une découverte de changement de coût sur l'attribut qui a changé le
     nombre, avec repli sur l'en-tête de la ressource."""
     if spec.attribute:
-        attr = res.attributes.get(spec.attribute)
-        if attr is not None:
-            return attr.range.start.line
+        attribute = res.attributes.get(spec.attribute)
+        if attribute is not None:
+            return attribute.range.start.line
     return res.def_range.start.line
 
 

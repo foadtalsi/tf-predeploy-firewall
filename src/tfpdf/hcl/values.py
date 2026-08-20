@@ -309,23 +309,23 @@ def to_string(v: Value) -> tuple[str, bool]:
     return "", False
 
 
-def from_python(obj: Any) -> Value:
+def from_python(obj_value: Any) -> Value:
     """Élève un objet Python issu d'un décodage JSON en une Value.
 
     Utilisé par le chemin .tfvars.json et par le lecteur de plan JSON, pour que
     les deux puissent remettre leurs valeurs au même code de jugement que le
     chemin HCL.
     """
-    if obj is None:
+    if obj_value is None:
         return NULL_VAL
-    if isinstance(obj, bool):
-        return bool_val(obj)
-    if isinstance(obj, (int, float, Decimal)):
-        return number_val(obj)
-    if isinstance(obj, str):
-        return string_val(obj)
-    if isinstance(obj, Mapping):
-        return object_val({str(k): from_python(v) for k, v in obj.items()})
-    if isinstance(obj, Sequence):
-        return tuple_val([from_python(v) for v in obj])
+    if isinstance(obj_value, bool):
+        return bool_val(obj_value)
+    if isinstance(obj_value, (int, float, Decimal)):
+        return number_val(obj_value)
+    if isinstance(obj_value, str):
+        return string_val(obj_value)
+    if isinstance(obj_value, Mapping):
+        return object_val({str(k): from_python(v) for k, v in obj_value.items()})
+    if isinstance(obj_value, Sequence):
+        return tuple_val([from_python(v) for v in obj_value])
     return DYNAMIC_VAL

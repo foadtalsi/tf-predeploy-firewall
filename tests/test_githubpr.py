@@ -70,9 +70,9 @@ def test_upsert_comment_auth_header() -> None:
 def test_request_reviewers_sends_users_and_teams() -> None:
     with StubServer(lambda r: Response(status=201, body={})) as srv:
         _client(srv).request_reviewers(["alice"], ["security-team"])
-        req = srv.requests[0]
-        assert req.path == "/repos/owner/repo/pulls/42/requested_reviewers"
-        assert req.body == {"reviewers": ["alice"], "team_reviewers": ["security-team"]}
+        request = srv.requests[0]
+        assert request.path == "/repos/owner/repo/pulls/42/requested_reviewers"
+        assert request.body == {"reviewers": ["alice"], "team_reviewers": ["security-team"]}
 
 
 def test_request_reviewers_no_op_when_both_empty() -> None:

@@ -78,11 +78,11 @@ def dump_files(paths: list[Path]) -> list[dict[str, object]]:
 
     out: list[dict[str, object]] = []
     for p in paths:
-        ctx = build_scope(by_dir[p.parent])
-        src = by_dir[p.parent][str(p)]
+        context = build_scope(by_dir[p.parent])
+        source = by_dir[p.parent][str(p)]
         entry: dict[str, object] = {"file": p.name, "parse_error": "", "resources": []}
         try:
-            resources = parse_file_with_context(p.name, src, ctx)
+            resources = parse_file_with_context(p.name, source, context)
         except HCLParseError as exc:
             entry["parse_error"] = str(exc)
             out.append(entry)

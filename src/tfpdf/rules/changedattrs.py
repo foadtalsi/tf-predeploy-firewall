@@ -84,12 +84,12 @@ def bare_resource_address(plan_addr: str) -> str:
     modifiés, et serait mal rapportée comme une dérive.
     """
     addr = plan_addr
-    idx = addr.find("[")
-    if idx >= 0:
+    index = addr.find("[")
+    if index >= 0:
         # An instance key suffix only ever appears on the final segment, so it
         # is safe to strip before splitting on ".".
         close_idx = addr.rfind("]")
-        addr = addr[:idx] + addr[close_idx + 1 :] if close_idx > idx else addr[:idx]
+        addr = addr[:index] + addr[close_idx + 1 :] if close_idx > index else addr[:index]
     parts = addr.split(".")
     if len(parts) < 2:
         return addr

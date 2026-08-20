@@ -93,7 +93,7 @@ class Traversal(list[Step]):
                 break
         return "".join(parts)
 
-    def traverse(self, ctx: EvalContext | None) -> tuple[Value, Diagnostics]:
+    def traverse(self, context: EvalContext | None) -> tuple[Value, Diagnostics]:
         """Résout contre une portée, ou échoue proprement.
 
         L'échec est le cas ordinaire : sans contexte, ou pour une référence vers
@@ -107,14 +107,14 @@ class Traversal(list[Step]):
         root = self[0]
         if not isinstance(root, TraverseRoot):
             return DYNAMIC_VAL, error("Invalid traversal", "Reference has no root.", self.range)
-        if ctx is None:
+        if context is None:
             return DYNAMIC_VAL, error(
                 "Variables not allowed",
                 "Variables may not be used here.",
                 root.range,
             )
 
-        current = ctx.lookup(root.name)
+        current = context.lookup(root.name)
         if current is None:
             return DYNAMIC_VAL, error(
                 "Unknown variable",
@@ -183,11 +183,11 @@ class EvalContext:
         self.parent = parent
 
     def lookup(self, name: str) -> Value | None:
-        ctx: EvalContext | None = self
-        while ctx is not None:
-            if name in ctx.variables:
-                return ctx.variables[name]
-            ctx = ctx.parent
+        context: EvalContext | None = self
+        while context is not None:
+            if name in context.variables:
+                return context.variables[name]
+            context = context.parent
         return None
 
     def child(self, variables: dict[str, Value]) -> EvalContext:

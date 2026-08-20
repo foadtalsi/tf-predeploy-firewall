@@ -118,16 +118,16 @@ class Rule:
             # aws_iam_user, utilisez aws_iam_role ».
             matched = True
         else:
-            attr = attrs.get(self.attribute)
-            if attr is not None and attr.is_literal and self.compiled is not None:
-                line = attr.range.start.line
-                matched = bool(self.compiled.search(attr.raw_value)) != self.negate
-            elif attr is not None and not self.negate:
+            attribute = attrs.get(self.attribute)
+            if attribute is not None and attribute.is_literal and self.compiled is not None:
+                line = attribute.range.start.line
+                matched = bool(self.compiled.search(attribute.raw_value)) != self.negate
+            elif attribute is not None and not self.negate:
                 # L'attribut existe mais n'est pas un littéral que l'on peut
                 # comparer à un motif — c'est une variable ou une expression.
                 # On ne peut pas l'évaluer, donc on ne devine pas.
                 matched = False
-            elif attr is None:
+            elif attribute is None:
                 # Un attribut absent ne « correspond » que pour une règle
                 # niée, c'est-à-dire « cet attribut doit être présent et
                 # correspondre au motif ».
@@ -194,7 +194,7 @@ def load(data: bytes | str) -> Config:
     if not isinstance(raw, dict):
         raise CustomRuleError("custom rules: top level is not a mapping")
 
-    cfg = Config()
+    config = Config()
     for i, entry in enumerate(raw.get("custom_rules") or []):
         if not isinstance(entry, dict):
             raise CustomRuleError(f"custom rule {i}: not a mapping")
@@ -212,5 +212,5 @@ def load(data: bytes | str) -> Config:
             rule.validate()
         except CustomRuleError as exc:
             raise CustomRuleError(f"custom rule {i}: {exc}") from exc
-        cfg.rules.append(rule)
-    return cfg
+        config.rules.append(rule)
+    return config

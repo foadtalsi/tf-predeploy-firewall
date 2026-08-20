@@ -11,17 +11,19 @@ from ..hcl.ast import Expression
 from .model import Attribute, Kind, NestedBlock, Resource
 
 
-def parse_file(filename: str, src: bytes) -> list[Resource]:
+def parse_file(filename: str, source: bytes) -> list[Resource]:
     """Analyse un fichier .tf et rend les blocs qu'il déclare.
 
     Lève `HCLParseError` sur du HCL malformé ; les appelants doivent traiter un
     échec d'analyse comme une découverte à eux plutôt que de faire tomber tout
     le scan.
     """
-    return parse_file_with_context(filename, src, None)
+    return parse_file_with_context(filename, source, None)
 
 
-def parse_file_with_context(filename: str, src: bytes, ctx: EvalContext | None) -> list[Resource]:
+def parse_file_with_context(
+    filename: str, source: bytes, context: EvalContext | None
+) -> list[Resource]:
     """`parse_file`, avec une portée pour résoudre les références.
 
     Sans contexte, `password = var.db_password` est simplement irrésoluble et
@@ -35,20 +37,20 @@ def parse_file_with_context(filename: str, src: bytes, ctx: EvalContext | None) 
     que devinée, si bien qu'une portée plus riche ne trouve jamais que davantage,
     jamais autre chose.
     """
-    body = _parse_body(filename, src)
+    body = _parse_body(filename, source)
 
     resources: list[Resource] = []
     for block in body.blocks:
         if block.type == "resource" and len(block.labels) == 2:
             resources.append(
                 _block_to_resource(
-                    filename, block, Kind.RESOURCE, block.labels[0], block.labels[1], ctx
+                    filename, block, Kind.RESOURCE, block.labels[0], block.labels[1], context
                 )
             )
         elif block.type == "data" and len(block.labels) == 2:
             resources.append(
                 _block_to_resource(
-                    filename, block, Kind.DATA, block.labels[0], block.labels[1], ctx
+                    filename, block, Kind.DATA, block.labels[0], block.labels[1], context
                 )
             )
         elif block.type == "module" and len(block.labels) == 1:
@@ -56,13 +58,13 @@ def parse_file_with_context(filename: str, src: bytes, ctx: EvalContext | None) 
             # schema-driven rules, which look types up in a provider pack,
             # find nothing and skip it.
             resources.append(
-                _block_to_resource(filename, block, Kind.MODULE, "module", block.labels[0], ctx)
+                _block_to_resource(filename, block, Kind.MODULE, "module", block.labels[0], context)
             )
     return resources
 
 
-def _parse_body(filename: str, src: bytes) -> hcl.Body:
-    file, diags = hcl.parse_config(src, filename)
+def _parse_body(filename: str, source: bytes) -> hcl.Body:
+    file, diags = hcl.parse_config(source, filename)
     if diags.has_errors():
         raise HCLParseError(diags)
     return file.body
@@ -74,12 +76,12 @@ def _block_to_resource(
     kind: Kind,
     type_name: str,
     name: str,
-    ctx: EvalContext | None,
+    context: EvalContext | None,
 ) -> Resource:
     r = Resource(kind=kind, type=type_name, name=name, file=filename, def_range=block.def_range())
 
-    for attr_name, attr in block.body.attributes.items():
-        r.attributes[attr_name] = _attr_to_attribute(attr_name, attr, ctx)
+    for attr_name, attribute in block.body.attributes.items():
+        r.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
 
     for nested in block.body.blocks:
         if nested.type == "lifecycle":
@@ -88,41 +90,43 @@ def _block_to_resource(
             pd_attr = nested.body.attributes.get("prevent_destroy")
             if pd_attr is not None:
                 r.prevent_destroy_range = pd_attr.src_range
-                v, diags = pd_attr.expr.value(ctx)
+                v, diags = pd_attr.expr.value(context)
                 if not diags.has_errors() and v.type is hcl.BOOL and not v.is_null():
                     r.prevent_destroy_value = v.true()
             continue
         nb = NestedBlock(type=nested.type, labels=list(nested.labels), range=nested.def_range())
-        for attr_name, attr in nested.body.attributes.items():
-            nb.attributes[attr_name] = _attr_to_attribute(attr_name, attr, ctx)
+        for attr_name, attribute in nested.body.attributes.items():
+            nb.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
         r.blocks.append(nb)
 
     return r
 
 
-def _attr_to_attribute(name: str, attr: hcl.Attribute, ctx: EvalContext | None) -> Attribute:
-    a = Attribute(name=name, range=attr.src_range)
+def _attr_to_attribute(
+    name: str, attribute: hcl.Attribute, context: EvalContext | None
+) -> Attribute:
+    a = Attribute(name=name, range=attribute.src_range)
 
     # Try the expression on its own first. If that works, the value was written
     # inline and there is no indirection worth reporting.
-    v, diags = attr.expr.value(None)
+    v, diags = attribute.expr.value(None)
     if not diags.has_errors():
         a.is_literal = True
         a.raw_value = cty_value_to_string(v)
         return a
 
-    if ctx is None:
+    if context is None:
         # References a variable/resource/function we cannot resolve (no plan,
         # no state). Leave raw_value empty; rules that need a literal simply
         # skip this attribute.
         return a
 
-    v, diags = attr.expr.value(ctx)
+    v, diags = attribute.expr.value(context)
     if diags.has_errors() or not v.is_wholly_known():
         return a
     a.is_literal = True
     a.raw_value = cty_value_to_string(v)
-    a.resolved_from = first_traversal_name(attr.expr)
+    a.resolved_from = first_traversal_name(attribute.expr)
     return a
 
 

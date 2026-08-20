@@ -56,15 +56,15 @@ def render_findings(findings: list[Finding]) -> list[str]:
 
 
 def _file_input(name: str) -> FileInput:
-    src = (FIXTURES / name).read_bytes()
+    source = (FIXTURES / name).read_bytes()
     # Parsed with a scope built from the fixture itself, so a value reached
     # through a variable default resolves and sets resolved_from. Without it
     # the corpus would never exercise the branch where a finding names the
     # reference and deliberately withholds the one-click fix — the line under
     # that finding is already correct.
-    scope = build_scope({name: src})
-    resources = parse_file_with_context(name, src, scope)
-    return FileInput(path=name, head_resources=resources, head_source=src)
+    scope = build_scope({name: source})
+    resources = parse_file_with_context(name, source, scope)
+    return FileInput(path=name, head_resources=resources, head_source=source)
 
 
 def _compare(got: list[str], golden_name: str) -> None:

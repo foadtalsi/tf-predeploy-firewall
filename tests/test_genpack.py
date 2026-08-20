@@ -50,9 +50,9 @@ PACK_DATA = Path("src/tfpdf/schema/data")
 
 def _committed_pack(provider: str) -> dict[str, Any]:
     path = PACK_DATA / f"pack_{provider}_base.json.gz"
-    doc = json.loads(gzip.decompress(path.read_bytes()))
-    assert isinstance(doc, dict)
-    return doc
+    document = json.loads(gzip.decompress(path.read_bytes()))
+    assert isinstance(document, dict)
+    return document
 
 
 def _schema_json_from_pack(pack: dict[str, Any], provider_addr: str) -> dict[str, Any]:
@@ -124,7 +124,7 @@ def test_regenerating_a_committed_pack_reproduces_it_exactly(provider: str, tmp_
         resources=resources,
         provider_ver=committed["provider_version"],
         curated_dir=curated,
-        idx=index_from_pack(committed),
+        index=index_from_pack(committed),
     )
 
     assert base.to_json() == committed, (
@@ -245,7 +245,7 @@ def test_meta_arguments_are_injected_at_the_top_level_only(tmp_path: Path) -> No
     scanné se lit comme une hallucination — mais un `lifecycle` à l'intérieur
     d'un bloc imbriqué n'est pas valide, ils ne doivent donc pas y être
     ajoutés."""
-    doc = {
+    document = {
         "provider_schemas": {
             "p": {
                 "resource_schemas": {
@@ -265,7 +265,7 @@ def test_meta_arguments_are_injected_at_the_top_level_only(tmp_path: Path) -> No
         }
     }
     path = tmp_path / "s.json"
-    path.write_text(json.dumps(doc))
+    path.write_text(json.dumps(document))
 
     r = load_provider_schema(path, "p")["x_thing"]
     assert "count" in r.top_level and "lifecycle" in r.top_level
@@ -280,11 +280,11 @@ def test_force_new_for_an_argument_the_schema_does_not_declare_is_dropped() -> N
     resources = {
         "x_thing": PackResource(top_level=["name", "size"], nested_blocks={"inner": ["kind"]})
     }
-    idx = ForceNewIndex(
+    index = ForceNewIndex(
         top_level={"x_thing": ["name", "invented"], "x_absent": ["whatever"]},
         nested={"x_thing": {"inner": ["kind", "invented"], "no_such_block": ["k"]}},
     )
-    apply_force_new(resources, idx)
+    apply_force_new(resources, index)
 
     r = resources["x_thing"]
     assert r.force_new_top_level == ["name"]
@@ -347,23 +347,23 @@ def test_the_go_extractors_index_format_is_read_exactly() -> None:
     """
     from tfpdf.genpack import load_force_new_index
 
-    idx = load_force_new_index(
+    index = load_force_new_index(
         Path(__file__).parent / "data" / "oracles" / "oracle_forcenew_index.json"
     )
 
-    assert idx.provider == "aws"
-    assert idx.provider_version == "6.59.0"
-    assert idx.top_level["aws_instance"] == ["ami", "availability_zone"]
-    assert idx.top_level["aws_db_instance"] == ["engine"]
-    assert idx.nested["aws_instance"]["root_block_device"] == ["encrypted", "kms_key_id"]
-    assert idx.nested["aws_instance"]["network_interface.thing"] == ["device_index"]
-    assert idx.stats.sdk_resources_resolved == 1150
-    assert idx.stats.framework_seen == 88
+    assert index.provider == "aws"
+    assert index.provider_version == "6.59.0"
+    assert index.top_level["aws_instance"] == ["ami", "availability_zone"]
+    assert index.top_level["aws_db_instance"] == ["engine"]
+    assert index.nested["aws_instance"]["root_block_device"] == ["encrypted", "kms_key_id"]
+    assert index.nested["aws_instance"]["network_interface.thing"] == ["device_index"]
+    assert index.stats.sdk_resources_resolved == 1150
+    assert index.stats.framework_seen == 88
 
     # And the Python writer round-trips it, so an index can be edited or
     # regenerated on either side.
     assert load_force_new_index.__module__  # imported, not shadowed
-    round_tripped = idx.to_json()
+    round_tripped = index.to_json()
     assert round_tripped["top_level"]["aws_instance"] == ["ami", "availability_zone"]
     assert round_tripped["stats"]["framework_resolved"] == 71
 
@@ -373,7 +373,7 @@ def test_an_index_drives_the_real_pack_pipeline(tmp_path: Path) -> None:
     pack en sortie."""
     from tfpdf.genpack import load_force_new_index
 
-    idx = load_force_new_index(
+    index = load_force_new_index(
         Path(__file__).parent / "data" / "oracles" / "oracle_forcenew_index.json"
     )
     committed = _committed_pack("aws")
@@ -381,7 +381,7 @@ def test_an_index_drives_the_real_pack_pipeline(tmp_path: Path) -> None:
     schema_path = tmp_path / "schema.json"
     schema_path.write_text(json.dumps(_schema_json_from_pack(committed, addr)))
 
-    base, _ = build_packs("aws", load_provider_schema(schema_path, addr), "6.59.0", CURATED, idx)
+    base, _ = build_packs("aws", load_provider_schema(schema_path, addr), "6.59.0", CURATED, index)
 
     ami = base.resources["aws_instance"]
     assert "ami" in ami.force_new_top_level

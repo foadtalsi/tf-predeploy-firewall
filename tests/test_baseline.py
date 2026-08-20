@@ -125,11 +125,11 @@ def test_write_is_deterministic_and_deduplicated(tmp_path: Path) -> None:
 
     assert first.read_text() == second.read_text(), "order of input must not change output"
 
-    doc = json.loads(first.read_text())
-    assert len(doc["entries"]) == 2, "the duplicate must be collapsed"
-    assert [e["file"] for e in doc["entries"]] == ["a.tf", "z.tf"]
-    assert doc["format_version"] == baseline.FORMAT_VERSION
-    assert doc["_note"]
+    document = json.loads(first.read_text())
+    assert len(document["entries"]) == 2, "the duplicate must be collapsed"
+    assert [e["file"] for e in document["entries"]] == ["a.tf", "z.tf"]
+    assert document["format_version"] == baseline.FORMAT_VERSION
+    assert document["_note"]
 
 
 def test_write_then_load_round_trips(tmp_path: Path) -> None:

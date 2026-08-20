@@ -44,12 +44,12 @@ class PackPricing:
         return out
 
     @classmethod
-    def from_json(cls, doc: dict[str, Any]) -> PackPricing:
+    def from_json(cls, document: dict[str, Any]) -> PackPricing:
         return cls(
-            base=float(doc.get("base", 0) or 0),
-            attribute=str(doc.get("attribute", "") or ""),
-            by_attribute={k: float(v) for k, v in (doc.get("by_attribute") or {}).items()},
-            default=float(doc.get("default", 0) or 0),
+            base=float(document.get("base", 0) or 0),
+            attribute=str(document.get("attribute", "") or ""),
+            by_attribute={k: float(v) for k, v in (document.get("by_attribute") or {}).items()},
+            default=float(document.get("default", 0) or 0),
         )
 
 

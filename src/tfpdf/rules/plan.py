@@ -44,7 +44,7 @@ def run_plan_rules(
     pf: planjson.PlanFile,
     changed_attrs: dict[str, set[ChangedAttrKey]],
     kb: KnowledgeBase | None,
-    cfg: PlanRuleConfig,
+    config: PlanRuleConfig,
 ) -> list[Finding]:
     """Exécute chaque règle de phase 2 contre un plan `terraform show -json`
     analysé.
@@ -57,17 +57,17 @@ def run_plan_rules(
     findings: list[Finding] = []
     findings += ConfirmedReplaceRule().check(plan_path, pf.resource_changes, kb)
     findings += DriftRule().check(plan_path, pf.resource_changes, changed_attrs, kb)
-    findings += BlastRadiusRule(threshold=cfg.blast_radius_threshold).check(
+    findings += BlastRadiusRule(threshold=config.blast_radius_threshold).check(
         plan_path, pf.resource_changes, kb
     )
-    findings += CostImpactRule(threshold_usd=cfg.cost_impact_threshold_usd).check(
+    findings += CostImpactRule(threshold_usd=config.cost_impact_threshold_usd).check(
         plan_path, pf.resource_changes, kb
     )
 
     # No per-line inline ignore directives apply to plan-derived findings —
     # there is no .tf source line to attach a comment to — so only the
     # config-level ignore list applies here.
-    kept = ignore.apply(findings, {}, cfg.global_ignore)
+    kept = ignore.apply(findings, {}, config.global_ignore)
     attach_doc_urls(kept, kb)
     return kept
 

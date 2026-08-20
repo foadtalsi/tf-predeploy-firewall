@@ -55,11 +55,11 @@ class ForceNewIndex:
     provider_version: str = ""
     stats: ForceNewStats = field(default_factory=ForceNewStats)
 
-    def add(self, r_type: str, path: str, attr: str) -> None:
+    def add(self, r_type: str, path: str, attribute: str) -> None:
         if path == "":
-            self.top_level.setdefault(r_type, []).append(attr)
+            self.top_level.setdefault(r_type, []).append(attribute)
             return
-        self.nested.setdefault(r_type, {}).setdefault(path, []).append(attr)
+        self.nested.setdefault(r_type, {}).setdefault(path, []).append(attribute)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -82,23 +82,23 @@ class ForceNewIndex:
 def load_force_new_index(path: str | Path) -> ForceNewIndex:
     """Lit un index ForceNew produit par l'extracteur."""
     try:
-        doc = json.loads(Path(path).read_bytes())
+        document = json.loads(Path(path).read_bytes())
     except OSError as exc:
         raise ValueError(f"reading ForceNew index: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise ValueError(f"parsing ForceNew index {path}: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise ValueError(f"parsing ForceNew index {path}: top level is not an object")
 
-    stats_doc = doc.get("stats") or {}
+    stats_doc = document.get("stats") or {}
     return ForceNewIndex(
-        top_level={k: [str(x) for x in v] for k, v in (doc.get("top_level") or {}).items()},
+        top_level={k: [str(x) for x in v] for k, v in (document.get("top_level") or {}).items()},
         nested={
             k: {p: [str(x) for x in a] for p, a in (v or {}).items()}
-            for k, v in (doc.get("nested") or {}).items()
+            for k, v in (document.get("nested") or {}).items()
         },
-        provider=str(doc.get("provider", "")),
-        provider_version=str(doc.get("provider_version", "")),
+        provider=str(document.get("provider", "")),
+        provider_version=str(document.get("provider_version", "")),
         stats=ForceNewStats(
             sdk_resources_seen=int(stats_doc.get("sdk_resources_seen", 0)),
             sdk_resources_resolved=int(stats_doc.get("sdk_resources_resolved", 0)),
@@ -108,7 +108,7 @@ def load_force_new_index(path: str | Path) -> ForceNewIndex:
     )
 
 
-def apply_force_new(resources: dict[str, PackResource], idx: ForceNewIndex) -> None:
+def apply_force_new(resources: dict[str, PackResource], index: ForceNewIndex) -> None:
     """Fusionne les données ForceNew extraites sur la surface d'attributs, en
     écartant tout ce qui ne correspond pas à un argument réel.
 
@@ -116,14 +116,14 @@ def apply_force_new(resources: dict[str, PackResource], idx: ForceNewIndex) -> N
     pas signifierait que l'extracteur a mal lu la source, et agir dessus pourrait
     bloquer une PR sur un argument qui n'existe pas.
     """
-    for r_type, attrs in idx.top_level.items():
+    for r_type, attrs in index.top_level.items():
         r = resources.get(r_type)
         if r is None:
             continue
         valid = set(r.top_level)
         r.force_new_top_level = dedupe([*r.force_new_top_level, *(a for a in attrs if a in valid)])
 
-    for r_type, by_path in idx.nested.items():
+    for r_type, by_path in index.nested.items():
         r = resources.get(r_type)
         if r is None:
             continue
@@ -138,7 +138,7 @@ def apply_force_new(resources: dict[str, PackResource], idx: ForceNewIndex) -> N
             r.force_new_nested[path] = dedupe([*r.force_new_nested.get(path, []), *keep])
 
 
-def index_from_pack(doc: dict[str, Any]) -> ForceNewIndex:
+def index_from_pack(document: dict[str, Any]) -> ForceNewIndex:
     """Reconstitue un index depuis un pack déjà généré.
 
     Les packs générés sont la sortie commitée de l'extracteur, donc la seule
@@ -147,13 +147,13 @@ def index_from_pack(doc: dict[str, Any]) -> ForceNewIndex:
     régénération et — dans `test_genpack.py` — comme la fixture qui prouve que
     cette chaîne reproduit exactement les packs commités.
     """
-    idx = ForceNewIndex(
-        provider=str(doc.get("provider", "")),
-        provider_version=str(doc.get("provider_version", "")),
+    index = ForceNewIndex(
+        provider=str(document.get("provider", "")),
+        provider_version=str(document.get("provider_version", "")),
     )
-    for r_type, r in (doc.get("resources") or {}).items():
+    for r_type, r in (document.get("resources") or {}).items():
         if top := r.get("force_new_top_level"):
-            idx.top_level[r_type] = list(top)
+            index.top_level[r_type] = list(top)
         if nested := r.get("force_new_nested"):
-            idx.nested[r_type] = {p: list(a) for p, a in nested.items()}
-    return idx
+            index.nested[r_type] = {p: list(a) for p, a in nested.items()}
+    return index

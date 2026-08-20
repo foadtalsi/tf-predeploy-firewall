@@ -40,12 +40,12 @@ class GenpackError(RuntimeError):
     scanner qui cesse silencieusement de reconnaître des arguments."""
 
 
-def _log(msg: str) -> None:
-    print(msg)
+def _log(message: str) -> None:
+    print(message)
 
 
-def _warn(msg: str) -> None:
-    print("genpack: " + msg, file=sys.stderr)
+def _warn(message: str) -> None:
+    print("genpack: " + message, file=sys.stderr)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -147,7 +147,7 @@ def build_packs(
     resources: dict[str, PackResource],
     provider_ver: str,
     curated_dir: Path,
-    idx: ForceNewIndex | None = None,
+    index: ForceNewIndex | None = None,
 ) -> tuple[Pack, Pack]:
     """La génération elle-même, sans aucune écriture de fichier — `(base,
     complet)`.
@@ -155,13 +155,13 @@ def build_packs(
     Séparée de `run` pour que toute la chaîne puisse être exercée contre une
     fixture dans un test, et pas seulement par une ligne de commande.
     """
-    if idx is not None:
-        apply_force_new(resources, idx)
+    if index is not None:
+        apply_force_new(resources, index)
         covered = sum(1 for r in resources.values() if r.force_new_top_level or r.force_new_nested)
         _log(
-            f"ForceNew: SDKv2 {idx.stats.sdk_resources_resolved}/"
-            f"{idx.stats.sdk_resources_seen} resolved, Framework "
-            f"{idx.stats.framework_resolved}/{idx.stats.framework_seen} resolved, "
+            f"ForceNew: SDKv2 {index.stats.sdk_resources_resolved}/"
+            f"{index.stats.sdk_resources_seen} resolved, Framework "
+            f"{index.stats.framework_resolved}/{index.stats.framework_seen} resolved, "
             f"{covered} resource types carry ForceNew data"
         )
     else:
@@ -214,8 +214,8 @@ def run(
     resources = load_provider_schema(schema_path, provider_addr)
     _log(f"attribute surface: {len(resources)} resource types")
 
-    idx = load_force_new_index(force_new_index_path) if force_new_index_path else None
-    base, full = build_packs(provider, resources, provider_ver, curated_dir, idx)
+    index = load_force_new_index(force_new_index_path) if force_new_index_path else None
+    base, full = build_packs(provider, resources, provider_ver, curated_dir, index)
 
     for path in (base_out, full_out):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -228,17 +228,17 @@ def run(
 
 
 def read_string_list(path: str | Path, field_name: str) -> list[str]:
-    doc = _read_json_object(path)
-    value = doc.get(field_name)
+    document = _read_json_object(path)
+    value = document.get(field_name)
     if not isinstance(value, list):
         raise GenpackError(f'parsing {path} field "{field_name}": not a list')
     return [str(v) for v in value]
 
 
 def read_pricing(path: str | Path) -> dict[str, PackPricing]:
-    doc = _read_json_object(path)
+    document = _read_json_object(path)
     out: dict[str, PackPricing] = {}
-    for k, v in doc.items():
+    for k, v in document.items():
         if k == "_comment":
             continue
         if not isinstance(v, dict):
@@ -253,12 +253,12 @@ def _read_json_object(path: str | Path) -> dict[str, Any]:
     except OSError as exc:
         raise GenpackError(str(exc)) from exc
     try:
-        doc = json.loads(raw)
+        document = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise GenpackError(f"parsing {path}: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise GenpackError(f"parsing {path}: top level is not an object")
-    return doc
+    return document
 
 
 def run_cli() -> None:

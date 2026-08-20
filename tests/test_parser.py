@@ -47,9 +47,9 @@ def test_parse_file_top_level_attributes() -> None:
     db = resources[0]
     assert db.address() == "aws_db_instance.primary"
     assert "identifier" in db.attributes
-    attr = db.attributes["identifier"]
-    assert attr.is_literal
-    assert attr.raw_value == "prod-db"
+    attribute = db.attributes["identifier"]
+    assert attribute.is_literal
+    assert attribute.raw_value == "prod-db"
 
 
 def test_parse_file_lifecycle_block() -> None:
@@ -84,7 +84,7 @@ def test_parse_file_parses_resources_modules_and_data_sources() -> None:
     qu'un mot de passe passé à une ressource. Les blocs de déclaration
     (variable, locals, output) ne le sont pas — ils déclarent, ils ne configurent
     pas d'infrastructure."""
-    src = b"""
+    source = b"""
 variable "region" { default = "us-east-1" }
 locals { env = "prod" }
 output "vpc_id" { value = "x" }
@@ -96,7 +96,7 @@ module "rds" {
 }
 resource "aws_vpc" "main" { cidr_block = "10.0.0.0/16" }
 """
-    by_addr = {r.address(): r for r in parse_file("test.tf", src)}
+    by_addr = {r.address(): r for r in parse_file("test.tf", source)}
     assert len(by_addr) == 3, f"expected 3 blocks, got {sorted(by_addr)}"
 
     assert by_addr["aws_vpc.main"].kind is Kind.RESOURCE
@@ -112,7 +112,7 @@ def test_parse_file_with_context_resolves_vars_and_locals() -> None:
     """Résolution à travers une valeur par défaut de variable ou un local : la
     valeur qu'une règle voit doit être la valeur que l'attribut porte
     réellement, pas le texte de la référence."""
-    src = b"""
+    source = b"""
 variable "db_password" { default = "changeme" }
 locals { admin_user = "root" }
 
@@ -122,10 +122,10 @@ resource "aws_db_instance" "prod" {
   engine   = "postgres"
 }
 """
-    scope = build_scope({"main.tf": src})
+    scope = build_scope({"main.tf": source})
     assert scope is not None
 
-    attrs = parse_file_with_context("main.tf", src, scope)[0].attributes
+    attrs = parse_file_with_context("main.tf", source, scope)[0].attributes
 
     assert attrs["password"].is_literal
     assert attrs["password"].raw_value == "changeme"
@@ -146,7 +146,7 @@ def test_parse_file_with_context_leaves_unresolvable_values_alone() -> None:
     """La portée ne doit jamais inventer de valeur. Une variable sans valeur
     par défaut est fournie au moment du plan, et deviner serait la façon dont les
     faux positifs entrent."""
-    src = b"""
+    source = b"""
 variable "db_password" {}
 
 resource "aws_db_instance" "prod" {
@@ -154,8 +154,8 @@ resource "aws_db_instance" "prod" {
   something_else = aws_kms_key.k.arn
 }
 """
-    scope = build_scope({"main.tf": src})
-    attrs = parse_file_with_context("main.tf", src, scope)[0].attributes
+    scope = build_scope({"main.tf": source})
+    attrs = parse_file_with_context("main.tf", source, scope)[0].attributes
     for name in ("password", "something_else"):
         assert not attrs[name].is_literal, f"{name} must stay unresolved"
 

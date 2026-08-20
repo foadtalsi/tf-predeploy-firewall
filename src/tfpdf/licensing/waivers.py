@@ -28,16 +28,16 @@ class Waiver:
     justification: str = ""
 
 
-def waivers_from_json(doc: Any) -> list[Waiver]:
+def waivers_from_json(document: Any) -> list[Waiver]:
     """Décode la liste des dérogations.
 
     Une liste vide est la réponse normale pour un dépôt sur lequel personne
     n'a encore rien accordé.
     """
-    if not isinstance(doc, list):
+    if not isinstance(document, list):
         return []
     out: list[Waiver] = []
-    for raw in doc:
+    for raw in document:
         if not isinstance(raw, dict):
             continue
         out.append(

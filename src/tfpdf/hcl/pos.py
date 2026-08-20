@@ -72,7 +72,7 @@ class Range:
             f"{self.end.line},{self.end.column}"
         )
 
-    def slice(self, src: bytes) -> bytes:
+    def slice(self, source: bytes) -> bytes:
         """Rend les octets que cette plage couvre, ou b"" si elle ne tient pas dans
         `src`.
 
@@ -82,9 +82,9 @@ class Range:
         d'autre.
         """
         start, end = self.start.byte, self.end.byte
-        if start < 0 or end > len(src) or start >= end:
+        if start < 0 or end > len(source) or start >= end:
             return b""
-        return src[start:end]
+        return source[start:end]
 
     def merge(self, other: Range) -> Range:
         """La plus petite plage couvrant les deux. Sert à étendre une expression de

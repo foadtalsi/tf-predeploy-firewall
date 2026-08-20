@@ -21,7 +21,7 @@ from .report.finding import Category, Finding, Severity
 from .rules import is_credential_attr_name, is_open_cidr, match_credential_value_pattern
 
 
-def scan_file(path: str, src: bytes) -> list[Finding]:
+def scan_file(path: str, source: bytes) -> list[Finding]:
     """Scanne le map `inputs` et le map `remote_state.config` d'un fichier
     terragrunt.hcl, à la recherche d'identifiants en dur et de CIDR grand
     ouverts.
@@ -29,7 +29,7 @@ def scan_file(path: str, src: bytes) -> list[Finding]:
     Lève `HCLParseError` plutôt que de sauter le fichier en silence — même
     convention que `parser.parse_file`.
     """
-    file, diags = hcl.parse_config(src, path)
+    file, diags = hcl.parse_config(source, path)
     if diags.has_errors():
         raise HCLParseError(diags)
 

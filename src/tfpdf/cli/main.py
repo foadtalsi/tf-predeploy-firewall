@@ -53,12 +53,12 @@ except ImportError:  # pragma: no cover
 _LICENSE_API_BASE_DEFAULT = "https://api.tfpredeployfirewall.com"
 
 
-def _warn(msg: str) -> None:
-    print("tf-predeploy-firewall: " + msg, file=sys.stderr)
+def _warn(message: str) -> None:
+    print("tf-predeploy-firewall: " + message, file=sys.stderr)
 
 
-def _die(msg: str) -> int:
-    _warn(msg)
+def _die(message: str) -> int:
+    _warn(message)
     return 2
 
 
@@ -286,18 +286,18 @@ def load_knowledge_base(
     client = licensing.new_client(license_key, api_base)
     overlays = []
     for provider in providers:
-        pack, err = client.fetch_rule_pack(provider)
+        pack, exception = client.fetch_rule_pack(provider)
         if pack is None:
             _warn(
-                f"extended {provider} rule pack unavailable ({err}) — {provider} "
+                f"extended {provider} rule pack unavailable ({exception}) — {provider} "
                 "coverage falls back to the embedded pack"
             )
             continue
-        if err is not None:
+        if exception is not None:
             # A pack was still produced, so coverage is intact — say that
             # plainly rather than warning about coverage we didn't lose.
             _warn(
-                f"could not reach the rule pack service ({err}) — using the cached "
+                f"could not reach the rule pack service ({exception}) — using the cached "
                 f"extended {provider} pack, coverage is unchanged"
             )
         elif pack.from_cache:
@@ -338,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
         post_comment = False
 
     try:
-        cfg = load_config(args.config)
+        config = load_config(args.config)
     except ConfigError as exc:
         return _die(str(exc))
 
@@ -349,18 +349,18 @@ def main(argv: list[str] | None = None) -> int:
         return run_rules_dry_run(args.config, args.repo_dir)
 
     if args.license_key:
-        apply_org_policy(cfg, args.license_key, args.license_api_base)
-    warn_unknown_threshold(cfg.block_threshold)
+        apply_org_policy(config, args.license_key, args.license_api_base)
+    warn_unknown_threshold(config.block_threshold)
 
     try:
-        return _scan(args, cfg, post_comment)
+        return _scan(args, config, post_comment)
     except ConfigError as exc:
         return _die(str(exc))
     except diff.GitError as exc:
         return _die(str(exc))
 
 
-def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
+def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
     mode = terraformscan.Mode(
         staged=bool(args.staged),
         uncommitted=bool(args.uncommitted),
@@ -398,13 +398,13 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
     # same PR twice with numbers that may disagree.
     rule_opts = Options()
     if not args.plan_json:
-        rule_opts.cost_threshold_usd = cfg.cost_impact_threshold_usd
+        rule_opts.cost_threshold_usd = config.cost_impact_threshold_usd
     ruleset = load_ruleset(args.rules, rule_opts)
 
-    if cfg.custom_rules_yaml_override:
+    if config.custom_rules_yaml_override:
         try:
             custom_rule_set: customrules.Config | None = customrules.load(
-                cfg.custom_rules_yaml_override
+                config.custom_rules_yaml_override
             )
         except customrules.CustomRuleError as exc:
             return _die(f"custom rules from org policy: {exc}")
@@ -418,7 +418,7 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
         kb,
         ruleset,
         rules.RunOptions(
-            global_ignore=list(cfg.ignore_rules),
+            global_ignore=list(config.ignore_rules),
             # Lets the engine read each scanned file's directory to resolve
             # `var.x` and `local.y` — a credential one indirection away is the
             # common case, not the exotic one.
@@ -441,9 +441,9 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
             result.changed_attrs,
             kb,
             rules.PlanRuleConfig(
-                blast_radius_threshold=cfg.plan_blast_radius_threshold,
-                cost_impact_threshold_usd=cfg.cost_impact_threshold_usd,
-                global_ignore=list(cfg.ignore_rules),
+                blast_radius_threshold=config.plan_blast_radius_threshold,
+                cost_impact_threshold_usd=config.cost_impact_threshold_usd,
+                global_ignore=list(config.ignore_rules),
             ),
         )
         # A confirmed replace from the real plan supersedes phase 1's ForceNew
@@ -453,12 +453,12 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
         findings += plan_findings
 
     findings += ignore.apply(
-        terraformscan.scan_terragrunt(args.repo_dir, mode, _warn), {}, cfg.ignore_rules
+        terraformscan.scan_terragrunt(args.repo_dir, mode, _warn), {}, config.ignore_rules
     )
     findings += ignore.apply(
-        terraformscan.scan_tfvars(args.repo_dir, mode, _warn), {}, cfg.ignore_rules
+        terraformscan.scan_tfvars(args.repo_dir, mode, _warn), {}, config.ignore_rules
     )
-    findings = ignore.apply_path_rules(findings, cfg.ignore_path_rules())
+    findings = ignore.apply_path_rules(findings, config.ignore_path_rules())
 
     # --write-baseline records the current state and stops. It deliberately runs
     # before waivers are applied: a waiver is a live decision held in the
@@ -487,25 +487,25 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
         return _die(str(exc))
     if base is not None:
         findings = base.apply(findings)
-        msg = f"baseline {args.baseline} accepts {base.size()} finding(s)"
+        message = f"baseline {args.baseline} accepts {base.size()} finding(s)"
         if (stale := base.stale()) > 0:
-            msg += (
+            message += (
                 f"; {stale} entr(y/ies) no longer match anything and can be pruned with "
                 "--write-baseline"
             )
-        _warn(msg)
+        _warn(message)
 
     if args.license_key:
         findings = apply_waivers(findings, args.license_key, args.license_api_base)
 
-    blocked = blocked_by(findings, cfg.block_threshold)
+    blocked = blocked_by(findings, config.block_threshold)
 
     if args.license_key and report_usage(
         args.license_key, args.license_api_base, findings, blocked
     ):
         return 3
 
-    body = report.render_markdown(findings, cfg.block_threshold, blocked)
+    body = report.render_markdown(findings, config.block_threshold, blocked)
     print(body)
 
     if post_comment:
@@ -513,9 +513,9 @@ def _scan(args: argparse.Namespace, cfg: Config, post_comment: bool) -> int:
             post_to_pr(body)
         except Exception as exc:
             _warn(f"failed to post PR comment: {exc}")
-        if cfg.suggestions:
+        if config.suggestions:
             post_suggestions(findings)
-        request_second_reviewer_if_critical(findings, cfg)
+        request_second_reviewer_if_critical(findings, config)
 
     if args.sarif_output:
         # Waived findings are excluded from SARIF entirely — a security tab is

@@ -64,9 +64,9 @@ def test_blocked_by_waived_finding_is_skipped() -> None:
 
 
 def test_load_config_missing_file_falls_back_to_defaults(tmp_path: Path) -> None:
-    cfg = load_config(str(tmp_path / "does-not-exist.yml"))
-    assert cfg.block_threshold == Severity.HIGH
-    assert cfg.plan_blast_radius_threshold == 10
+    config = load_config(str(tmp_path / "does-not-exist.yml"))
+    assert config.block_threshold == Severity.HIGH
+    assert config.plan_blast_radius_threshold == 10
 
 
 def test_load_config_yaml_overrides_defaults(tmp_path: Path) -> None:
@@ -75,10 +75,10 @@ def test_load_config_yaml_overrides_defaults(tmp_path: Path) -> None:
         "block_threshold: critical\nplan_blast_radius_threshold: 3\n"
         "ignore_rules: [tutorial_pattern]\n"
     )
-    cfg = load_config(str(path))
-    assert cfg.block_threshold == "critical"
-    assert cfg.plan_blast_radius_threshold == 3
-    assert cfg.ignore_rules == ["tutorial_pattern"]
+    config = load_config(str(path))
+    assert config.block_threshold == "critical"
+    assert config.plan_blast_radius_threshold == 3
+    assert config.ignore_rules == ["tutorial_pattern"]
 
 
 def test_load_config_ignore_paths_parsed_and_convertible(tmp_path: Path) -> None:
@@ -87,14 +87,14 @@ def test_load_config_ignore_paths_parsed_and_convertible(tmp_path: Path) -> None
         'ignore_paths:\n  - path: "legacy/**"\n  - path: "sandbox/*.tf"\n'
         "    categories: [missing_lifecycle]\n"
     )
-    cfg = load_config(str(path))
+    config = load_config(str(path))
 
-    assert len(cfg.ignore_paths) == 2
-    assert cfg.ignore_paths[0].path == "legacy/**"
-    assert cfg.ignore_paths[0].categories == []
-    assert cfg.ignore_paths[1].path == "sandbox/*.tf"
-    assert len(cfg.ignore_paths[1].categories) == 1
-    assert len(cfg.ignore_path_rules()) == 2
+    assert len(config.ignore_paths) == 2
+    assert config.ignore_paths[0].path == "legacy/**"
+    assert config.ignore_paths[0].categories == []
+    assert config.ignore_paths[1].path == "sandbox/*.tf"
+    assert len(config.ignore_paths[1].categories) == 1
+    assert len(config.ignore_path_rules()) == 2
 
 
 def test_load_config_env_overrides_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,9 +103,9 @@ def test_load_config_env_overrides_yaml(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setenv("SCANNER_BLOCK_THRESHOLD", "critical")
     monkeypatch.setenv("SCANNER_PLAN_BLAST_RADIUS_THRESHOLD", "20")
 
-    cfg = load_config(str(path))
-    assert cfg.block_threshold == "critical"
-    assert cfg.plan_blast_radius_threshold == 20
+    config = load_config(str(path))
+    assert config.block_threshold == "critical"
+    assert config.plan_blast_radius_threshold == 20
 
 
 def test_load_config_invalid_blast_radius_env(
@@ -241,7 +241,7 @@ _COVERAGE = Coverage(
 
 
 @pytest.mark.parametrize(
-    ("name", "src", "want"),
+    ("name", "source", "want"),
     [
         (
             "uncovered provider is reported",
@@ -267,22 +267,22 @@ _COVERAGE = Coverage(
     ],
 )
 def test_warn_uncovered_providers(
-    name: str, src: str, want: str, capsys: pytest.CaptureFixture[str]
+    name: str, source: str, want: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """La moitié silencieuse du même défaut : les règles basées sur les valeurs
     se déclenchent sur n'importe quel fournisseur, si bien qu'un fournisseur non
     couvert produit un rapport qui a l'air d'avoir marché pendant que les règles
     guidées par le schéma restent inertes. Le scan doit le dire."""
-    warn_uncovered_providers(_files(src), _COVERAGE)
-    err = capsys.readouterr().err
+    warn_uncovered_providers(_files(source), _COVERAGE)
+    exception = capsys.readouterr().err
 
     if want == "":
-        assert err == "", f"expected silence, got: {err}"
+        assert exception == "", f"expected silence, got: {exception}"
         return
-    assert want in err
+    assert want in exception
     # The warning has to say what still ran, or it reads as "this scan did
     # nothing" and gets ignored.
-    assert "hardcoded credentials" in err
+    assert "hardcoded credentials" in exception
 
 
 # --- policy_test.go ---------------------------------------------------------
@@ -313,37 +313,37 @@ def test_apply_org_policy_overrides_local_config() -> None:
         "plan_blast_radius_threshold": 3,
     }
     with StubServer(lambda r: Response(body=body)) as srv:
-        cfg = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-        apply_org_policy(cfg, "test-key", srv.url)
+        config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
+        apply_org_policy(config, "test-key", srv.url)
 
-    assert cfg.block_threshold == "critical"
-    assert cfg.plan_blast_radius_threshold == 3
-    assert cfg.ignore_rules == ["tutorial_pattern"]
+    assert config.block_threshold == "critical"
+    assert config.plan_blast_radius_threshold == 3
+    assert config.ignore_rules == ["tutorial_pattern"]
 
 
 def test_apply_org_policy_env_var_wins_over_policy(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCANNER_BLOCK_THRESHOLD", "low")
     with StubServer(lambda r: Response(body={"block_threshold": "critical"})) as srv:
-        cfg = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(cfg, "test-key", srv.url)
-    assert cfg.block_threshold == Severity.HIGH, (
+        config = Config(block_threshold=Severity.HIGH)
+        apply_org_policy(config, "test-key", srv.url)
+    assert config.block_threshold == Severity.HIGH, (
         "env precedence leaves the threshold untouched by policy"
     )
 
 
 def test_apply_org_policy_no_policy_leaves_config_untouched() -> None:
     with StubServer(lambda r: Response(body={})) as srv:
-        cfg = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-        apply_org_policy(cfg, "test-key", srv.url)
-    assert cfg.block_threshold == Severity.HIGH
-    assert cfg.plan_blast_radius_threshold == 10
+        config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
+        apply_org_policy(config, "test-key", srv.url)
+    assert config.block_threshold == Severity.HIGH
+    assert config.plan_blast_radius_threshold == 10
 
 
 def test_apply_org_policy_fails_open_on_network_error() -> None:
-    cfg = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-    apply_org_policy(cfg, "test-key", "http://127.0.0.1:1")  # nothing listening
-    assert cfg.block_threshold == Severity.HIGH
-    assert cfg.plan_blast_radius_threshold == 10
+    config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
+    apply_org_policy(config, "test-key", "http://127.0.0.1:1")  # nothing listening
+    assert config.block_threshold == Severity.HIGH
+    assert config.plan_blast_radius_threshold == 10
 
 
 def test_apply_org_policy_reviewer_lists_override_local_config() -> None:
@@ -352,10 +352,10 @@ def test_apply_org_policy_reviewer_lists_override_local_config() -> None:
         "require_second_reviewer_teams": ["security-team"],
     }
     with StubServer(lambda r: Response(body=body)) as srv:
-        cfg = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(cfg, "test-key", srv.url)
-    assert cfg.require_second_reviewer_users == ["alice"]
-    assert cfg.require_second_reviewer_teams == ["security-team"]
+        config = Config(block_threshold=Severity.HIGH)
+        apply_org_policy(config, "test-key", srv.url)
+    assert config.require_second_reviewer_users == ["alice"]
+    assert config.require_second_reviewer_teams == ["security-team"]
 
 
 def test_apply_org_policy_custom_rules_yaml_overrides_local_config() -> None:
@@ -364,9 +364,9 @@ def test_apply_org_policy_custom_rules_yaml_overrides_local_config() -> None:
         "    severity: medium\n    message: x\n"
     )
     with StubServer(lambda r: Response(body={"custom_rules_yaml": custom})) as srv:
-        cfg = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(cfg, "test-key", srv.url)
-    assert cfg.custom_rules_yaml_override == custom
+        config = Config(block_threshold=Severity.HIGH)
+        apply_org_policy(config, "test-key", srv.url)
+    assert config.custom_rules_yaml_override == custom
 
 
 # --- waivers_test.go --------------------------------------------------------
@@ -450,8 +450,8 @@ def test_request_second_reviewer_no_op_without_critical_finding(
 
     with StubServer(lambda r: Response(status=201, body={})) as srv:
         monkeypatch.setattr("tfpdf.cli.forges.github_api_base_for_test", srv.url)
-        cfg = Config(require_second_reviewer_users=["alice"])
-        request_second_reviewer_if_critical([_finding(severity=Severity.HIGH)], cfg)
+        config = Config(require_second_reviewer_users=["alice"])
+        request_second_reviewer_if_critical([_finding(severity=Severity.HIGH)], config)
         assert srv.calls == 0, "no API call when no finding is critical"
 
 
@@ -464,8 +464,8 @@ def test_request_second_reviewer_requests_reviewers_on_critical_finding(
 
     with StubServer(lambda r: Response(status=201, body={})) as srv:
         monkeypatch.setattr("tfpdf.cli.forges.github_api_base_for_test", srv.url)
-        cfg = Config(require_second_reviewer_users=["alice"])
-        request_second_reviewer_if_critical([_finding(severity=Severity.CRITICAL)], cfg)
+        config = Config(require_second_reviewer_users=["alice"])
+        request_second_reviewer_if_critical([_finding(severity=Severity.CRITICAL)], config)
 
         assert srv.requests[0].path == "/repos/owner/repo/pulls/7/requested_reviewers"
 

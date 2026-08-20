@@ -127,7 +127,7 @@ def test_run_applies_inline_ignore(kb: KnowledgeBase) -> None:
     """Une directive en ligne N supprime les découvertes des lignes N et N+1,
     pour que le commentaire puisse se poser sur la ligne de l'attribut ou sur
     celle du dessus."""
-    src = b"""
+    source = b"""
 resource "aws_db_instance" "prod" {
   identifier = "x"
   # tf-firewall-ignore: tutorial_pattern
@@ -135,12 +135,12 @@ resource "aws_db_instance" "prod" {
 }
 """
     findings = run(
-        [ChangedFile(path="main.tf", head_content=src)], kb, default_rules(Options())
+        [ChangedFile(path="main.tf", head_content=source)], kb, default_rules(Options())
     ).findings
     assert Category.TUTORIAL_PATTERN not in _categories(findings)
 
     # Without the directive, the same file reports the credential.
-    without = src.replace(b"  # tf-firewall-ignore: tutorial_pattern\n", b"")
+    without = source.replace(b"  # tf-firewall-ignore: tutorial_pattern\n", b"")
     findings = run(
         [ChangedFile(path="main.tf", head_content=without)], kb, default_rules(Options())
     ).findings
@@ -151,7 +151,7 @@ def test_run_scope_resolution_is_off_without_a_repo_dir(kb: KnowledgeBase) -> No
     """Sans repo_dir il n'y a aucun répertoire à lire, donc `var.x` reste non
     résolu et chaque règle basée sur les valeurs le saute — le comportement
     d'avant l'existence des portées."""
-    src = b"""
+    source = b"""
 variable "db_password" { default = "changeme" }
 resource "aws_db_instance" "prod" {
   identifier = "x"
@@ -159,7 +159,7 @@ resource "aws_db_instance" "prod" {
 }
 """
     findings = run(
-        [ChangedFile(path="main.tf", head_content=src)], kb, default_rules(Options())
+        [ChangedFile(path="main.tf", head_content=source)], kb, default_rules(Options())
     ).findings
     resolved = [f for f in findings if "via var.db_password" in f.message]
     assert not resolved
@@ -169,17 +169,17 @@ def test_run_scope_resolution_with_a_repo_dir(tmp_path: Path, kb: KnowledgeBase)
     """Avec un repo_dir, un mot de passe à une indirection de distance dans la
     valeur par défaut d'une variable est attrapé — et la découverte nomme la
     référence pour qu'elle ne se lise pas comme un faux positif."""
-    src = b"""
+    source = b"""
 variable "db_password" { default = "changeme" }
 resource "aws_db_instance" "prod" {
   identifier = "x"
   password   = var.db_password
 }
 """
-    (tmp_path / "main.tf").write_bytes(src)
+    (tmp_path / "main.tf").write_bytes(source)
 
     findings = run(
-        [ChangedFile(path="main.tf", head_content=src)],
+        [ChangedFile(path="main.tf", head_content=source)],
         kb,
         default_rules(Options()),
         RunOptions(repo_dir=str(tmp_path)),

@@ -48,13 +48,13 @@ def load_provider_schema(path: str | Path, provider_addr: str) -> dict[str, Pack
     except OSError as exc:
         raise SchemaError(f"reading provider schema: {exc}") from exc
     try:
-        doc = json.loads(raw)
+        document = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise SchemaError(f"parsing provider schema JSON: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise SchemaError("parsing provider schema JSON: top level is not an object")
 
-    schemas = doc.get("provider_schemas") or {}
+    schemas = document.get("provider_schemas") or {}
     item = schemas.get(provider_addr)
     if item is None:
         available = ", ".join(sorted(schemas))

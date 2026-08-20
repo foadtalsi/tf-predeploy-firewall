@@ -33,8 +33,8 @@ def build_scope(files_by_path: dict[str, bytes]) -> EvalContext | None:
     locals_: dict[str, Value] = {}
     vars_: dict[str, Value] = {}
 
-    for path, src in files_by_path.items():
-        file, diags = hcl.parse_config(src, path)
+    for path, source in files_by_path.items():
+        file, diags = hcl.parse_config(source, path)
         if diags.has_errors():
             # One unparseable file must not cost us the scope of the rest of
             # the directory; the engine reports that file's parse error itself.
@@ -42,8 +42,8 @@ def build_scope(files_by_path: dict[str, bytes]) -> EvalContext | None:
 
         for block in file.body.blocks:
             if block.type == "locals":
-                for name, attr in block.body.attributes.items():
-                    v, d = attr.expr.value(None)
+                for name, attribute in block.body.attributes.items():
+                    v, d = attribute.expr.value(None)
                     if not d.has_errors() and v.is_wholly_known():
                         locals_[name] = v
             elif block.type == "variable" and len(block.labels) == 1:

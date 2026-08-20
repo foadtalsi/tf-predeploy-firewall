@@ -31,16 +31,16 @@ class LineEdit:
     lines: list[str]
 
 
-def line_text(src: bytes, n: int) -> str | None:
+def line_text(source: bytes, n: int) -> str | None:
     """La ligne `n` (indexée à 1) de `src`, sans sa fin de ligne.
 
     None si `src` est absente ou si `n` est hors plage — le cas normal pour les
     appelants qui n'ont jamais fourni la source, par exemple des tests
     unitaires qui construisent un FileInput à la main.
     """
-    if not src or n < 1:
+    if not source or n < 1:
         return None
-    lines = src.decode("utf-8", errors="replace").split("\n")
+    lines = source.decode("utf-8", errors="replace").split("\n")
     if n > len(lines):
         return None
     return lines[n - 1].removesuffix("\r")
@@ -78,7 +78,7 @@ def declares_attr(line: str, name: str) -> bool:
     return rest[len(name) :].lstrip(" \t").startswith("=")
 
 
-def insert_into_block(src: bytes, header: Range, *add: str) -> LineEdit | None:
+def insert_into_block(source: bytes, header: Range, *add: str) -> LineEdit | None:
     """Construit un correctif qui garde la ligne d'en-tête d'un bloc telle
     quelle et ajoute des lignes juste en dessous, indentées d'un niveau.
 
@@ -87,7 +87,7 @@ def insert_into_block(src: bytes, header: Range, *add: str) -> LineEdit | None:
     des méta-arguments `for_each` que cet outil n'a pas à normaliser.
     """
     line_no = header.start.line
-    text = line_text(src, line_no)
+    text = line_text(source, line_no)
     if text is None or not opens_block(text):
         return None
     inner = indent_of(text) + "  "
@@ -95,12 +95,12 @@ def insert_into_block(src: bytes, header: Range, *add: str) -> LineEdit | None:
     return LineEdit(start=line_no, end=line_no, lines=out)
 
 
-def replace_attr_line(src: bytes, r: Range, attr_name: str, new_text: str) -> LineEdit | None:
+def replace_attr_line(source: bytes, r: Range, attr_name: str, new_text: str) -> LineEdit | None:
     """Construit un correctif qui écrase une affectation d'attribut sur une
     ligne par `new_text`, en conservant l'indentation d'origine."""
     if r.start.line != r.end.line:
         return None  # a multi-line value; not ours to rewrite
-    text = line_text(src, r.start.line)
+    text = line_text(source, r.start.line)
     if text is None or not declares_attr(text, attr_name):
         return None
     return LineEdit(start=r.start.line, end=r.start.line, lines=[indent_of(text) + new_text])
@@ -109,7 +109,7 @@ def replace_attr_line(src: bytes, r: Range, attr_name: str, new_text: str) -> Li
 # --- naming helpers -------------------------------------------------------
 
 
-def via_suffix(attr: Attribute) -> str:
+def via_suffix(attribute: Attribute) -> str:
     """Nomme la référence par laquelle une valeur a été atteinte, pour qu'une
     découverte rapportée sur une ligne qui ne lit que `password =
     var.db_password` dise où se trouve réellement le littéral.
@@ -117,9 +117,9 @@ def via_suffix(attr: Attribute) -> str:
     Sans cela, le rapport ressemble à un faux positif pour quiconque ouvre le
     fichier.
     """
-    if not attr.resolved_from:
+    if not attribute.resolved_from:
         return ""
-    return " (via " + attr.resolved_from + ")"
+    return " (via " + attribute.resolved_from + ")"
 
 
 def credential_var_name(res: Resource, block_type: str, attr_name: str) -> str:

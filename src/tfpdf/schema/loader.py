@@ -120,12 +120,12 @@ class _LoadedPack:
 
     __slots__ = ("_decoded", "format_version", "id", "provider", "provider_version", "resources")
 
-    def __init__(self, doc: dict[str, Any]) -> None:
-        self.format_version: int = int(doc.get("format_version", 0) or 0)
-        self.id: str = str(doc.get("id", ""))
-        self.provider: str = str(doc.get("provider", ""))
-        self.provider_version: str = str(doc.get("provider_version", ""))
-        self.resources: dict[str, Any] = doc.get("resources") or {}
+    def __init__(self, document: dict[str, Any]) -> None:
+        self.format_version: int = int(document.get("format_version", 0) or 0)
+        self.id: str = str(document.get("id", ""))
+        self.provider: str = str(document.get("provider", ""))
+        self.provider_version: str = str(document.get("provider_version", ""))
+        self.resources: dict[str, Any] = document.get("resources") or {}
         self._decoded: dict[str, _PackResource | None] = {}
 
     def resource(self, r_type: str) -> _PackResource | None:
@@ -348,13 +348,13 @@ def parse_pack(fp: IO[bytes] | bytes) -> _LoadedPack:
     except (OSError, EOFError) as exc:
         raise PackError(f"pack is not gzip: {exc}") from exc
     try:
-        doc = json.loads(decompressed)
+        document = json.loads(decompressed)
     except json.JSONDecodeError as exc:
         raise PackError(f"decoding pack: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise PackError("pack is not an object")
 
-    pack = _LoadedPack(doc)
+    pack = _LoadedPack(document)
     if pack.format_version != PACK_FORMAT_VERSION:
         raise PackError(
             f"pack {pack.id!r} has format version {pack.format_version}, this build "

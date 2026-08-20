@@ -11,9 +11,9 @@ from tfpdf.rules import FileInput
 
 
 def _check(yaml_src: str, tf_src: str) -> list[Finding]:
-    cfg = customrules.load(yaml_src)
+    config = customrules.load(yaml_src)
     resources = parse_file("test.tf", tf_src.encode())
-    return cfg.as_engine_rule().check(FileInput(path="test.tf", head_resources=resources), None)
+    return config.as_engine_rule().check(FileInput(path="test.tf", head_resources=resources), None)
 
 
 @pytest.mark.parametrize(

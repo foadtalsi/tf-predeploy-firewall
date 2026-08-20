@@ -30,7 +30,7 @@ DIRECTIVE_PREFIX = "tf-firewall-ignore:"
 _ALL = "all"
 
 
-def parse_comments(src: bytes) -> dict[int, set[str]]:
+def parse_comments(source: bytes) -> dict[int, set[str]]:
     """Parcourt une source .tf brute et rend, par numéro de ligne (indexé à 1),
     l'ensemble des catégories supprimées sur cette ligne.
 
@@ -45,12 +45,12 @@ def parse_comments(src: bytes) -> dict[int, set[str]]:
     de frappe dans le commentaire de quelqu'un.
     """
     out: dict[int, set[str]] = {}
-    text = src.decode("utf-8", errors="replace")
+    text = source.decode("utf-8", errors="replace")
     for line_num, line in enumerate(text.split("\n"), start=1):
-        idx = line.find("#")
-        if idx < 0:
+        index = line.find("#")
+        if index < 0:
             continue
-        comment = line[idx + 1 :].strip()
+        comment = line[index + 1 :].strip()
         if not comment.startswith(DIRECTIVE_PREFIX):
             continue
         cats = _parse_category_list(comment[len(DIRECTIVE_PREFIX) :])

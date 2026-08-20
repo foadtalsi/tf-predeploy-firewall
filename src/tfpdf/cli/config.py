@@ -106,7 +106,7 @@ def load_config(path: str) -> Config:
     les surcharges d'environnement s'appliquent de toute façon, ce qui est
     pourquoi cette fonction ne sort pas tôt dans ce cas.
     """
-    cfg = Config()
+    config = Config()
 
     data: bytes | None
     try:
@@ -118,21 +118,21 @@ def load_config(path: str) -> Config:
 
     if data is not None:
         try:
-            doc = yaml.safe_load(data)
+            document = yaml.safe_load(data)
         except yaml.YAMLError as exc:
             raise ConfigError(f"parsing config {path}: {exc}") from exc
-        if doc is not None and not isinstance(doc, dict):
+        if document is not None and not isinstance(document, dict):
             raise ConfigError(f"parsing config {path}: top level is not a mapping")
-        if isinstance(doc, dict):
-            _apply_yaml(cfg, doc)
-        if not cfg.block_threshold:
-            cfg.block_threshold = Severity.HIGH
+        if isinstance(document, dict):
+            _apply_yaml(config, document)
+        if not config.block_threshold:
+            config.block_threshold = Severity.HIGH
 
-    _apply_env(cfg, path)
-    return cfg
+    _apply_env(config, path)
+    return config
 
 
-def _apply_yaml(cfg: Config, doc: dict[str, Any]) -> None:
+def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
     """N'écrase que les champs réellement présents dans le document.
 
     Go obtient cela gratuitement en désérialisant dans une structure
@@ -140,23 +140,27 @@ def _apply_yaml(cfg: Config, doc: dict[str, Any]) -> None:
     `plan_blast_radius_threshold` perdrait sa valeur par défaut de 10 au profit
     d'un zéro dans toute configuration qui n'en parle pas.
     """
-    if "block_threshold" in doc:
-        cfg.block_threshold = str(doc["block_threshold"] or "")
-    if "ignore_rules" in doc:
-        cfg.ignore_rules = list(_as_str_list(doc["ignore_rules"]))
-    if doc.get("plan_blast_radius_threshold") is not None:
-        cfg.plan_blast_radius_threshold = int(doc["plan_blast_radius_threshold"])
-    if doc.get("cost_impact_threshold_usd") is not None:
-        cfg.cost_impact_threshold_usd = float(doc["cost_impact_threshold_usd"])
-    if doc.get("suggestions") is not None:
-        cfg.suggestions = bool(doc["suggestions"])
-    if "require_second_reviewer_users" in doc:
-        cfg.require_second_reviewer_users = _as_str_list(doc["require_second_reviewer_users"])
-    if "require_second_reviewer_teams" in doc:
-        cfg.require_second_reviewer_teams = _as_str_list(doc["require_second_reviewer_teams"])
-    if "ignore_paths" in doc:
+    if "block_threshold" in document:
+        config.block_threshold = str(document["block_threshold"] or "")
+    if "ignore_rules" in document:
+        config.ignore_rules = list(_as_str_list(document["ignore_rules"]))
+    if document.get("plan_blast_radius_threshold") is not None:
+        config.plan_blast_radius_threshold = int(document["plan_blast_radius_threshold"])
+    if document.get("cost_impact_threshold_usd") is not None:
+        config.cost_impact_threshold_usd = float(document["cost_impact_threshold_usd"])
+    if document.get("suggestions") is not None:
+        config.suggestions = bool(document["suggestions"])
+    if "require_second_reviewer_users" in document:
+        config.require_second_reviewer_users = _as_str_list(
+            document["require_second_reviewer_users"]
+        )
+    if "require_second_reviewer_teams" in document:
+        config.require_second_reviewer_teams = _as_str_list(
+            document["require_second_reviewer_teams"]
+        )
+    if "ignore_paths" in document:
         entries: list[IgnorePathConfig] = []
-        for raw in doc["ignore_paths"] or []:
+        for raw in document["ignore_paths"] or []:
             if not isinstance(raw, dict):
                 continue
             entries.append(
@@ -165,26 +169,26 @@ def _apply_yaml(cfg: Config, doc: dict[str, Any]) -> None:
                     categories=list(_as_str_list(raw.get("categories"))),
                 )
             )
-        cfg.ignore_paths = entries
+        config.ignore_paths = entries
 
 
-def _apply_env(cfg: Config, path: str) -> None:
+def _apply_env(config: Config, path: str) -> None:
     import os
 
     if env := os.environ.get("SCANNER_BLOCK_THRESHOLD"):
-        cfg.block_threshold = env
+        config.block_threshold = env
     if env := os.environ.get("SCANNER_PLAN_BLAST_RADIUS_THRESHOLD"):
         try:
-            cfg.plan_blast_radius_threshold = int(env)
+            config.plan_blast_radius_threshold = int(env)
         except ValueError as exc:
             raise ConfigError(
                 f"SCANNER_PLAN_BLAST_RADIUS_THRESHOLD must be an integer, got {env!r}: {exc}"
             ) from exc
     if env := os.environ.get("SCANNER_SUGGESTIONS"):
-        cfg.suggestions = parse_go_bool(env, "SCANNER_SUGGESTIONS")
+        config.suggestions = parse_go_bool(env, "SCANNER_SUGGESTIONS")
     if env := os.environ.get("SCANNER_COST_IMPACT_THRESHOLD_USD"):
         try:
-            cfg.cost_impact_threshold_usd = float(env)
+            config.cost_impact_threshold_usd = float(env)
         except ValueError as exc:
             raise ConfigError(
                 f"SCANNER_COST_IMPACT_THRESHOLD_USD must be a number, got {env!r}: {exc}"
@@ -245,7 +249,7 @@ def load_custom_rules(path: str) -> customrules.Config | None:
         raise ConfigError(f"reading config {path}: {exc}") from exc
 
     try:
-        cfg = customrules.load(data)
+        config = customrules.load(data)
     except customrules.CustomRuleError as exc:
         raise ConfigError(f"loading custom rules from {path}: {exc}") from exc
-    return cfg if cfg.rules else None
+    return config if config.rules else None

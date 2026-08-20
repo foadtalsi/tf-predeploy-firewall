@@ -110,13 +110,13 @@ def load(path: str) -> Baseline | None:
         raise ValueError(f"reading baseline {path}: {exc}") from exc
 
     try:
-        doc = json.loads(raw)
+        document = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(f"parsing baseline {path}: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise ValueError(f"parsing baseline {path}: top level is not an object")
 
-    version = int(doc.get("format_version", 0) or 0)
+    version = int(document.get("format_version", 0) or 0)
     if version != FORMAT_VERSION:
         raise ValueError(
             f"baseline {path} has format version {version}, this scanner understands "
@@ -124,7 +124,7 @@ def load(path: str) -> Baseline | None:
         )
 
     b = Baseline()
-    for e in doc.get("entries") or []:
+    for e in document.get("entries") or []:
         entry = Entry(
             category=str(e.get("category", "")),
             resource=str(e.get("resource", "")),
@@ -164,7 +164,7 @@ def write(path: str, findings: list[Finding], generated_at: str) -> None:
     # Stable order so regenerating an unchanged repo produces no diff.
     entries.sort(key=lambda e: (e.file, e.resource, e.category))
 
-    doc = {
+    document = {
         "format_version": FORMAT_VERSION,
         "generated_at": generated_at,
         "_note": _NOTE,
@@ -179,4 +179,4 @@ def write(path: str, findings: list[Finding], generated_at: str) -> None:
             for e in entries
         ],
     }
-    Path(path).write_text(json.dumps(doc, indent=2) + "\n")
+    Path(path).write_text(json.dumps(document, indent=2) + "\n")

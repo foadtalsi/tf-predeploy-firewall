@@ -84,11 +84,11 @@ def request_raw(
     depuis un service que nous ne contrôlons pas n'est pas quelque chose qu'un
     runner de CI devrait offrir.
     """
-    req = urllib.request.Request(url, data=body, method=method, headers=headers)
+    request = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            raw = resp.read(max_bytes) if max_bytes is not None else resp.read()
-            return RawResponse(status=resp.status, body=raw, _headers=resp.headers)
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read(max_bytes) if max_bytes is not None else response.read()
+            return RawResponse(status=response.status, body=raw, _headers=response.headers)
     except urllib.error.HTTPError as exc:
         # urllib raises for every non-2xx, 304 included. The status is the
         # answer here, so it is handed back rather than raised.
@@ -99,8 +99,8 @@ def request_raw(
 
 def get_json(url: str, headers: dict[str, str], timeout: float = DEFAULT_TIMEOUT) -> Any:
     """GET, puis décodage d'une réponse JSON."""
-    req = urllib.request.Request(url, method="GET", headers=headers)
-    return _read_json(req, url, "GET", timeout)
+    request = urllib.request.Request(url, method="GET", headers=headers)
+    return _read_json(request, url, "GET", timeout)
 
 
 def send_json(
@@ -113,29 +113,29 @@ def send_json(
 ) -> Any:
     """Envoie un corps JSON et, éventuellement, décode la réponse."""
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(
+    request = urllib.request.Request(
         url,
         data=body,
         method=method,
         headers={**headers, "Content-Type": "application/json"},
     )
-    result = _read_json(req, url, method, timeout, decode=want_response)
+    result = _read_json(request, url, method, timeout, decode=want_response)
     return result
 
 
 def _read_json(
-    req: urllib.request.Request,
+    request: urllib.request.Request,
     url: str,
     method: str,
     timeout: float,
     decode: bool = True,
 ) -> Any:
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             if not decode:
-                resp.read()
+                response.read()
                 return None
-            raw = resp.read()
+            raw = response.read()
             return json.loads(raw) if raw else None
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode(errors="replace")

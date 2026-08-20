@@ -117,8 +117,10 @@ class Lexer:
     d'identifiants et de templates.
     """
 
-    def __init__(self, src: bytes | str, filename: str = "", start: Pos | None = None) -> None:
-        self.text = src.decode("utf-8", errors="replace") if isinstance(src, bytes) else src
+    def __init__(self, source: bytes | str, filename: str = "", start: Pos | None = None) -> None:
+        self.text = (
+            source.decode("utf-8", errors="replace") if isinstance(source, bytes) else source
+        )
         self.filename = filename
         self.i = 0
         self.line = start.line if start else 1
@@ -245,35 +247,35 @@ class Lexer:
         return self._scan_operator(start, ch)
 
     def _scan_line_comment(self, start: Pos) -> Token:
-        buf: list[str] = []
+        buffer: list[str] = []
         while not self._at_end() and self._peek() != "\n":
-            buf.append(self._advance())
-        return self._tok(T.COMMENT, "".join(buf), start)
+            buffer.append(self._advance())
+        return self._tok(T.COMMENT, "".join(buffer), start)
 
     def _scan_block_comment(self, start: Pos) -> Token:
-        buf = [self._advance(2)]
+        buffer = [self._advance(2)]
         while not self._at_end():
             if self._starts_with("*/"):
-                buf.append(self._advance(2))
-                return self._tok(T.COMMENT, "".join(buf), start)
-            buf.append(self._advance())
+                buffer.append(self._advance(2))
+                return self._tok(T.COMMENT, "".join(buffer), start)
+            buffer.append(self._advance())
         self._err("Unterminated block comment", start, "Expected */ before the end of file.")
-        return self._tok(T.COMMENT, "".join(buf), start)
+        return self._tok(T.COMMENT, "".join(buffer), start)
 
     def _scan_ident(self, start: Pos) -> Token:
-        buf: list[str] = []
+        buffer: list[str] = []
         while not self._at_end() and self._peek() in _ID_CONT:
-            buf.append(self._advance())
-        return self._tok(T.IDENT, "".join(buf), start)
+            buffer.append(self._advance())
+        return self._tok(T.IDENT, "".join(buffer), start)
 
     def _scan_number(self, start: Pos) -> Token:
-        buf: list[str] = []
+        buffer: list[str] = []
         while not self._at_end() and self._peek() in _DIGITS:
-            buf.append(self._advance())
+            buffer.append(self._advance())
         if self._peek() == "." and self._peek(1) in _DIGITS:
-            buf.append(self._advance())
+            buffer.append(self._advance())
             while not self._at_end() and self._peek() in _DIGITS:
-                buf.append(self._advance())
+                buffer.append(self._advance())
         if self._peek() in ("e", "E"):
             saved = (self.i, self.byte, self.line, self.column)
             exp = [self._advance()]
@@ -282,11 +284,11 @@ class Lexer:
             if self._peek() in _DIGITS:
                 while not self._at_end() and self._peek() in _DIGITS:
                     exp.append(self._advance())
-                buf.extend(exp)
+                buffer.extend(exp)
             else:
                 # `1e` followed by a non-digit is a number then an identifier.
                 self.i, self.byte, self.line, self.column = saved
-        return self._tok(T.NUMBER, "".join(buf), start)
+        return self._tok(T.NUMBER, "".join(buffer), start)
 
     def _scan_operator(self, start: Pos, ch: str) -> Token:
         if self._starts_with("..."):
@@ -546,8 +548,8 @@ class Lexer:
         return self._tok(T.QUOTED_LIT, "".join(out), start)
 
 
-def tokenize(src: bytes | str, filename: str = "") -> tuple[list[Token], Diagnostics]:
+def tokenize(source: bytes | str, filename: str = "") -> tuple[list[Token], Diagnostics]:
     """Découpe tout un fichier en jetons. L'analyseur appelle ceci puis
     travaille sur la liste."""
-    lx = Lexer(src, filename)
+    lx = Lexer(source, filename)
     return lx.tokens(), lx.diags

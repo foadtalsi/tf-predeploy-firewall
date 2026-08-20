@@ -140,14 +140,14 @@ def _as_dict_or_none(v: Any) -> dict[str, Any] | None:
 def parse(data: bytes | str) -> PlanFile:
     """Décode un document JSON de plan."""
     try:
-        doc = json.loads(data)
+        document = json.loads(data)
     except json.JSONDecodeError as exc:
         raise ValueError(f"parsing plan JSON: {exc}") from exc
-    if not isinstance(doc, dict):
+    if not isinstance(document, dict):
         raise ValueError("parsing plan JSON: top level is not an object")
 
     changes: list[ResourceChange] = []
-    for rc in doc.get("resource_changes") or []:
+    for rc in document.get("resource_changes") or []:
         if not isinstance(rc, dict):
             continue
         c = _as_dict(rc.get("change"))
@@ -169,7 +169,9 @@ def parse(data: bytes | str) -> PlanFile:
             )
         )
 
-    return PlanFile(format_version=str(doc.get("format_version", "")), resource_changes=changes)
+    return PlanFile(
+        format_version=str(document.get("format_version", "")), resource_changes=changes
+    )
 
 
 def load(path: str) -> PlanFile:
