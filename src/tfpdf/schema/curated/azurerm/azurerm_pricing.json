@@ -1,0 +1,133 @@
+{
+  "_comment": "Curated approximate MONTHLY cost (USD, pay-as-you-go East US, ~730h/mo) per Azure resource type, for the cost-impact rule. Same contract as the AWS file: an early-warning heuristic to flag 'this PR meaningfully raises the bill', NOT a billing-accurate quote — no reservations, no savings plans, no egress, no per-operation charges. Windows VM sizes cost more than the same Linux size because the OS license is billed with the compute.",
+
+  "azurerm_linux_virtual_machine": {
+    "attribute": "size",
+    "by_attribute": {
+      "Standard_B1s": 8, "Standard_B1ms": 15, "Standard_B2s": 30, "Standard_B2ms": 60, "Standard_B4ms": 121,
+      "Standard_D2s_v3": 70, "Standard_D4s_v3": 140, "Standard_D8s_v3": 280,
+      "Standard_D2s_v5": 70, "Standard_D4s_v5": 140, "Standard_D8s_v5": 280, "Standard_D16s_v5": 561,
+      "Standard_E2s_v5": 92, "Standard_E4s_v5": 184, "Standard_E8s_v5": 368,
+      "Standard_F2s_v2": 62, "Standard_F4s_v2": 123, "Standard_F8s_v2": 247,
+      "Standard_NC6s_v3": 2196
+    },
+    "default": 70
+  },
+
+  "azurerm_windows_virtual_machine": {
+    "attribute": "size",
+    "by_attribute": {
+      "Standard_B1s": 17, "Standard_B2s": 65, "Standard_B2ms": 95,
+      "Standard_D2s_v3": 137, "Standard_D4s_v3": 274, "Standard_D8s_v3": 548,
+      "Standard_D2s_v5": 137, "Standard_D4s_v5": 274, "Standard_D8s_v5": 548,
+      "Standard_E4s_v5": 318, "Standard_F4s_v2": 257
+    },
+    "default": 140
+  },
+
+  "azurerm_mssql_database": {
+    "attribute": "sku_name",
+    "by_attribute": {
+      "Basic": 5, "S0": 15, "S1": 30, "S2": 75, "S3": 150,
+      "P1": 465, "P2": 930,
+      "GP_S_Gen5_1": 105, "GP_S_Gen5_2": 210, "GP_Gen5_2": 368, "GP_Gen5_4": 736,
+      "BC_Gen5_2": 990
+    },
+    "default": 150
+  },
+
+  "azurerm_mssql_managed_instance": { "base": 1370 },
+
+  "azurerm_postgresql_flexible_server": {
+    "attribute": "sku_name",
+    "by_attribute": {
+      "B_Standard_B1ms": 13, "B_Standard_B2s": 50,
+      "GP_Standard_D2s_v3": 125, "GP_Standard_D4s_v3": 250, "GP_Standard_D2ds_v4": 130, "GP_Standard_D4ds_v4": 260,
+      "MO_Standard_E2s_v3": 165, "MO_Standard_E4s_v3": 330
+    },
+    "default": 125
+  },
+
+  "azurerm_mysql_flexible_server": {
+    "attribute": "sku_name",
+    "by_attribute": {
+      "B_Standard_B1ms": 13, "B_Standard_B2s": 50,
+      "GP_Standard_D2ds_v4": 120, "GP_Standard_D4ds_v4": 240,
+      "MO_Standard_E2ds_v4": 155, "MO_Standard_E4ds_v4": 310
+    },
+    "default": 120
+  },
+
+  "azurerm_cosmosdb_account": { "base": 24 },
+
+  "azurerm_redis_cache": {
+    "attribute": "sku_name",
+    "by_attribute": { "Basic": 16, "Standard": 41, "Premium": 412 },
+    "default": 41
+  },
+
+  "azurerm_service_plan": {
+    "attribute": "sku_name",
+    "by_attribute": {
+      "B1": 13, "B2": 26, "B3": 52,
+      "S1": 70, "S2": 140, "S3": 280,
+      "P1v2": 81, "P2v2": 162, "P3v2": 324,
+      "P1v3": 124, "P2v3": 248, "P3v3": 496,
+      "EP1": 150, "EP2": 300, "Y1": 0, "F1": 0
+    },
+    "default": 70
+  },
+
+  "azurerm_kubernetes_cluster": { "base": 73 },
+
+  "azurerm_container_registry": {
+    "attribute": "sku",
+    "by_attribute": { "Basic": 5, "Standard": 20, "Premium": 50 },
+    "default": 20
+  },
+
+  "azurerm_nat_gateway": { "base": 33 },
+  "azurerm_public_ip": { "base": 4 },
+  "azurerm_private_endpoint": { "base": 7 },
+  "azurerm_bastion_host": { "base": 139 },
+  "azurerm_firewall": { "base": 912 },
+
+  "azurerm_application_gateway": { "base": 180 },
+
+  "azurerm_virtual_network_gateway": {
+    "attribute": "sku",
+    "by_attribute": {
+      "Basic": 27, "VpnGw1": 101, "VpnGw2": 361, "VpnGw3": 913,
+      "VpnGw1AZ": 130, "VpnGw2AZ": 466,
+      "ErGw1AZ": 285, "ErGw2AZ": 511
+    },
+    "default": 140
+  },
+
+  "azurerm_express_route_circuit": { "base": 436 },
+
+  "azurerm_servicebus_namespace": {
+    "attribute": "sku",
+    "by_attribute": { "Basic": 1, "Standard": 10, "Premium": 677 },
+    "default": 10
+  },
+
+  "azurerm_eventhub_namespace": {
+    "attribute": "sku",
+    "by_attribute": { "Basic": 11, "Standard": 22, "Premium": 890 },
+    "default": 22
+  },
+
+  "azurerm_storage_account": { "base": 2 },
+  "azurerm_managed_disk": { "base": 10 },
+  "azurerm_log_analytics_workspace": { "base": 5 },
+  "azurerm_search_service": {
+    "attribute": "sku",
+    "by_attribute": { "free": 0, "basic": 75, "standard": 245, "standard2": 981 },
+    "default": 75
+  },
+  "azurerm_kusto_cluster": { "base": 220 },
+  "azurerm_synapse_workspace": { "base": 100 },
+  "azurerm_mssql_server": { "base": 0 },
+  "azurerm_databricks_workspace": { "base": 0 }
+}

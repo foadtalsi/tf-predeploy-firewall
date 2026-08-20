@@ -1,0 +1,44 @@
+# TF Pre-Deploy Firewall — default configuration.
+# Override path with --config or the SCANNER_CONFIG env var.
+
+# Minimum severity that blocks the PR (exit code 1).
+# One of: low, medium, high, critical
+block_threshold: high
+
+# Categories to suppress globally (across all files, all resources).
+# Valid values: unknown_attribute, unpinned_version, tutorial_pattern,
+# force_new_change, missing_lifecycle, public_exposure, encryption_disabled,
+# permissive_iam, audit_disabled,
+# confirmed_replace, unexpected_drift, large_blast_radius, cost_impact
+# Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
+ignore_rules: []
+
+# --- Phase 2: terraform plan analysis (only active with --plan-json) ---
+# Number of destroy/replace actions in a single plan that triggers a
+# large_blast_radius finding. Set to 0 to disable.
+plan_blast_radius_threshold: 10
+
+# Estimated monthly USD cost increase (from the curated pricing data) that
+# triggers a cost_impact finding. Set to 0 to disable. This is a rough,
+# region-agnostic on-demand estimate — an early warning, not a billing quote.
+cost_impact_threshold_usd: 0
+
+# Custom detection rules (policy-as-code) — a declarative DSL, not a
+# scripting language: no eval/exec surface, by design. See "Custom rules"
+# in README.md for the full field reference. Findings appear under category
+# custom:<id>. Empty by default.
+custom_rules: []
+# Example:
+# custom_rules:
+#   - id: no-iam-users
+#     resource_type: aws_iam_user
+#     severity: medium
+#     message: "Use aws_iam_role instead of aws_iam_user"
+
+# Approval workflow: request review from these GitHub usernames/team slugs
+# whenever a critical-severity finding is present. This only REQUESTS the
+# review — actually requiring it before merge needs the repo's branch
+# protection ("required reviewers") turned on separately; this tool has no
+# API access to configure that itself. Empty by default (no-op).
+require_second_reviewer_users: []
+require_second_reviewer_teams: []

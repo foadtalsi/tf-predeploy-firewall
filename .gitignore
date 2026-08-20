@@ -1,0 +1,21 @@
+# Caches et environnements — jamais versionnés.
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Artefacts de construction du paquet.
+*.egg-info/
+/build/
+/dist/
+
+# `tfpdf-genpack` écrit ici. Les packs complets sont publiés par le plan de
+# contrôle, pas commités : seuls les packs de base, sous
+# src/tfpdf/schema/data/, le sont — et ils doivent l'être, le scanner les
+# embarque dans sa distribution.
+/genpack/
+
+.env
+.DS_Store

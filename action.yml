@@ -1,0 +1,113 @@
+name: "TF Pre-Deploy Firewall"
+description: "Scans changed Terraform files in a PR for AI-hallucination and risk patterns before terraform apply."
+author: "foadtalsi"
+
+inputs:
+  base-ref:
+    description: "Git ref to diff against (the PR base branch)."
+    required: false
+    default: ${{ github.event.pull_request.base.ref }}
+  block-threshold:
+    description: "Minimum severity (low|medium|high|critical) that fails the check. Overrides config/default.yml."
+    required: false
+    default: ""
+  github-token:
+    description: "Token used to post the PR comment. Defaults to the workflow's GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
+  sarif-output:
+    description: "Path to write a SARIF 2.1.0 file for upload to GitHub Code Scanning. Leave empty to skip."
+    required: false
+    default: ""
+  plan-json:
+    description: >
+      Phase 2 (optional): path to the output of `terraform show -json <planfile>`,
+      run earlier in your own job with your own cloud credentials. This action never
+      runs terraform or touches the cloud itself — it only reads this file, if given,
+      to add confirmed-replace, unexpected-drift, large-blast-radius, and
+      cost-impact findings on top of the static .tf scan. Leave empty to run
+      phase 1 only.
+    required: false
+    default: ""
+  plan-blast-radius-threshold:
+    description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
+    required: false
+    default: ""
+  cost-impact-threshold-usd:
+    description: "Estimated monthly USD cost increase that triggers a cost-impact finding. Overrides config/default.yml. Set to 0 to disable. Only used with plan-json."
+    required: false
+    default: ""
+  license-key:
+    description: >
+      Optional paid-plan API key (from tfpredeployfirewall.com). Entirely opt-in:
+      leave empty to run this action exactly as the free, open-source tool it has
+      always been, with no dependency on any external service. When set, each scan
+      is reported to the billing/usage service for quota enforcement; a billing-service
+      outage never blocks the scan itself (fails open).
+    required: false
+    default: ""
+  baseline:
+    description: >
+      Path to a committed baseline file of accepted pre-existing findings
+      (see --write-baseline). Baselined findings still appear in the PR
+      comment but do not block a merge; anything new does. This is what makes
+      the scanner adoptable on a repository that already has Terraform in it.
+    required: false
+    default: ""
+  providers:
+    description: >
+      Comma-separated providers to fetch extended rule packs for ("aws,azurerm"),
+      or "auto" (default) to detect them from the resource types in the scanned
+      files. Only meaningful with a license key — it decides which extended packs
+      are fetched, never what the embedded base packs cover.
+    required: false
+    default: "auto"
+  suggestions:
+    description: >
+      Post the fixes that can be applied verbatim as inline review comments,
+      each in a GitHub ```suggestion block so the author can apply it with the
+      "Commit suggestion" button. Set to "false" to keep the whole report in
+      the single summary comment. Only findings whose fix is exact get one;
+      every finding is in the summary comment either way.
+    required: false
+    default: "true"
+  full-repo-scan:
+    description: >
+      Set to "true" to scan every .tf file in the repo instead of just a PR diff —
+      for a scheduled drift audit (cron/workflow_dispatch) of already-merged code,
+      not a PR check. base-ref/head-ref are ignored in this mode. See
+      .github/workflows/scheduled-drift-audit.yml for a full example.
+    required: false
+    default: "false"
+
+runs:
+  # The image is built from the Dockerfile next to this file. The scanner is a
+  # Python package now; the flags, inputs and environment variables below are
+  # unchanged, deliberately — a workflow pinned to a previous tag keeps working
+  # across the switchover, and "--full-repo-scan=false" (which is what this
+  # action passes on every run that does not opt in) is accepted exactly as
+  # Go's flag package accepted it.
+  using: "docker"
+  image: "Dockerfile"
+  args:
+    - "--base-ref"
+    - "origin/${{ inputs.base-ref }}"
+    - "--sarif-output"
+    - "${{ inputs.sarif-output }}"
+    - "--plan-json"
+    - "${{ inputs.plan-json }}"
+    - "--full-repo-scan=${{ inputs.full-repo-scan }}"
+    - "--baseline"
+    - "${{ inputs.baseline }}"
+  env:
+    GITHUB_TOKEN: ${{ inputs.github-token }}
+    SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
+    SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
+    SCANNER_COST_IMPACT_THRESHOLD_USD: ${{ inputs.cost-impact-threshold-usd }}
+    SCANNER_SUGGESTIONS: ${{ inputs.suggestions }}
+    TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
+    TFPDF_PROVIDERS: ${{ inputs.providers }}
+
+branding:
+  icon: "shield"
+  color: "red"

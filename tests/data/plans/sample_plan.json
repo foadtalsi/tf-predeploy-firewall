@@ -1,0 +1,74 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.prod",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "prod",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": {
+          "identifier": "prod-db",
+          "engine": "postgres",
+          "instance_class": "db.t3.micro"
+        },
+        "after": {
+          "identifier": "prod-db",
+          "engine": "mysql",
+          "instance_class": "db.t3.micro"
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket.logs",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "logs",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete"],
+        "before": {
+          "bucket": "prod-logs-bucket"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_security_group.web",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_security_group",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "web-sg",
+          "description": "web sg"
+        },
+        "after": {
+          "name": "web-sg-renamed",
+          "description": "web sg"
+        }
+      }
+    },
+    {
+      "address": "aws_iam_role.app",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_iam_role",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["no-op"],
+        "before": { "name": "app-role" },
+        "after": { "name": "app-role" }
+      }
+    }
+  ]
+}

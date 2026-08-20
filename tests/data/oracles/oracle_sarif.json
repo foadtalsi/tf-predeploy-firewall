@@ -1,0 +1,402 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "tf-predeploy-firewall",
+          "version": "1.4.2",
+          "informationUri": "https://github.com/foadtalsi/tf-predeploy-firewall",
+          "rules": [
+            {
+              "id": "unknown_attribute",
+              "name": "UnknownAttribute",
+              "shortDescription": {
+                "text": "Unknown or hallucinated Terraform attribute"
+              },
+              "fullDescription": {
+                "text": "An argument that the provider does not declare for this resource type. Terraform rejects it at plan time; the value of catching it here is that nobody waits for a plan to find out."
+              },
+              "help": {
+                "text": "An argument that the provider does not declare for this resource type. Terraform rejects it at plan time; the value of catching it here is that nobody waits for a plan to find out.",
+                "markdown": "## What this means\n\nThe argument isn't part of the resource type's schema in the provider version\nthis scanner checked against. Terraform will reject it with\n`An argument named \"…\" is not expected here` — this finding is that\nerror, delivered before CI spends a plan on it.\n\n## Why it matters\n\nThis is the most reliable signature of generated Terraform. A model asked for\nan argument that ought to exist will produce one that sounds exactly right,\nand it fails only once the plan runs — often after a reviewer has already\napproved the diff.\n\n## How to fix it\n\nOpen the linked provider documentation for the resource type and compare the\nargument list. Usually it is one of:\n\n- a near-miss on a real argument name,\n- an argument that belongs in a nested block rather than at the top level,\n- an argument removed in a provider major version.\n\n## If you disagree\n\nThe argument surface is generated from the provider's own schema, so a false\npositive here means the scanner's rule pack is older than your provider.\nSuppress a single line with `# tf-firewall-ignore: unknown_attribute`,\nor the whole category with `ignore_rules` in the config."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#unknown_attribute",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "ai-hallucination"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "unpinned_version",
+              "name": "UnpinnedVersion",
+              "shortDescription": {
+                "text": "Module source or provider requirement with no version pin"
+              },
+              "fullDescription": {
+                "text": "A module source or provider requirement with no version pin. The plan that was reviewed and the plan that runs later can differ with no commit in this repository to explain why."
+              },
+              "help": {
+                "text": "A module source or provider requirement with no version pin. The plan that was reviewed and the plan that runs later can differ with no commit in this repository to explain why.",
+                "markdown": "## What this means\n\nA dependency floats instead of naming a version: a registry module with no\n`version`, a git source with no `?ref=`, or a `?ref=main`\nthat points at a branch someone can push to. Or a provider in\n`required_providers` with no `version` constraint.\n\n## Why it matters\n\nTwo distinct problems, and the second is the serious one:\n\n**Reproducibility.** The plan a reviewer approved and the plan that runs an\nhour later can differ, because a third party published a release or moved a\nbranch. Nothing in this repository records that, so when the apply goes\nwrong there is no commit to look at.\n\n**Supply chain.** Whoever can push to that branch decides what Terraform\nruns against your cloud account, with your credentials. A pinned tag can\nstill be moved; a commit SHA cannot.\n\nThis rule sits next to the AI-hallucination checks for a reason: generated\nTerraform almost never writes a version constraint. A model asked for \"a VPC\nmodule\" emits a source and moves on.\n\n## How to fix it\n\n```hcl\nmodule \"vpc\" {\n  source  = \"terraform-aws-modules/vpc/aws\"\n  version = \"~\u003e 5.0\"                          # registry: add version\n}\n\nmodule \"internal\" {\n  source = \"git::https://github.com/org/mod.git?ref=v1.4.2\"   # tag…\n}\n\nmodule \"critical\" {\n  source = \"git::https://github.com/org/mod.git?ref=9f8a1c2\"  # …or a SHA\n}\n\nterraform {\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~\u003e 6.0\"\n    }\n  }\n}\n```\n\nA `.terraform.lock.hcl` committed alongside pins provider versions\nexactly, and is worth having regardless of the constraint above.\n\n## If you disagree\n\nA local module (`./modules/vpc`) is versioned by this repository's\nown history and is never flagged. If you deliberately track a branch — an\ninternal module you also own, released continuously — suppress with\n`# tf-firewall-ignore: unpinned_version`, or the category with\n`ignore_rules`."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#unpinned_version",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "supply-chain",
+                  "reproducibility"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "tutorial_pattern",
+              "name": "TutorialPattern",
+              "shortDescription": {
+                "text": "Tutorial copy-paste pattern (hardcoded credential, open CIDR, generic name)"
+              },
+              "fullDescription": {
+                "text": "A value that looks copied from documentation rather than chosen: a credential written as a string literal, a CIDR open to the whole internet, or a placeholder name."
+              },
+              "help": {
+                "text": "A value that looks copied from documentation rather than chosen: a credential written as a string literal, a CIDR open to the whole internet, or a placeholder name.",
+                "markdown": "## What this means\n\nThe value matches a pattern that is normal in a tutorial and wrong in a real\nrepository — a hardcoded credential, `0.0.0.0/0`, or a placeholder\nname like `example` or `test`.\n\n## Why it matters\n\nA credential committed to a repository is disclosed to everyone with read\naccess and stays in git history after it is removed. An ingress rule open to\n`0.0.0.0/0` is reachable from the entire internet, which is only ever\ndeliberate for a small number of ports.\n\n## How to fix it\n\n**Credentials:** move the value out of the repository — a variable supplied by\nyour secret manager, or the provider's own managed-secret support (for RDS,\n`manage_master_user_password = true` removes the need for a password\nin configuration at all). **Then rotate the old value**: removing it from the\nfile does not remove it from history.\n\n**Open CIDRs:** narrow to the ranges that actually need access. If a public\nlistener is the intent, that is what a suppression comment is for.\n\n## If you disagree\n\nSuppress one line with `# tf-firewall-ignore: tutorial_pattern`. A\ndeliberately public load balancer is a legitimate reason; a credential is\nessentially never one."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#tutorial_pattern",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "security",
+                  "secrets"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "force_new_change",
+              "name": "ForceNewChange",
+              "shortDescription": {
+                "text": "Change to a ForceNew attribute will destroy and recreate the resource"
+              },
+              "fullDescription": {
+                "text": "A changed argument that the provider marks ForceNew, meaning apply will destroy and recreate the resource rather than update it in place."
+              },
+              "help": {
+                "text": "A changed argument that the provider marks ForceNew, meaning apply will destroy and recreate the resource rather than update it in place.",
+                "markdown": "## What this means\n\nThe provider marks this argument `ForceNew`: it cannot be changed on\nan existing resource. Applying this diff destroys the resource and creates a\nreplacement.\n\n## Why it matters\n\nOn a stateful resource this is data loss and downtime, and it does not look\nlike either in the diff — a one-line change to a name or an availability zone\nreads as trivial. This is the finding that most often catches something a\nhuman review missed.\n\n## How to fix it\n\nDecide deliberately, then make the decision visible:\n\n- If replacement is intended, say so in the PR description, and check whether\n  a snapshot or backup exists first.\n- If it is not, revert the argument and reach the goal another way — many\n  resources have an in-place equivalent (renaming an RDS instance's\n  `identifier` is in-place; changing its `availability_zone`\n  is not).\n- Run `terraform plan` and read the `# forces replacement`\n  annotations. Supplying the plan JSON to this action upgrades this heuristic\n  finding into a confirmed one.\n\n## If you disagree\n\nNothing is wrong with a deliberate replacement — the finding exists so that it\nis deliberate. Suppress with `# tf-firewall-ignore: force_new_change`\nonce you have decided."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#force_new_change",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "destructive-change"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "missing_lifecycle",
+              "name": "MissingLifecycle",
+              "shortDescription": {
+                "text": "Stateful resource missing lifecycle { prevent_destroy = true }"
+              },
+              "fullDescription": {
+                "text": "A stateful resource with no lifecycle { prevent_destroy = true } guard, leaving it exposed to accidental deletion by an apply."
+              },
+              "help": {
+                "text": "A stateful resource with no lifecycle { prevent_destroy = true } guard, leaving it exposed to accidental deletion by an apply.",
+                "markdown": "## What this means\n\nThis resource type holds data that cannot be recreated from configuration —\na database, a volume, a bucket — and carries no\n`lifecycle { prevent_destroy = true }` block.\n\n## Why it matters\n\n`prevent_destroy` makes Terraform refuse to plan a destroy of the\nresource at all. Without it, the only thing standing between a mistaken\n`terraform destroy`, a removed block, or a ForceNew change and the\nloss of production data is somebody reading the plan output carefully.\n\n## How to fix it\n\n```hcl\nresource \"aws_db_instance\" \"prod\" {\n  # …\n\n  lifecycle {\n    prevent_destroy = true\n  }\n}\n```\n\nThis scanner posts that as an applicable suggestion on the PR where it can.\n\nNote that `prevent_destroy` blocks the plan rather than warning about\nit: intentionally destroying the resource later means removing the guard in\nits own commit, which is the point — it makes the deletion an explicit,\nreviewable act.\n\n## If you disagree\n\nEphemeral environments are the real exception. Scope the exemption to them\nwith an `ignore_paths` entry rather than turning the rule off\neverywhere."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#missing_lifecycle",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "data-safety"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "public_exposure",
+              "name": "PublicExposure",
+              "shortDescription": {
+                "text": "A resource or its data explicitly placed on the public internet"
+              },
+              "fullDescription": {
+                "text": "A setting that places a resource, or the data in it, on the public internet — an explicit value, not an omitted default."
+              },
+              "help": {
+                "text": "A setting that places a resource, or the data in it, on the public internet — an explicit value, not an omitted default.",
+                "markdown": "## What this means\n\nSomething in this resource was set to a value that makes it reachable from\noutside your network: a database given a public address, a bucket ACL that\ngrants to everyone, a public-access block switched off, or an instance left\nanswering the older metadata service.\n\nEach of these is an attribute somebody typed. This category never reports a\nmissing setting — an absent `publicly_accessible` is the safe default on\nevery type here, and flagging defaults is how a scanner gets muted.\n\n## Why it matters\n\nPublic exposure is the shortest path there is between a configuration\nmistake and a breach, and it needs no other bug to be exploitable. A\npublicly-addressable database is protected by nothing but its security\ngroup; a `public-read` bucket is protected by nothing at all. The IMDSv1\ncase is one step longer and just as well-trodden: any server-side request\nforgery in software on the instance can read the instance role's temporary\ncredentials from 169.254.169.254, which is the shape of the 2019 Capital One\nbreach.\n\n## How to fix it\n\n- `publicly_accessible = true` → set it to `false` and reach the database\n  from inside the VPC: a bastion, a VPN, or an SSM Session Manager\n  port-forward.\n- `acl = \"public-read\"` → serve the objects through CloudFront with an\n  origin access identity, and leave the bucket private. Note that\n  `authenticated-read` means every AWS user anywhere, not every user of\n  your account.\n- `block_public_*  = false` → set them back to `true`. This resource exists\n  to make the bucket un-publishable regardless of any future ACL or policy;\n  with a switch off, that guarantee is gone.\n- `http_tokens = \"optional\"` → `\"required\"`. IMDSv2 needs a PUT to obtain a\n  token first, which an SSRF cannot perform.\n\n## If you disagree\n\nA deliberately public bucket or a throwaway database is a real thing to\nhave. Suppress the single line with `# tf-firewall-ignore: public_exposure`,\nwhich keeps the decision next to the code that made it, or the whole\ncategory with `ignore_rules` in the config."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#public_exposure",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "security",
+                  "exposure"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "encryption_disabled",
+              "name": "EncryptionDisabled",
+              "shortDescription": {
+                "text": "Encryption at rest or in transit switched off, or a TLS policy permitting TLS 1.0/1.1"
+              },
+              "fullDescription": {
+                "text": "Encryption at rest or in transit explicitly disabled, or a TLS policy that still permits TLS 1.0/1.1."
+              },
+              "help": {
+                "text": "Encryption at rest or in transit explicitly disabled, or a TLS policy that still permits TLS 1.0/1.1.",
+                "markdown": "## What this means\n\nAn attribute that turns encryption on was set to `false`, or a TLS policy\nnames a protocol version that is no longer considered secure.\n\nAs with everything in this group, only written values are reported. A\nresource with no `encrypted` attribute at all is not a finding here.\n\n## Why it matters\n\nEncryption at rest is the control that makes a stolen disk, a leaked\nsnapshot or a mis-shared backup a non-event rather than a disclosure. On\nmost resource types it is also **ForceNew**: it cannot be turned on later\nwithout replacing the resource and moving the data, so it is decided in the\ncommit that creates it or not at all. That is the reason this is worth\nstopping a merge for and a missing tag is not.\n\nEncryption in transit is what stops anything on the network path reading the\ntraffic — inside a VPC that includes any other compromised workload in it.\n\nTLS 1.0 and 1.1 are deprecated by RFC 8996, outside the PCI DSS accepted\nset, and refused by current browsers. A policy naming them is nearly always\na value copied from an old example rather than a compatibility requirement\nsomebody measured.\n\n## How to fix it\n\nSet the flag to `true`. If the resource already exists, check the plan\nbefore applying: for at-rest encryption on most types, Terraform will show a\nreplacement, and the data has to be migrated deliberately rather than by\nletting the apply do it.\n\nFor a TLS policy, move to the current recommended set — on an AWS load\nbalancer that is `ELBSecurityPolicy-TLS13-1-2-2021-06` or later.\n\n## If you disagree\n\nA genuinely old client population is a real constraint, and the teams that\nhave one know they have one. `# tf-firewall-ignore: encryption_disabled` on\nthe line, or `ignore_rules` for the category."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#encryption_disabled",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "security",
+                  "encryption"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "permissive_iam",
+              "name": "PermissiveIAM",
+              "shortDescription": {
+                "text": "IAM policy granting every action, or granting to every principal with no condition"
+              },
+              "fullDescription": {
+                "text": "An IAM policy document granting every action, or granting to every principal with no condition narrowing it."
+              },
+              "help": {
+                "text": "An IAM policy document granting every action, or granting to every principal with no condition narrowing it.",
+                "markdown": "## What this means\n\nA policy attached to this resource contains `Action: \"*\"` — every action in\nevery AWS service — or names `Principal: \"*\"` with no `Condition` limiting\nwho that is.\n\nThe check reads the policy from source rather than from the resource model,\nbecause the form nearly everyone writes is `jsonencode({ … })`: a function\ncall over an object, which no value matcher can see inside. Heredoc and\nplain-JSON policies are read the same way.\n\n## Why it matters\n\n`Action: \"*\"` with `Resource: \"*\"` is administrator access. It includes the\nIAM actions, which means a holder can grant itself anything it was not\nalready given — so the blast radius of any compromise of that role is the\nwhole account, and no later tightening of other policies constrains it.\n\n`Principal: \"*\"` on a resource policy means every AWS account on earth, not\nevery principal in yours. It is the difference between an internal bucket\nand a public one, written in a place people rarely re-read.\n\nBoth are what a language model produces when it does not know the exact\naction names, because a wildcard is the answer that always works.\n\n## How to fix it\n\nName the actions the workload actually performs and the resources it\nperforms them on:\n\n```hcl\nAction   = [\"s3:GetObject\", \"s3:PutObject\"]\nResource = [\"${aws_s3_bucket.data.arn}/*\"]\n```\n\nIf a public principal is genuinely wanted, narrow it with a condition —\n`aws:PrincipalOrgID` for org-wide access, `aws:SourceArn` for a specific\nservice:\n\n```hcl\nCondition = {\n  StringEquals = { \"aws:PrincipalOrgID\" = \"o-example\" }\n}\n```\n\n## What this deliberately does not report\n\n`Resource: \"*\"` on its own. A large family of actions takes no resource ARN\nat all — `s3:ListAllMyBuckets`, `ec2:Describe*`, most of `iam:List*` — so a\nrule that flagged it would fire on a large share of correct policies. It is\nreported only alongside a wildcard action, where the pair means\nadministrator.\n\nA `Principal: \"*\"` in a document that also carries a `Condition`. That is\nthe org-wide pattern and it is correct.\n\n## If you disagree\n\nA break-glass role or a deliberately public read policy is legitimate.\n`# tf-firewall-ignore: permissive_iam`, or `ignore_rules` for the category."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#permissive_iam",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "security",
+                  "iam",
+                  "least-privilege"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "audit_disabled",
+              "name": "AuditDisabled",
+              "shortDescription": {
+                "text": "An audit trail or diagnostic setting explicitly disabled"
+              },
+              "fullDescription": {
+                "text": "A trail or diagnostic setting whose logging is explicitly disabled — the record of what happened, turned off in configuration."
+              },
+              "help": {
+                "text": "A trail or diagnostic setting whose logging is explicitly disabled — the record of what happened, turned off in configuration.",
+                "markdown": "## What this means\n\nA resource whose only job is to keep a record has `enable_logging = false`\nor `enabled = false`.\n\nScoped tightly by resource type on purpose. `enabled = false` appears on\nhundreds of unrelated blocks, and matching the bare attribute name would\nreport a paused autoscaling schedule as a compliance failure.\n\n## Why it matters\n\nAn audit trail is the only thing that can answer what happened, after the\nfact, when it matters. Its value is entirely retrospective: it has to have\nbeen running *before* the incident, so a trail switched off today is a\nquestion that becomes unanswerable for every day it stays off. Unlike most\nfindings, this one cannot be fixed retroactively.\n\nIt is also, in most regulated frameworks, a control that is asserted rather\nthan checked — SOC 2, PCI DSS and ISO 27001 all assume the log exists.\n\n## How to fix it\n\nSet it back to `true`. If the trail is disabled because it is noisy or\nexpensive, the usual answers are an event selector that narrows what is\nrecorded, or a lifecycle policy on the destination bucket — both keep the\nrecord while reducing what it costs.\n\n## If you disagree\n\nA trail deliberately parked in a sandbox account is reasonable.\n`# tf-firewall-ignore: audit_disabled` on the line, or `ignore_rules` for\nthe category."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#audit_disabled",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "security",
+                  "audit",
+                  "compliance"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "confirmed_replace",
+              "name": "ConfirmedReplace",
+              "shortDescription": {
+                "text": "terraform plan confirms a destroy or destroy+recreate on a stateful resource"
+              },
+              "fullDescription": {
+                "text": "terraform plan confirms this apply destroys or replaces a stateful resource. Not a heuristic — Terraform's own diff says so."
+              },
+              "help": {
+                "text": "terraform plan confirms this apply destroys or replaces a stateful resource. Not a heuristic — Terraform's own diff says so.",
+                "markdown": "## What this means\n\nThis comes from the plan JSON you supplied, not from reading the `.tf`\nfiles: Terraform's own diff engine reports this resource as `delete`\nor `replace`.\n\n## Why it matters\n\nThere is no ambiguity left to argue about. If the resource holds data, this\napply loses it.\n\n## How to fix it\n\nConfirm a backup or snapshot exists, then decide whether the replacement is\nwhat you meant. If it isn't, `terraform plan` output names the\nattribute forcing it — the fix is to change that attribute back.\n\nA `lifecycle { prevent_destroy = true }` guard would have turned this\ninto a plan-time refusal instead of an approved PR.\n\n## If you disagree\n\nA deliberate replacement of a resource that holds nothing you need is\nlegitimate. Suppress with `# tf-firewall-ignore: confirmed_replace`\nafter checking, not before."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#confirmed_replace",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "plan",
+                  "data-safety"
+                ],
+                "severity": "error"
+              }
+            },
+            {
+              "id": "unexpected_drift",
+              "name": "UnexpectedDrift",
+              "shortDescription": {
+                "text": "terraform plan changes a sensitive attribute not touched by this PR's .tf diff"
+              },
+              "fullDescription": {
+                "text": "terraform plan changes a sensitive attribute that this PR's own .tf diff never touched — the change comes from somewhere else."
+              },
+              "help": {
+                "text": "terraform plan changes a sensitive attribute that this PR's own .tf diff never touched — the change comes from somewhere else.",
+                "markdown": "## What this means\n\nThe plan modifies an attribute that nothing in this PR's Terraform diff\ntouches. The change originates elsewhere: a module version bump, a provider\nupgrade, a variable's value, or infrastructure that was modified outside\nTerraform.\n\n## Why it matters\n\nIt is the change nobody is reviewing. The diff on screen doesn't contain it,\nso the reviewer's attention is on a different set of lines entirely.\n\n## How to fix it\n\nWork out where it comes from before applying:\n\n- `terraform plan` shows the before and after values.\n- If the resource was changed by hand in the console, the plan is about to\n  revert that change.\n- If a module or provider upgrade caused it, read that release's changelog.\n\n## If you disagree\n\nExpected drift after a provider upgrade is common — suppress it for that PR\nwith `# tf-firewall-ignore: unexpected_drift` rather than adding\n`unexpected_drift` to `ignore_rules` permanently, which\nturns off the only rule that watches changes nobody is reviewing."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#unexpected_drift",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "plan",
+                  "drift"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "large_blast_radius",
+              "name": "LargeBlastRadius",
+              "shortDescription": {
+                "text": "terraform plan destroys/replaces an unusually large number of resources"
+              },
+              "fullDescription": {
+                "text": "The plan destroys or replaces an unusually large number of resources at once."
+              },
+              "help": {
+                "text": "The plan destroys or replaces an unusually large number of resources at once.",
+                "markdown": "## What this means\n\nThe count of destroy and replace actions in this plan is above the configured\nthreshold (`plan_blast_radius_threshold`, default 10).\n\n## Why it matters\n\nLarge replacements are usually a symptom rather than an intent — a renamed\nmodule, a changed `for_each` key, a moved resource — and they are\nexactly the plans people approve without reading to the end.\n\n## How to fix it\n\nCheck whether the resources are being **moved** rather than replaced. If they\nare, `moved` blocks (or `terraform state mv`) preserve them\nand reduce the plan to nothing. If the replacement is real, consider splitting\nthe change into several applies.\n\n## If you disagree\n\nTearing down a whole environment is a legitimate large plan. Raise\n`plan_blast_radius_threshold` for a repo where that is routine."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#large_blast_radius",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "plan",
+                  "blast-radius"
+                ],
+                "severity": "warning"
+              }
+            },
+            {
+              "id": "cost_impact",
+              "name": "CostImpact",
+              "shortDescription": {
+                "text": "terraform plan increases the estimated monthly AWS bill by more than the configured threshold"
+              },
+              "fullDescription": {
+                "text": "The change increases the estimated monthly bill by more than the configured threshold. Estimates are coarse and on-demand-only."
+              },
+              "help": {
+                "text": "The change increases the estimated monthly bill by more than the configured threshold. Estimates are coarse and on-demand-only.",
+                "markdown": "## What this means\n\nSumming the coarse per-type prices in the rule pack, this change raises the\nestimated monthly cost by more than `cost_impact_threshold_usd`.\n\nWith a plan JSON supplied, the estimate reads Terraform's own diff (counts\nand for_each included). Without one, a static estimate reads the `.tf`\nsource directly — new resources of priced types, and changes to the\nattribute that drives a type's price — with no multipliers, since inventing\na fleet size would be worse than understating one. When a plan is supplied,\nonly the plan-based estimate runs; the same PR is never billed twice by two\nestimators that could disagree.\n\n## Why it matters\n\nCost mistakes in Terraform are silent and recurring. A wrong instance size or\na forgotten NAT gateway bills every hour until somebody reads an invoice, and\nthe diff that introduced it looked like one word.\n\n## How to fix it\n\nCheck the resource types and sizes the finding names. The most common causes\nare an oversized instance class copied from an example, a NAT gateway where a\ngateway endpoint would do, and provisioned capacity left at a default.\n\n## Accuracy\n\nThese are **estimates**, deliberately coarse: on-demand list prices, no\nreserved instances, no savings plans, no data transfer, no per-request\ncharges. Treat a finding as a prompt to look, not as a quote. Set\n`cost_impact_threshold_usd: 0` to switch the category off."
+              },
+              "helpUri": "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/docs/rules.md#cost_impact",
+              "properties": {
+                "tags": [
+                  "terraform",
+                  "plan",
+                  "finops",
+                  "cost"
+                ],
+                "severity": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "tutorial_pattern",
+          "level": "error",
+          "message": {
+            "text": "password = \"hunter2\" — hardcoded credential (a \u0026 b \u003c c \u003e d)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "rds.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "properties": {
+            "providerDocs": "https://registry.terraform.io/providers/hashicorp/aws/5.31.0/docs/resources/db_instance",
+            "resource": "aws_db_instance.prod"
+          }
+        },
+        {
+          "ruleId": "public_exposure",
+          "level": "error",
+          "message": {
+            "text": "block_public_acls = false — bucket ACLs may grant public read"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "s3.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 3
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "missing_lifecycle",
+          "level": "warning",
+          "message": {
+            "text": "no prevent_destroy guard"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "iam.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 40
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "custom:no-iam-users",
+          "level": "note",
+          "message": {
+            "text": "Use aws_iam_role instead"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "main.tf",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

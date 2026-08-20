@@ -1,0 +1,38 @@
+[
+  {
+    "description": "aws_db_instance.prod: password = \"hunter2\" — hardcoded credential (a \u0026 b \u003c c \u003e d)",
+    "check_name": "tutorial_pattern",
+    "fingerprint": "b4aa5845425cd76102b20cbb63384f706c8e5463d42b67d0ae75aac2db4f0ead",
+    "severity": "critical",
+    "location": {
+      "path": "rds.tf",
+      "lines": {
+        "begin": 12
+      }
+    }
+  },
+  {
+    "description": "aws_s3_bucket_public_access_block.logs: block_public_acls = false — bucket ACLs may grant public read",
+    "check_name": "public_exposure",
+    "fingerprint": "b9df58447554ae5f637a3160f7ce1a2ff31a99f2994894a262a9dd4ea2757cf7",
+    "severity": "major",
+    "location": {
+      "path": "s3.tf",
+      "lines": {
+        "begin": 3
+      }
+    }
+  },
+  {
+    "description": "aws_iam_user.bob: Use aws_iam_role instead",
+    "check_name": "custom:no-iam-users",
+    "fingerprint": "e02b64e94a65a04a1f159f5f07e5016ea79110d84803c28459223fd88ec0c603",
+    "severity": "info",
+    "location": {
+      "path": "main.tf",
+      "lines": {
+        "begin": 1
+      }
+    }
+  }
+]
