@@ -70,11 +70,25 @@ jobs:
       # la comparaison octet pour octet échoue alors sur la version, pas sur
       # une découverte. C'est exactement l'erreur que j'ai faite en écrivant ce
       # workflow, et elle ressemble à s'y méprendre à un défaut de parité.
+      # Épinglé sur une révision, pas sur @v1, et la raison est un échec réel :
+      # ce travail a d'abord tourné contre @v1 et la parité est tombée, Python
+      # trouvant neuf découvertes là où Go en trouvait cinq.
+      #
+      # Ce n'était pas une divergence de portage. `v1` et `v1.1.0` pointent
+      # tous deux dix commits derrière la branche main du scanner Go —
+      # l'analyse des .tfvars, les sources de module non épinglées, le
+      # correctif de faux positifs sur les chemins longs et le pack de règles
+      # déclaratif n'ont jamais été publiés. L'oracle était plus vieux que ce
+      # qu'il devait valider.
+      #
+      # cf0bdd3 est la révision Go d'où ce port a été fait, et c'est un
+      # ancêtre de main dans ce dépôt : elle reste accessible tant que
+      # l'historique existe, ce qu'une étiquette mobile ne garantit pas.
       - name: Build the Go scanner
         run: |
           version=$(python -c 'import importlib.metadata as m; print(m.version("tf-predeploy-firewall"))')
           go install -ldflags "-X main.version=$version" \
-            github.com/foadtalsi/tf-predeploy-firewall/cmd/tf-predeploy-firewall@v1
+            github.com/foadtalsi/tf-predeploy-firewall/cmd/tf-predeploy-firewall@cf0bdd32d03866e3db023bd8223f848bfe89af8f
           echo "TFPDF_GO_BINARY=$(go env GOPATH)/bin/tf-predeploy-firewall" >> "$GITHUB_ENV"
 
       - name: Parity tests
