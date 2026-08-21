@@ -1,5 +1,5 @@
-<!-- Generated from internal/ruledef/rules.yaml. Do not edit by hand:
-     edit the pack, then run "go test ./internal/report -run TestRuleDocs -update". -->
+<!-- Generated from tfpdf/ruledef/rules.py. Do not edit by hand:
+     edit the pack, then run "pytest --update-docs". -->
 
 # Rules
 

@@ -81,6 +81,12 @@ inputs:
     default: "false"
 
 runs:
+  # The image is built from the Dockerfile next to this file. The scanner is a
+  # Python package now; the flags, inputs and environment variables below are
+  # unchanged, deliberately — a workflow pinned to a previous tag keeps working
+  # across the switchover, and "--full-repo-scan=false" (which is what this
+  # action passes on every run that does not opt in) is accepted exactly as
+  # Go's flag package accepted it.
   using: "docker"
   image: "Dockerfile"
   args:

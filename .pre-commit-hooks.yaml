@@ -7,9 +7,12 @@
 #       hooks:
 #         - id: tf-predeploy-firewall
 #
-# pre-commit builds the binary itself with the Go toolchain (language:
-# golang), so there is nothing to install first and the hook pins to the rev
-# above rather than to whatever happens to be on PATH.
+# pre-commit builds an isolated virtualenv from this repo's pyproject.toml
+# (language: python), so there is nothing to install first and the hook pins to
+# the rev above rather than to whatever happens to be on PATH. That was already
+# true under language: golang; what changes is that the environment is a venv
+# with PyYAML in it instead of a compiled binary, which means no Go toolchain is
+# needed on a contributor's machine.
 - id: tf-predeploy-firewall
   name: TF Pre-Deploy Firewall
   description: >
@@ -18,7 +21,7 @@
     prevent_destroy guards — before they enter git history, while removing a
     secret is still an edit and not a rotation.
   entry: tf-predeploy-firewall --staged
-  language: golang
+  language: python
   # The scanner reads the git index itself, so it needs no filename
   # arguments; the files filter just keeps the hook from running on commits
   # that touch no Terraform at all.

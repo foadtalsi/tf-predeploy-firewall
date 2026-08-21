@@ -1,8 +1,21 @@
-/tf-predeploy-firewall
-*.test
-.env
+# Caches et environnements — jamais versionnés.
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
-# Built by cmd/genpack; the full pack is published via the control plane repo,
-# not committed here (the free base pack under internal/schema/data/ is).
+# Artefacts de construction du paquet.
+*.egg-info/
+/build/
 /dist/
-/genpack
+
+# `tfpdf-genpack` écrit ici. Les packs complets sont publiés par le plan de
+# contrôle, pas commités : seuls les packs de base, sous
+# src/tfpdf/schema/data/, le sont — et ils doivent l'être, le scanner les
+# embarque dans sa distribution.
+/genpack/
+
+.env
+.DS_Store

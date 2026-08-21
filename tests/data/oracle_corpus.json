@@ -1,0 +1,507 @@
+[
+  {
+    "file": "a_expressions.tf",
+    "parse_error": "",
+    "resources": []
+  },
+  {
+    "file": "b_templates.tf",
+    "parse_error": "",
+    "resources": []
+  },
+  {
+    "file": "c_blocks.tf",
+    "parse_error": "",
+    "resources": [
+      {
+        "kind": "resource",
+        "type": "aws_instance",
+        "name": "web",
+        "address": "aws_instance.web",
+        "file": "c_blocks.tf",
+        "def_start_line": 1,
+        "def_start_col": 1,
+        "def_start_byte": 0,
+        "def_end_line": 1,
+        "def_end_byte": 29,
+        "attributes": [
+          {
+            "name": "ami",
+            "raw_value": "ami-123",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 2,
+            "start_col": 3,
+            "start_byte": 34,
+            "end_line": 2,
+            "end_col": 18,
+            "end_byte": 49
+          }
+        ],
+        "blocks": [
+          {
+            "type": "root_block_device",
+            "labels": null,
+            "start_line": 3,
+            "attributes": [
+              {
+                "name": "encrypted",
+                "raw_value": "true",
+                "is_literal": true,
+                "resolved_from": "",
+                "start_line": 5,
+                "start_col": 5,
+                "start_byte": 98,
+                "end_line": 5,
+                "end_col": 23,
+                "end_byte": 116
+              },
+              {
+                "name": "volume_size",
+                "raw_value": "100",
+                "is_literal": true,
+                "resolved_from": "",
+                "start_line": 4,
+                "start_col": 5,
+                "start_byte": 76,
+                "end_line": 4,
+                "end_col": 22,
+                "end_byte": 93
+              }
+            ]
+          },
+          {
+            "type": "ebs_block_device",
+            "labels": null,
+            "start_line": 7,
+            "attributes": [
+              {
+                "name": "device_name",
+                "raw_value": "/dev/sdb",
+                "is_literal": true,
+                "resolved_from": "",
+                "start_line": 8,
+                "start_col": 5,
+                "start_byte": 146,
+                "end_line": 8,
+                "end_col": 29,
+                "end_byte": 170
+              }
+            ]
+          },
+          {
+            "type": "dynamic",
+            "labels": [
+              "tag"
+            ],
+            "start_line": 10,
+            "attributes": [
+              {
+                "name": "for_each",
+                "raw_value": "",
+                "is_literal": false,
+                "resolved_from": "",
+                "start_line": 11,
+                "start_col": 5,
+                "start_byte": 197,
+                "end_line": 11,
+                "end_col": 24,
+                "end_byte": 216
+              }
+            ]
+          }
+        ],
+        "has_lifecycle_block": true,
+        "prevent_destroy_value": true,
+        "prevent_destroy_line": 17,
+        "lifecycle_line": 16
+      },
+      {
+        "kind": "data",
+        "type": "aws_ami",
+        "name": "found",
+        "address": "data.aws_ami.found",
+        "file": "c_blocks.tf",
+        "def_start_line": 21,
+        "def_start_col": 1,
+        "def_start_byte": 336,
+        "def_end_line": 21,
+        "def_end_byte": 358,
+        "attributes": [
+          {
+            "name": "most_recent",
+            "raw_value": "true",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 22,
+            "start_col": 3,
+            "start_byte": 363,
+            "end_line": 22,
+            "end_col": 21,
+            "end_byte": 381
+          }
+        ],
+        "blocks": [
+          {
+            "type": "filter",
+            "labels": null,
+            "start_line": 23,
+            "attributes": [
+              {
+                "name": "name",
+                "raw_value": "name",
+                "is_literal": true,
+                "resolved_from": "",
+                "start_line": 24,
+                "start_col": 5,
+                "start_byte": 397,
+                "end_line": 24,
+                "end_col": 20,
+                "end_byte": 412
+              },
+              {
+                "name": "values",
+                "raw_value": "ubuntu/*",
+                "is_literal": true,
+                "resolved_from": "",
+                "start_line": 25,
+                "start_col": 5,
+                "start_byte": 417,
+                "end_line": 25,
+                "end_col": 26,
+                "end_byte": 438
+              }
+            ]
+          }
+        ],
+        "has_lifecycle_block": false,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 0,
+        "lifecycle_line": 0
+      },
+      {
+        "kind": "module",
+        "type": "module",
+        "name": "vpc",
+        "address": "module.vpc",
+        "file": "c_blocks.tf",
+        "def_start_line": 28,
+        "def_start_col": 1,
+        "def_start_byte": 445,
+        "def_end_line": 28,
+        "def_end_byte": 457,
+        "attributes": [
+          {
+            "name": "cidr",
+            "raw_value": "10.0.0.0/16",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 31,
+            "start_col": 3,
+            "start_byte": 526,
+            "end_line": 31,
+            "end_col": 26,
+            "end_byte": 549
+          },
+          {
+            "name": "source",
+            "raw_value": "terraform-aws-modules/vpc/aws",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 29,
+            "start_col": 3,
+            "start_byte": 462,
+            "end_line": 29,
+            "end_col": 44,
+            "end_byte": 503
+          },
+          {
+            "name": "version",
+            "raw_value": "5.0.0",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 30,
+            "start_col": 3,
+            "start_byte": 506,
+            "end_line": 30,
+            "end_col": 20,
+            "end_byte": 523
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": false,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 0,
+        "lifecycle_line": 0
+      },
+      {
+        "kind": "resource",
+        "type": "aws_s3_bucket",
+        "name": "no_lifecycle",
+        "address": "aws_s3_bucket.no_lifecycle",
+        "file": "c_blocks.tf",
+        "def_start_line": 33,
+        "def_start_col": 1,
+        "def_start_byte": 552,
+        "def_end_line": 33,
+        "def_end_byte": 591,
+        "attributes": [
+          {
+            "name": "bucket",
+            "raw_value": "b",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 34,
+            "start_col": 3,
+            "start_byte": 596,
+            "end_line": 34,
+            "end_col": 15,
+            "end_byte": 608
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": false,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 0,
+        "lifecycle_line": 0
+      },
+      {
+        "kind": "resource",
+        "type": "aws_db_instance",
+        "name": "pd_false",
+        "address": "aws_db_instance.pd_false",
+        "file": "c_blocks.tf",
+        "def_start_line": 36,
+        "def_start_col": 1,
+        "def_start_byte": 611,
+        "def_end_line": 36,
+        "def_end_byte": 648,
+        "attributes": [
+          {
+            "name": "identifier",
+            "raw_value": "x",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 37,
+            "start_col": 3,
+            "start_byte": 653,
+            "end_line": 37,
+            "end_col": 19,
+            "end_byte": 669
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": true,
+        "prevent_destroy_value": false,
+        "prevent_destroy_line": 39,
+        "lifecycle_line": 38
+      },
+      {
+        "kind": "resource",
+        "type": "aws_db_instance",
+        "name": "pd_dynamic",
+        "address": "aws_db_instance.pd_dynamic",
+        "file": "c_blocks.tf",
+        "def_start_line": 42,
+        "def_start_col": 1,
+        "def_start_byte": 718,
+        "def_end_line": 42,
+        "def_end_byte": 757,
+        "attributes": [
+          {
+            "name": "identifier",
+            "raw_value": "y",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 43,
+            "start_col": 3,
+            "start_byte": 762,
+            "end_line": 43,
+            "end_col": 19,
+            "end_byte": 778
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": true,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 45,
+        "lifecycle_line": 44
+      }
+    ]
+  },
+  {
+    "file": "d_functions_for.tf",
+    "parse_error": "",
+    "resources": []
+  },
+  {
+    "file": "e_comments.tf",
+    "parse_error": "",
+    "resources": [
+      {
+        "kind": "resource",
+        "type": "aws_s3_bucket",
+        "name": "commented",
+        "address": "aws_s3_bucket.commented",
+        "file": "e_comments.tf",
+        "def_start_line": 5,
+        "def_start_col": 1,
+        "def_start_byte": 71,
+        "def_end_line": 5,
+        "def_end_byte": 107,
+        "attributes": [
+          {
+            "name": "acl",
+            "raw_value": "private",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 7,
+            "start_col": 16,
+            "start_byte": 189,
+            "end_line": 7,
+            "end_col": 31,
+            "end_byte": 204
+          },
+          {
+            "name": "bucket",
+            "raw_value": "value",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 6,
+            "start_col": 3,
+            "start_byte": 133,
+            "end_line": 6,
+            "end_col": 19,
+            "end_byte": 149
+          },
+          {
+            "name": "tags",
+            "raw_value": "",
+            "is_literal": true,
+            "resolved_from": "",
+            "start_line": 8,
+            "start_col": 3,
+            "start_byte": 207,
+            "end_line": 11,
+            "end_col": 4,
+            "end_byte": 288
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": false,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 0,
+        "lifecycle_line": 0
+      }
+    ]
+  },
+  {
+    "file": "f_variables.tf",
+    "parse_error": "",
+    "resources": [
+      {
+        "kind": "resource",
+        "type": "aws_db_instance",
+        "name": "uses_vars",
+        "address": "aws_db_instance.uses_vars",
+        "file": "f_variables.tf",
+        "def_start_line": 7,
+        "def_start_col": 1,
+        "def_start_byte": 224,
+        "def_end_line": 7,
+        "def_end_byte": 262,
+        "attributes": [
+          {
+            "name": "computed",
+            "raw_value": "resolved-me-plain",
+            "is_literal": true,
+            "resolved_from": "var.with_default",
+            "start_line": 14,
+            "start_col": 3,
+            "start_byte": 478,
+            "end_line": 14,
+            "end_col": 49,
+            "end_byte": 524
+          },
+          {
+            "name": "from_list",
+            "raw_value": "b",
+            "is_literal": true,
+            "resolved_from": "var.list_default",
+            "start_line": 12,
+            "start_col": 3,
+            "start_byte": 396,
+            "end_line": 12,
+            "end_col": 36,
+            "end_byte": 429
+          },
+          {
+            "name": "from_local",
+            "raw_value": "42",
+            "is_literal": true,
+            "resolved_from": "local.n",
+            "start_line": 11,
+            "start_col": 3,
+            "start_byte": 372,
+            "end_line": 11,
+            "end_col": 24,
+            "end_byte": 393
+          },
+          {
+            "name": "from_obj",
+            "raw_value": "nested-secret",
+            "is_literal": true,
+            "resolved_from": "var.obj_default.password",
+            "start_line": 10,
+            "start_col": 3,
+            "start_byte": 331,
+            "end_line": 10,
+            "end_col": 41,
+            "end_byte": 369
+          },
+          {
+            "name": "interpolated",
+            "raw_value": "prefix-resolved-me",
+            "is_literal": true,
+            "resolved_from": "var.with_default",
+            "start_line": 13,
+            "start_col": 3,
+            "start_byte": 432,
+            "end_line": 13,
+            "end_col": 46,
+            "end_byte": 475
+          },
+          {
+            "name": "password",
+            "raw_value": "resolved-me",
+            "is_literal": true,
+            "resolved_from": "var.with_default",
+            "start_line": 8,
+            "start_col": 3,
+            "start_byte": 267,
+            "end_line": 8,
+            "end_col": 33,
+            "end_byte": 297
+          },
+          {
+            "name": "unresolved",
+            "raw_value": "",
+            "is_literal": false,
+            "resolved_from": "",
+            "start_line": 9,
+            "start_col": 3,
+            "start_byte": 300,
+            "end_line": 9,
+            "end_col": 31,
+            "end_byte": 328
+          }
+        ],
+        "blocks": [],
+        "has_lifecycle_block": false,
+        "prevent_destroy_value": null,
+        "prevent_destroy_line": 0,
+        "lifecycle_line": 0
+      }
+    ]
+  }
+]

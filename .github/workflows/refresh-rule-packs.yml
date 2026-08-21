@@ -45,9 +45,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # Go reste nécessaire pour une seule chose : l'extracteur ForceNew, sous
+      # tools/. `terraform providers schema -json` n'expose pas ForceNew, et la
+      # seule source qui fasse autorité est la déclaration de schéma en Go du
+      # fournisseur, lue avec go/ast. Le porter voudrait dire écrire un
+      # analyseur de Go. C'est le seul travail auquel ce toolchain sert ici :
+      # rien de ce que `pip install` fait n'en a besoin.
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: "1.23"
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -102,25 +113,57 @@ jobs:
             "https://github.com/hashicorp/$REPO" /tmp/provider-src
           git -C /tmp/provider-src sparse-checkout set $PATHS
 
+      # En deux temps, là où le Go n'en demandait qu'un : l'extracteur écrit
+      # son index en JSON, et le générateur Python le consomme. C'est la
+      # frontière voulue — l'index comme fichier peut être relu, comparé d'une
+      # version de fournisseur à l'autre, et consommé par un générateur qui
+      # n'est pas celui qui l'a produit.
+      #
+      # L'extracteur est construit depuis tools/, dans ce dépôt. Il était tiré
+      # du module publié en `go run ...@v1`, ce qui faisait dépendre la chaîne
+      # des packs d'une étiquette de version d'un arbre destiné à disparaître.
+      - name: Extract the ForceNew index
+        if: steps.gate.outputs.skip == 'false'
+        run: |
+          # -C parce que l'extracteur est son propre module Go : il n'y a pas
+          # de go.mod à la racine, et `pip install` ne doit pas en trouver un.
+          # Les chemins passés sont absolus, le changement de répertoire est
+          # donc sans effet sur eux.
+          go run -C tools/forcenew-extractor . \
+            --provider "${{ matrix.provider }}" \
+            --provider-src /tmp/provider-src \
+            --provider-version "${{ steps.provider.outputs.version }}" \
+            --out "/tmp/${{ matrix.provider }}_forcenew.json"
+          python -c "
+          import json, sys
+          index = json.load(open('/tmp/${{ matrix.provider }}_forcenew.json'))
+          stats = index.get('stats', {})
+          print('index ForceNew :', len(index.get('top_level', {})), 'types,', stats)
+          if not index.get('top_level'):
+              sys.exit('index vide — l extracteur n a rien reconnu dans cette version du fournisseur')
+          "
+
       - name: Generate the packs
         if: steps.gate.outputs.skip == 'false'
         id: gen
         run: |
-          go run ./cmd/genpack \
+          pip install -e .
+          tfpdf-genpack \
             --provider "${{ matrix.provider }}" \
             --provider-schema /tmp/schema/schema.json \
-            --provider-src /tmp/provider-src \
+            --force-new-index "/tmp/${{ matrix.provider }}_forcenew.json" \
             --provider-version "${{ steps.provider.outputs.version }}" \
             | tee /tmp/genpack.log
 
       # A regenerated pack that breaks the scanner must never reach a PR
       # that looks routine enough to merge on sight.
-      - name: Verify the scanner still builds and passes against the new pack
+      - name: Verify the scanner still passes against the new pack
         if: steps.gate.outputs.skip == 'false'
         run: |
-          go build ./...
-          go vet ./...
-          go test ./...
+          pip install -e ".[dev]"
+          ruff check src tests
+          mypy
+          pytest -q
 
       - name: Open a PR if the pack changed
         if: steps.gate.outputs.skip == 'false'
@@ -132,7 +175,7 @@ jobs:
           PACK_PROVIDER: ${{ matrix.provider }}
           PACK_VERSION: ${{ steps.provider.outputs.version }}
         run: |
-          if git diff --quiet -- internal/schema/data/; then
+          if git diff --quiet -- src/tfpdf/schema/data/; then
             echo "$PACK_PROVIDER pack unchanged at $PACK_VERSION; nothing to do"
             exit 0
           fi
@@ -141,7 +184,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
-          git add internal/schema/data/
+          git add src/tfpdf/schema/data/
           git commit -m "regenerate the $PACK_PROVIDER rule pack for $PACK_VERSION"
           git push -f origin "$BRANCH"
 
@@ -159,7 +202,7 @@ jobs:
           GENPACK_SUMMARY
           ```
 
-          Scanner build, vet and tests pass against the regenerated pack.
+          Ruff, mypy et les tests passent contre le pack régénéré.
 
           **What this PR does not do:** the extended (paid) pack is written to
           `dist/` and is not committed here. Merging this updates the free

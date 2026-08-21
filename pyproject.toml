@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tf-predeploy-firewall"
+version = "1.1.0"
+description = "Statically scans the Terraform files changed in a PR for risk patterns typical of AI-generated code, before terraform apply ever runs."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "foadtalsi" }]
+requires-python = ">=3.11"
+keywords = ["terraform", "security", "static-analysis", "hcl", "iac"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+
+# Runtime dependencies are deliberately minimal. This binary runs inside other
+# people's CI; every dependency here is one more thing that can break their
+# pipeline or their supply-chain review. The HCL parser is in-tree
+# (tfpdf.hcl) precisely so that this list does not grow a parser.
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "types-PyYAML",
+]
+
+[project.urls]
+Homepage = "https://github.com/foadtalsi/tf-predeploy-firewall"
+Documentation = "https://github.com/foadtalsi/tf-predeploy-firewall#readme"
+
+[project.scripts]
+tf-predeploy-firewall = "tfpdf.cli.main:run"
+tfpdf-genpack = "tfpdf.genpack.main:run_cli"
+
+[tool.hatch.build.targets.wheel]
+# Everything under src/tfpdf ships, data files included: the rule packs
+# (schema/data/*.json.gz), the curated tables and config/default.yml are not
+# optional extras, they are what the scanner detects with. A wheel without them
+# installs cleanly and finds nothing.
+packages = ["src/tfpdf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "SIM108", # ternaries are not always clearer than an if/else
+]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+files = ["src/tfpdf"]
+explicit_package_bases = true
+strict = true
+warn_unreachable = true

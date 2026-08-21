@@ -1,0 +1,52 @@
+=== aws_db_instance.prod
+**🔴 critical — Tutorial-copy pattern**
+
+password = "hunter2" — hardcoded credential (a & b < c > d)
+
+```suggestion
+  password = var.db_password
+```
+
+You also need to declare `variable "db_password"`.
+
+📖 [Provider documentation for `aws_db_instance.prod`](https://registry.terraform.io/providers/hashicorp/aws/5.31.0/docs/resources/db_instance)
+
+<!-- tf-predeploy-firewall:fix:8901cb49397ef03e -->
+--- gitlab
+**🔴 critical — Tutorial-copy pattern**
+
+password = "hunter2" — hardcoded credential (a & b < c > d)
+
+```suggestion:-0+0
+  password = var.db_password
+```
+
+You also need to declare `variable "db_password"`.
+
+📖 [Provider documentation for `aws_db_instance.prod`](https://registry.terraform.io/providers/hashicorp/aws/5.31.0/docs/resources/db_instance)
+
+<!-- tf-predeploy-firewall:fix:8901cb49397ef03e -->
+=== aws_iam_user.bob
+**🔵 low — Custom rule: no-iam-users**
+
+Use aws_iam_role instead
+
+```suggestion
+resource "aws_iam_role" "bob" {
+  name = "bob"
+}
+```
+
+<!-- tf-predeploy-firewall:fix:b4020db9d26d37f0 -->
+--- gitlab
+**🔵 low — Custom rule: no-iam-users**
+
+Use aws_iam_role instead
+
+```suggestion:-0+3
+resource "aws_iam_role" "bob" {
+  name = "bob"
+}
+```
+
+<!-- tf-predeploy-firewall:fix:b4020db9d26d37f0 -->

@@ -5,6 +5,29 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Le scanner est réécrit en Python.** Même produit, même version, mêmes
+  règles, mêmes sorties : le SARIF et le rapport GitLab Code Quality sont
+  identiques octet pour octet à ceux que produisait le binaire Go, et une
+  suite de tests différentiels le vérifie contre lui.
+
+  Ce qui change pour vous : l'image de l'Action est maintenant
+  `python:3.12-slim` au lieu d'un binaire statique, et le paquet s'installe
+  aussi depuis PyPI (`pip install tf-predeploy-firewall`). Les drapeaux de la
+  ligne de commande sont inchangés, y compris les formes à un seul tiret
+  (`-base-ref`) et `--drapeau=false`, que le paquet `flag` de Go acceptait.
+
+  Un seul comportement diffère volontairement. Quand deux découvertes tombent
+  sur le même fichier et la même ligne, leur ordre relatif dans le commentaire
+  de PR était décidé par le tri de Go, qui n'est pas stable ; il est désormais
+  spécifié (catégorie puis message). Les mêmes découvertes, dans un ordre qui
+  ne bougera plus d'une version à l'autre.
+
+  L'analyseur HCL2 est écrit à la main plutôt que pris sur PyPI : les
+  bibliothèques disponibles rendent des dictionnaires et perdent la ligne et
+  la colonne, dont dépend chaque sortie de cet outil.
+
+
 ### Added
 - **Eleven new detectors for guards that were explicitly switched off**, in
   four new categories: `public_exposure`, `encryption_disabled`,
