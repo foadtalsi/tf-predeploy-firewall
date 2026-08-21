@@ -245,3 +245,67 @@ def test_path_rules_can_be_scoped_to_categories() -> None:
     ]
     kept = ignore.apply_path_rules(findings, rules)
     assert [f.category for f in kept] == [Category.TUTORIAL_PATTERN]
+
+
+# ---------------------------------------------------------------------------
+# s3_force_destroy
+#
+# Source en ligne plutôt qu'un fichier dans corpus_fixtures/ : cette règle
+# n'existe que dans l'arbre Python. Le binaire Go qui sert d'oracle au corpus
+# ne la connaît pas, donc une fixture partagée ferait échouer la parité sur
+# une divergence voulue. Le test la vérifie ici, seule, et le corpus reste
+# comparable ligne à ligne avec Go.
+# ---------------------------------------------------------------------------
+
+_BUCKET_FORCE_DESTROY = b"""
+resource "aws_s3_bucket" "backups" {
+  bucket        = "acme-backups"
+  force_destroy = true
+}
+"""
+
+_BUCKET_KEEPS_OBJECTS = b"""
+resource "aws_s3_bucket" "backups" {
+  bucket        = "acme-backups"
+  force_destroy = false
+}
+"""
+
+
+def _force_destroy_findings(kb: KnowledgeBase, source: bytes) -> list[Finding]:
+    result = run(
+        [ChangedFile(path="s3.tf", head_content=source, base_content=None)],
+        kb,
+        default_rules(Options()),
+    )
+    return [f for f in result.findings if "force_destroy" in f.message]
+
+
+def test_s3_force_destroy_true_is_reported(kb: KnowledgeBase) -> None:
+    """`force_destroy = true` retire la seule protection qui reste une fois la
+    ressource marquée pour suppression : sans elle un destroy échoue sur un
+    bucket non vide, et cet échec est ce qui laisse le temps de se raviser."""
+    findings = _force_destroy_findings(kb, _BUCKET_FORCE_DESTROY)
+
+    assert len(findings) == 1, "un seul bucket, une seule découverte attendue"
+    finding = findings[0]
+    assert finding.category is Category.MISSING_LIFECYCLE
+    assert finding.severity is Severity.MEDIUM
+    assert finding.resource == "aws_s3_bucket.backups"
+    assert finding.line == 4, "la découverte pointe la ligne de l'attribut"
+
+
+def test_s3_force_destroy_false_is_not_reported(kb: KnowledgeBase) -> None:
+    """Le contre-exemple compte autant : une règle qui répondrait sur la seule
+    présence de l'attribut signalerait le bucket déjà correct, et se ferait
+    désactiver par le premier utilisateur qui la rencontre."""
+    assert _force_destroy_findings(kb, _BUCKET_KEEPS_OBJECTS) == []
+
+
+def test_s3_force_destroy_fix_is_applied_verbatim(kb: KnowledgeBase) -> None:
+    """La correction est ce que l'action propose en bloc ```suggestion, donc
+    elle doit être la ligne exacte à committer — indentation comprise."""
+    finding = _force_destroy_findings(kb, _BUCKET_FORCE_DESTROY)[0]
+
+    assert finding.fix is not None
+    assert finding.fix.lines == ["  force_destroy = false"]

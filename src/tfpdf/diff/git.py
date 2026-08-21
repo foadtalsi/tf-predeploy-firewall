@@ -4,10 +4,10 @@ Port de internal/diff/git.go.
 
 **Ce module décide de ce qui est scanné.** Une sous-sélection ne produit aucune
 erreur — seulement moins de découvertes — ce qui en fait le mode de défaillance
-le plus silencieux du scanner. Les seize tests Go de `git_test.go` et
-`local_test.go` ne sont pas encore portés ; ils couvrent précisément les cas
-tordus : l'index plutôt que la copie de travail, le premier commit, les
-suppressions, `.gitignore`, et `terragrunt.hcl` contre `.tf`.
+le plus silencieux du scanner. C'est pourquoi les seize tests de `git_test.go`
+et `local_test.go` sont portés un pour un dans `tests/test_diff.py` : ils
+couvrent les cas tordus — l'index plutôt que la copie de travail, le premier
+commit, les suppressions, `.gitignore`, et `terragrunt.hcl` contre `.tf`.
 """
 
 from __future__ import annotations
