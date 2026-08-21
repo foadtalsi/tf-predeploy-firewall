@@ -652,6 +652,24 @@ RULES: list[Rule] = [
             value_matches="^\\*$",
         ),
     ),
+    Rule(
+        id="s3_force_destroy",
+        category="missing_lifecycle",
+        severity="medium",
+        message="force_destroy = true on {resource} allows a destroy to delete every object in the bucket — without it the destroy fails on a non-empty bucket, and that failure is the last thing standing between a mistaken apply and permanent loss",
+        suggestion="force_destroy = false",
+        match=Match(
+            scope="attribute",
+            resource_types=["aws_s3_bucket"],
+            attr_names=["force_destroy"],
+            literal=True,
+            value_matches="^true$",
+        ),
+        fix=Fix(
+            action="replace_attr_line",
+            lines=["{attr} = false"],
+        ),
+    ),
     # ---------------------------------------------------------------------
     # Plan-based. These read terraform's own JSON plan rather than source, so
     # they have no line to anchor to and no source to match against.
