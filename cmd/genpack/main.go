@@ -44,8 +44,33 @@ func main() {
 		curatedDir   = flag.String("curated-dir", "", "directory holding the hand-curated overlays (default internal/schema/curated/<provider>; aws keeps its historical flat layout)")
 		baseOut      = flag.String("base-out", "", "output path for the embedded free base pack (default internal/schema/data/pack_<provider>_base.json.gz)")
 		fullOut      = flag.String("full-out", "", "output path for the full pack served by the control plane (default dist/pack_<provider>_full.json.gz)")
+		indexOut     = flag.String("emit-forcenew-index", "", "write the extracted ForceNew index to this path as JSON and exit, without generating packs. Needs only --provider-src. The index is the extractor's whole output, and having it as a file is what lets it be reviewed, diffed between provider releases, and consumed by a generator that isn't this one — see index.go.")
 	)
 	flag.Parse()
+
+	// Extractor-only mode. Deliberately before the --provider-schema check:
+	// extraction reads the provider's Go source and has nothing to do with the
+	// terraform-generated schema JSON, so requiring one to produce the other
+	// would be a coupling that isn't there.
+	if *indexOut != "" {
+		if *srcPath == "" {
+			fmt.Fprintln(os.Stderr, "genpack: --emit-forcenew-index needs --provider-src")
+			os.Exit(2)
+		}
+		idx, err := extractorFor(*provider)(*srcPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "genpack: %v\n", err)
+			os.Exit(1)
+		}
+		if err := writeForceNewIndex(*indexOut, *provider, *providerVer, idx); err != nil {
+			fmt.Fprintf(os.Stderr, "genpack: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("wrote %s (SDKv2 %d/%d resolved, Framework %d/%d resolved, %d resource types)\n",
+			*indexOut, idx.SDKResourcesResolved, idx.SDKResourcesSeen,
+			idx.FrameworkResolved, idx.FrameworkSeen, len(idx.TopLevel)+len(idx.Nested))
+		return
+	}
 
 	if *schemaPath == "" || *providerVer == "" {
 		flag.Usage()
@@ -87,13 +112,7 @@ func run(provider, schemaPath, srcPath, providerAddr, providerVer, curatedDir, b
 
 	// --- 2. ForceNew ------------------------------------------------------
 	if srcPath != "" {
-		// Same walker underneath; what differs per provider is how a
-		// resource type string is matched to its schema function.
-		extract := extractForceNew
-		if provider == "azurerm" {
-			extract = extractForceNewAzurerm
-		}
-		idx, err := extract(srcPath)
+		idx, err := extractorFor(provider)(srcPath)
 		if err != nil {
 			return err
 		}
