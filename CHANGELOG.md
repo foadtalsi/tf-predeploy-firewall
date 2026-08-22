@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **L'analyseur ne peut plus boucler indéfiniment.** Une compréhension `for`
+  dont la clé passe à la ligne après le `:` — la forme que `terraform fmt`
+  produit lui-même sur une expression un peu longue — faisait tourner le
+  scanner sans jamais rendre la main. Dans une CI, le job partait jusqu'à son
+  délai sans le moindre message.
+
+  Deux corrections, parce que le déclencheur n'a pas à être le dernier : les
+  sauts de ligne sont désormais ignorés là où HCL les autorise à l'intérieur
+  d'une compréhension, et la boucle qui lit le corps d'un fichier garantit
+  qu'un tour ne peut pas se terminer sans avoir consommé un jeton. Le pire
+  qu'une entrée incomprise puisse produire est un diagnostic.
+
+  Le binaire Go n'a jamais eu ce défaut, `hashicorp/hcl` s'en chargeant pour
+  lui ; les tests différentiels le confirment.
+
 ### Changed
 - **Le scanner est réécrit en Python.** Même produit, même version, mêmes
   règles, mêmes sorties : le SARIF et le rapport GitLab Code Quality sont

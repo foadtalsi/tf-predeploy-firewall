@@ -144,6 +144,25 @@ class Parser:
             tok = self._peek()
             if tok.type is end or tok.type is T.EOF:
                 break
+
+            # Où en étions-nous avant de tenter quoi que ce soit ? Comparé en
+            # fin de tour, c'est la garantie que cette boucle se termine.
+            #
+            # Elle ne se terminait pas. `_recover_to_newline` rend la main sans
+            # rien consommer devant un `}` à profondeur nulle — ce qui est juste
+            # quand on rattrape à l'intérieur d'un bloc, dont le `}` est la
+            # borne que l'appelant attend, et faux ici : au niveau racine, `end`
+            # vaut EOF, donc rien ne s'arrête sur une accolade fermante orpheline
+            # et le tour suivant retrouve exactement le même jeton.
+            #
+            # Le symptôme n'était pas un mauvais diagnostic mais un scanner qui
+            # ne rend jamais la main. Le déclencheur d'origine est corrigé
+            # au-dessus (`_parse_for`), et il n'a pas à être le dernier : un
+            # analyseur écrit à la main aura d'autres trous, et le pire d'entre
+            # eux doit rester « une erreur signalée », jamais « la CI du client
+            # tourne jusqu'à son délai ».
+            before = self.i
+
             if tok.type is not T.IDENT:
                 self._error(
                     "Argument or block definition required",
@@ -151,8 +170,15 @@ class Parser:
                     tok,
                 )
                 self._recover_to_newline()
-                continue
-            self._parse_body_item(body)
+            else:
+                self._parse_body_item(body)
+
+            if self.i == before:
+                # Personne n'a avancé. On consomme le jeton fautif nous-mêmes,
+                # sans second diagnostic : celui qui vient d'être posé décrit
+                # déjà le problème, et en ajouter un par jeton noierait le
+                # rapport.
+                self._next()
         body.src_range = Range(self.filename, start_pos, self._peek().range.end)
         return body
 
@@ -644,18 +670,35 @@ class Parser:
                 "Invalid for expression", "Expected 'in' after the for variables.", self._peek()
             )
         collection = self.parse_expression()
+        self._skip_newlines()
         if not self._match(T.COLON):
             self._error(
                 "Invalid for expression", "Expected ':' after the collection.", self._peek()
             )
 
+        # Les sauts de ligne sont sans signification à l'intérieur de crochets,
+        # et c'est exactement là que `terraform fmt` en met : passé une
+        # certaine longueur, il coupe la ligne après le `:` d'une compréhension
+        # et remet la clé en dessous.
+        #
+        # Cette absence-là ne produisait pas une découverte manquée mais une
+        # BOUCLE INFINIE. L'expression s'analysait de travers, laissait des
+        # jetons orphelins derrière elle, et la boucle de `parse_body` tournait
+        # ensuite sans jamais avancer — le scanner ne rendait plus la main, dans
+        # la CI d'un client, jusqu'au délai du job. Trouvé sur notre propre
+        # `infra/terraform/cron_lambda.tf`.
+        self._skip_newlines()
+
         first_expr = self.parse_expression()
         key_expr: Expression | None = None
         value_expr = first_expr
         group = False
+        self._skip_newlines()
         if is_object and self._match(T.FAT_ARROW):
+            self._skip_newlines()
             key_expr = first_expr
             value_expr = self.parse_expression()
+            self._skip_newlines()
             if self._match(T.ELLIPSIS):
                 group = True
 
