@@ -17,8 +17,14 @@
 #   2. git tag vX.Y.Z && git push origin vX.Y.Z
 #
 # Tout le reste est automatique : les tests tournent sur l'arbre étiqueté,
-# l'alias majeur se déplace, le paquet part sur PyPI, et les notes de version
+# le wheel est vérifié, l'alias majeur se déplace, et les notes de version
 # viennent de la section du changelog.
+#
+# Rien ne part sur PyPI. Le scanner se distribue par ce dépôt : la GitHub
+# Action construit son image depuis le Dockerfile au ref épinglé, le hook
+# pre-commit construit son venv depuis pyproject.toml, et une installation
+# manuelle se fait depuis l'URL git (voir la release GitHub, qui porte le
+# wheel).
 
 name: Release
 
@@ -97,18 +103,13 @@ jobs:
             || { echo "RÉGRESSION : argument halluciné non détecté"; exit 1; }
           echo "smoke test passé"
 
-  # Séparé de `release` parce qu'il lui faut un jeton OIDC que rien d'autre ne
-  # doit avoir : la publication PyPI se fait par Trusted Publishing, sans
-  # aucun jeton d'API stocké en secret de dépôt.
-  #
-  # À configurer une fois sur pypi.org : Publishing -> Add a new publisher,
-  # avec ce dépôt, ce workflow (`release.yml`) et cet environnement (`pypi`).
-  pypi:
+  # Le wheel n'est publié nulle part, mais il est ce que reçoivent le hook
+  # pre-commit et quiconque installe depuis l'URL git — les deux le
+  # construisent depuis ce même pyproject.toml. Un wheel cassé casse donc ces
+  # deux chemins en silence, et ce job est le seul endroit qui le verrait.
+  package:
     needs: verify
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -143,10 +144,8 @@ jobs:
           /tmp/fresh/bin/pip install --quiet dist/*.whl
           /tmp/fresh/bin/tf-predeploy-firewall --version
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
-
   release:
-    needs: [verify, pypi]
+    needs: [verify, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -181,15 +180,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Le wheel et le sdist sont attachés à la release GitHub en plus d'aller
-      # sur PyPI, pour qu'une installation soit possible sans dépendre de PyPI.
+      # Le wheel et le sdist sont attachés à la release GitHub, et c'est le
+      # seul endroit d'où on peut les télécharger : rien n'est publié sur un
+      # index de paquets.
       #
       # Ce qui a disparu avec le Go, et qu'il faut dire : il n'y a plus de
       # binaires précompilés. Go les croisait pour cinq plateformes
       # gratuitement ; Python n'a pas d'équivalent sans PyInstaller, qui est un
-      # projet en soi. L'usage local passe donc par `pip install`, ou par le
-      # hook pre-commit qui construit son propre venv (voir
-      # .pre-commit-hooks.yaml).
+      # projet en soi. L'usage local passe donc par une installation depuis
+      # l'URL git, par le wheel attaché ici, ou par le hook pre-commit qui
+      # construit son propre venv (voir .pre-commit-hooks.yaml).
       - name: Build the distributions
         run: |
           pip install build

@@ -102,7 +102,9 @@ def open_access(enabled: bool) -> tuple[Access | None, str]:
     except ImportError:
         return None, (
             "cloud read access requested but boto3 is not installed — "
-            'install the extra with `pip install "tf-predeploy-firewall[aws]"` '
+            "install the extra with "
+            '`pip install "tf-predeploy-firewall[aws] @ '
+            'git+https://github.com/foadtalsi/tf-predeploy-firewall@v1"` '
             "(the published Action image already has it)"
         )
 

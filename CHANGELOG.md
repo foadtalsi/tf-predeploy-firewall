@@ -53,9 +53,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   plutôt que de faire échouer le scan. La politique à copier et l'exemple OIDC
   sont dans [docs/cloud-read-access.md](docs/cloud-read-access.md).
 
-  `boto3` est un extra (`pip install "tf-predeploy-firewall[aws]"`) et non une
-  dépendance ; l'image de l'Action l'embarque pour que l'activation reste une
-  ligne de YAML.
+  `boto3` est un extra et non une dépendance ; l'image de l'Action l'embarque
+  pour que l'activation reste une ligne de YAML. Hors de l'Action :
+  `pip install "tf-predeploy-firewall[aws] @ git+https://github.com/foadtalsi/tf-predeploy-firewall@v1"`.
 
 ### Fixed
 - **L'analyseur ne peut plus boucler indéfiniment.** Une compréhension `for`
@@ -80,8 +80,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   suite de tests différentiels le vérifie contre lui.
 
   Ce qui change pour vous : l'image de l'Action est maintenant
-  `python:3.12-slim` au lieu d'un binaire statique, et le paquet s'installe
-  aussi depuis PyPI (`pip install tf-predeploy-firewall`). Les drapeaux de la
+  `python:3.12-slim` au lieu d'un binaire statique, et une installation
+  manuelle se fait depuis l'URL git ou le wheel attaché à la release — il n'y
+  a plus de binaire précompilé, et rien n'est publié sur un index. Les drapeaux de la
   ligne de commande sont inchangés, y compris les formes à un seul tiret
   (`-base-ref`) et `--drapeau=false`, que le paquet `flag` de Go acceptait.
 

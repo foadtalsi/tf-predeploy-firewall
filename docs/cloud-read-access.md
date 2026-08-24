@@ -153,10 +153,16 @@ There is no third possibility where severities changed and nothing was printed.
 
 The default. No credentials are read, no request leaves the runner, and every
 rule scores exactly as it did before this option existed. The `boto3` that
-makes the lookups possible is an extra (`pip install
-"tf-predeploy-firewall[aws]"`) rather than a dependency; the published Action
-image carries it so that turning the flag on is a one-line change, and it sits
-unused otherwise.
+makes the lookups possible is an extra rather than a dependency; the published
+Action image carries it so that turning the flag on is a one-line change, and
+it sits unused otherwise.
+
+Installing outside the Action, the extra is asked for like this — the scanner
+is not on any package index, it installs from this repository:
+
+```
+pip install "tf-predeploy-firewall[aws] @ git+https://github.com/foadtalsi/tf-predeploy-firewall@v1"
+```
 
 ## Running it outside GitHub Actions
 
