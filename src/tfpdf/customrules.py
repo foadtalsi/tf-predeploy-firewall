@@ -148,6 +148,9 @@ class Rule:
             # catégorie comme du texte : le mécanisme d'exclusion la compare,
             # les rendus l'affichent.
             category="custom:" + self.id,
+            # Même forme que la catégorie : un nom de règle sur mesure doit
+            # être impossible à confondre avec celui d'une règle du pack.
+            rule_name="custom:" + self.id,
             severity=Severity(self.severity),
             resource=res.address(),
             message=self.message,

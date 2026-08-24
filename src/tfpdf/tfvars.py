@@ -117,12 +117,13 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
     # the credential-ness lives in "password", not in "db.password".
     leaf = name.rsplit(".", 1)[-1]
 
-    def finding(severity: Severity, message: str) -> list[Finding]:
+    def finding(rule_name: str, severity: Severity, message: str) -> list[Finding]:
         return [
             Finding(
                 file=path,
                 line=line,
                 category=Category.TUTORIAL_PATTERN,
+                rule_name=rule_name,
                 severity=severity,
                 resource=name,
                 message=message,
@@ -131,15 +132,22 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
 
     if is_credential_attr_name(leaf):
         return finding(
-            Severity.CRITICAL, f'"{name}" is a hardcoded credential in a .tfvars file' + _REMEDY
+            "tfvars_credential_name",
+            Severity.CRITICAL,
+            f'"{name}" is a hardcoded credential in a .tfvars file' + _REMEDY,
         )
 
     label, ok = match_credential_value_pattern(value)
     if ok:
-        return finding(Severity.CRITICAL, f'"{name}" matches pattern: {label}' + _REMEDY)
+        return finding(
+            "tfvars_credential_value",
+            Severity.CRITICAL,
+            f'"{name}" matches pattern: {label}' + _REMEDY,
+        )
 
     if is_open_cidr(value):
         return finding(
+            "tfvars_open_cidr",
             Severity.HIGH,
             f'"{name}" is {value}, open to the entire internet — narrow this range',
         )
@@ -147,6 +155,7 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
     bits, ok = looks_like_secret(value)
     if ok:
         return finding(
+            "tfvars_high_entropy",
             Severity.HIGH,
             f'"{name}" is a high-entropy string ({bits:.1f} bits/char over '
             f"{byte_len(value)} chars) — the statistical signature of a machine-generated "

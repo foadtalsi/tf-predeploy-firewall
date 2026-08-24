@@ -134,6 +134,27 @@ class Finding:
     resource: str
     message: str
 
+    #: Which rule produced this finding — the `id` of its entry in the rule
+    #: pack, `"custom:<id>"` for a custom rule.
+    #:
+    #: `category` does not answer this question. It is one-to-many by design:
+    #: suppression is per-category, so several rules that a team would want to
+    #: silence together deliberately share one. An `aws_s3_bucket` with
+    #: `force_destroy = true` and no `prevent_destroy` carries two findings
+    #: that agree on category *and* resource and come from different rules.
+    #:
+    #: It is not serialised anywhere. SARIF keeps using the category as its
+    #: ruleId, the baseline file still matches on category+resource+file, and
+    #: the PR comment does not print it — those are all output formats pinned
+    #: byte-for-byte against the Go scanner, and this field exists for code
+    #: that has to tell two findings apart, not for the report.
+    #:
+    #: Empty is allowed and means "nothing asked": a finding built by hand in a
+    #: test, or one that no pack entry describes. Code that branches on it must
+    #: therefore compare against a name, never assume it is non-empty.
+    rule_name: str = ""
+
+
     #: An optional, mechanically-generated HCL snippet showing how to fix the
     #: finding — not a computed byte-range patch against the real file (this
     #: tool never has write access to the repo), just a snippet the author can

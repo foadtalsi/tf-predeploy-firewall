@@ -132,6 +132,7 @@ class ConfirmedReplaceRule:
                         file=plan_path,
                         line=1,
                         category=Category.CONFIRMED_REPLACE,
+                        rule_name="confirmed_replace",
                         severity=Severity.CRITICAL,
                         resource=rc.address,
                         message=(
@@ -147,6 +148,7 @@ class ConfirmedReplaceRule:
                         file=plan_path,
                         line=1,
                         category=Category.CONFIRMED_REPLACE,
+                        rule_name="confirmed_replace",
                         severity=Severity.CRITICAL if critical else Severity.HIGH,
                         resource=rc.address,
                         message=(
@@ -221,6 +223,7 @@ class DriftRule:
                         file=plan_path,
                         line=1,
                         category=Category.UNEXPECTED_DRIFT,
+                        rule_name="unexpected_drift",
                         severity=Severity.MEDIUM,
                         resource=rc.address,
                         message=(
@@ -273,6 +276,7 @@ class BlastRadiusRule:
                 file=plan_path,
                 line=1,
                 category=Category.LARGE_BLAST_RADIUS,
+                rule_name="large_blast_radius",
                 severity=severity,
                 resource=f"{len(destructive)} resources",
                 message=(
@@ -372,6 +376,7 @@ class CostImpactRule:
                 file=plan_path,
                 line=1,
                 category=Category.COST_IMPACT,
+                rule_name="plan_cost_impact",
                 severity=severity,
                 resource=f"+${total:.0f}/month (estimated)",
                 message=(

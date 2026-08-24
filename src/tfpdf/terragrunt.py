@@ -86,6 +86,7 @@ def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
                     file=path,
                     line=line,
                     category=Category.TUTORIAL_PATTERN,
+                    rule_name="terragrunt_credential_name",
                     severity=Severity.CRITICAL,
                     resource=key_path,
                     message=(
@@ -103,6 +104,7 @@ def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
                     file=path,
                     line=line,
                     category=Category.TUTORIAL_PATTERN,
+                    rule_name="terragrunt_credential_value",
                     severity=Severity.CRITICAL,
                     resource=key_path,
                     message=(
@@ -119,6 +121,7 @@ def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
                     file=path,
                     line=line,
                     category=Category.TUTORIAL_PATTERN,
+                    rule_name="terragrunt_open_cidr",
                     severity=Severity.HIGH,
                     resource=key_path,
                     message=f'{full_key} = "0.0.0.0/0" allows traffic from anywhere',

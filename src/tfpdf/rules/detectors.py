@@ -73,6 +73,7 @@ class UnknownAttributeRule:
                         file=in_.path,
                         line=res.attributes[name].range.start.line,
                         category=Category.UNKNOWN_ATTRIBUTE,
+                        rule_name="unknown_attribute",
                         severity=Severity.HIGH,
                         resource=res.address(),
                         message=(
@@ -97,6 +98,7 @@ class UnknownAttributeRule:
                             file=in_.path,
                             line=blk.attributes[name].range.start.line,
                             category=Category.UNKNOWN_ATTRIBUTE,
+                            rule_name="unknown_attribute",
                             severity=Severity.HIGH,
                             resource=res.address(),
                             message=(
@@ -205,6 +207,7 @@ def _compare_attr(
             file=path,
             line=head.range.start.line,
             category=Category.FORCE_NEW_CHANGE,
+            rule_name="force_new_change",
             severity=Severity.LOW,
             resource=resource,
             message=(
@@ -220,6 +223,7 @@ def _compare_attr(
         file=path,
         line=head.range.start.line,
         category=Category.FORCE_NEW_CHANGE,
+        rule_name="force_new_change",
         severity=severity,
         resource=resource,
         message=(
@@ -317,6 +321,7 @@ class MissingLifecycleRule:
                     file=in_.path,
                     line=line,
                     category=Category.MISSING_LIFECYCLE,
+                    rule_name="missing_lifecycle",
                     severity=Severity.MEDIUM,
                     resource=res.address(),
                     message=detail,
@@ -393,6 +398,7 @@ def _check_module_source(path: str, res: Resource) -> list[Finding]:
                 file=path,
                 line=line,
                 category=Category.UNPINNED_VERSION,
+                rule_name="unpinned_version",
                 severity=Severity.MEDIUM,
                 resource=res.address(),
                 message=message,
@@ -477,6 +483,7 @@ def _check_required_providers(path: str, source: bytes) -> list[Finding]:
                 file=path,
                 line=start_line + body[: m.start()].count("\n"),
                 category=Category.UNPINNED_VERSION,
+                rule_name="unpinned_version",
                 severity=Severity.MEDIUM,
                 resource="provider." + name,
                 message=(
@@ -640,6 +647,7 @@ def _check_policy_body(path: str, res: Resource, attribute: Attribute, body: str
                 file=path,
                 line=_line_of_offset(body, m.start(), attribute.range.start.line),
                 category=Category.PERMISSIVE_IAM,
+                rule_name="iam_wildcard",
                 severity=Severity.HIGH,
                 resource=res.address(),
                 message=detail,
@@ -663,6 +671,7 @@ def _check_policy_body(path: str, res: Resource, attribute: Attribute, body: str
                     file=path,
                     line=_line_of_offset(body, pm.start(), attribute.range.start.line),
                     category=Category.PERMISSIVE_IAM,
+                    rule_name="iam_wildcard",
                     severity=Severity.HIGH,
                     resource=res.address(),
                     message=(
@@ -751,6 +760,7 @@ class StaticCostRule:
                             file=in_.path,
                             line=res.def_range.start.line,
                             category=Category.COST_IMPACT,
+                            rule_name="static_cost",
                             severity=Severity.MEDIUM,
                             resource=res.address(),
                             message=(
@@ -769,6 +779,7 @@ class StaticCostRule:
                         file=in_.path,
                         line=_pricing_attr_line(res, spec),
                         category=Category.COST_IMPACT,
+                        rule_name="static_cost",
                         severity=Severity.MEDIUM,
                         resource=res.address(),
                         message=(
