@@ -3,9 +3,15 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v1.2.1] — 2026-08-24
 
 ### Added
+- **Le paquet déclare qu'il est typé.** `py.typed` manquait, si bien qu'un
+  consommateur qui importe `tfpdf` recevait de mypy « module is installed, but
+  missing library stubs » — alors que tout est annoté ici et que la CI passe
+  mypy en mode strict dessus. Le marqueur est vide à dessein : c'est un
+  drapeau, pas un fichier de données. Révélé par le plan de contrôle, qui
+  importe le scanner pour sa démonstration publique.
 - **Une sortie lisible dans un terminal.** Le CLI n'avait qu'un rendu, le
   Markdown du commentaire de PR, et l'imprimait tel quel : tableau Markdown,
   balises `<details>`, commentaire HTML de marquage et une URL de registre
