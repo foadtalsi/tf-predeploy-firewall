@@ -40,6 +40,7 @@ from .sarif import (
     render_sarif,
     set_tool_version,
 )
+from .terminal import render_terminal, wants_color
 
 __all__ = [
     "CUSTOM_CATEGORY_PREFIX",
@@ -68,8 +69,10 @@ __all__ = [
     "render_markdown",
     "render_rule_docs",
     "render_sarif",
+    "render_terminal",
     "resource_cell",
     "review_comment_body",
     "rule_help_uri",
     "set_tool_version",
+    "wants_color",
 ]

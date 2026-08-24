@@ -68,6 +68,24 @@ def _warn(message: str) -> None:
     print("tf-predeploy-firewall: " + message, file=sys.stderr)
 
 
+def _wants_markdown_on_stdout(choice: str) -> bool:
+    """Dit si stdout reçoit le Markdown plutôt que la mise en forme terminal.
+
+    Le défaut est « auto » plutôt que « text » à cause de ce qui existe déjà :
+    des scripts redirigent cette sortie vers un fichier ou la passent à un
+    autre outil, et changer ce qu'ils reçoivent casserait sans prévenir. Un
+    terminal, lui, n'a jamais rien attendu de particulier.
+    """
+    if choice == "markdown":
+        return True
+    if choice == "text":
+        return False
+    # NO_COLOR n'entre pas ici : il dit de ne pas colorer, pas de changer de
+    # format. Les mélanger ferait basculer la sortie entière sur une variable
+    # qui ne parle que de couleur.
+    return not sys.stdout.isatty()
+
+
 def _die(message: str) -> int:
     _warn(message)
     return 2
@@ -140,6 +158,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="write a GitLab Code Quality report to this file — declare it under "
         "artifacts:reports:codequality and findings render in the MR widget, no token "
         "needed",
+    )
+    p.add_argument(
+        "--format",
+        default=_env_or("TFPDF_FORMAT", "auto"),
+        choices=("auto", "text", "markdown"),
+        help='how the report is printed to stdout. "auto" (default) picks the compact '
+        "text layout when stdout is a terminal and the PR-comment markdown otherwise, so "
+        "redirecting or piping keeps the format every existing script expects. The PR "
+        "comment, SARIF and Code Quality outputs are unaffected either way.",
     )
     p.add_argument(
         "--plan-json",
@@ -536,8 +563,14 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
     ):
         return 3
 
+    # Deux rendus du même rapport, et un seul part dans la PR. `body` est le
+    # Markdown, inchangé et comparé octet pour octet au scanner Go ; ce qui
+    # s'imprime dépend de qui lit.
     body = report.render_markdown(findings, config.block_threshold, blocked)
-    print(body)
+    if _wants_markdown_on_stdout(args.format):
+        print(body)
+    else:
+        print(report.render_terminal(findings, config.block_threshold, blocked))
 
     if post_comment:
         try:

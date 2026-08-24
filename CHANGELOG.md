@@ -3,6 +3,30 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- **Une sortie lisible dans un terminal.** Le CLI n'avait qu'un rendu, le
+  Markdown du commentaire de PR, et l'imprimait tel quel : tableau Markdown,
+  balises `<details>`, commentaire HTML de marquage et une URL de registre
+  complète par ligne. GitHub le rend joliment ; un terminal affiche trente-trois
+  découvertes en trois cents lignes de syntaxe.
+
+  Le nouveau rendu groupe par règle plutôt que par fichier — un scan de dépôt
+  entier répète deux ou trois motifs, et lire l'explication une fois puis
+  parcourir les emplacements tient sur un écran. Chaque ligne ne porte que ce
+  que l'en-tête ne dit pas déjà : sur une règle ForceNew, l'attribut concerné.
+  Les emplacements s'écrivent `fichier:ligne`, la forme qu'un éditeur sait
+  ouvrir.
+
+  Le choix est automatique : mise en forme terminal quand stdout est un
+  terminal, Markdown sinon. Un tube, une redirection, un runner de CI reçoivent
+  donc exactement ce qu'ils recevaient — le Markdown est comparé octet pour
+  octet au scanner Go et part dans les PR, il n'a pas bougé d'un caractère.
+  `--format text|markdown` force l'un ou l'autre.
+
+  Les couleurs suivent `NO_COLOR` et disparaissent hors terminal.
+
 ## [v1.2.0] — 2026-08-24
 
 ### Added
