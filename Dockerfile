@@ -44,12 +44,17 @@ COPY --from=build /dist/*.whl /tmp/
 # so the bytes sit unused for anyone who never asks for it.
 RUN pip install --no-cache-dir "$(ls /tmp/*.whl)[aws]" && rm /tmp/*.whl
 
-# Actions check out the repository into the workspace and run the container
-# against it. `git` refuses to operate on a repository owned by another user,
-# which is exactly what a bind-mounted workspace looks like from in here — so
-# the workspace is declared safe rather than left to fail with a message about
-# dubious ownership that has nothing to do with Terraform.
-RUN git config --global --add safe.directory /github/workspace \
-    && git config --global --add safe.directory '*'
+# La garde de propriété de git ne se règle PAS ici, et c'est délibéré.
+#
+# Il y avait à cet endroit un `git config --global --add safe.directory`. Il
+# n'a jamais eu d'effet : `--global` écrit dans `$HOME/.gitconfig` au moment de
+# la construction de l'image, et GitHub réécrit `HOME` à l'exécution
+# (`/github/home`). Le fichier existait, git ne le lisait jamais, et chaque
+# scan échouait sur « dubious ownership » — donc l'Action ne calculait aucun
+# diff, chez personne.
+#
+# Le réglage est désormais passé par `-c` à chaque appel git, dans
+# `tfpdf.diff.git`. Il ne dépend plus de l'environnement, et il couvre les
+# usages que cette image ne voit pas.
 
 ENTRYPOINT ["tf-predeploy-firewall"]

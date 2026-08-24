@@ -315,3 +315,76 @@ def test_uncommitted_clean_tree_finds_nothing(tmp_path: Path) -> None:
     git(dir_, "commit", "-qm", "init")
 
     assert uncommitted_terraform_files(dir_) == []
+
+
+# --- la garde de propriété de git -------------------------------------------
+#
+# Sans équivalent Go. Le binaire Go tournait dans une image alpine où le
+# problème ne s'est pas posé ; le port Python a hérité d'un `Dockerfile` qui
+# croyait le régler et ne le réglait pas.
+
+
+def test_every_git_call_disarms_the_ownership_guard() -> None:
+    """Git refuse d'ouvrir un dépôt appartenant à un autre utilisateur — ce à
+    quoi ressemble exactement le workspace monté dans le conteneur d'une
+    GitHub Action. Sans ce réglage, AUCUN diff n'est calculable et l'outil ne
+    sert à rien, chez tout le monde.
+
+    Vérifié sur la ligne de commande construite et non sur un effet observable :
+    reproduire une différence de propriétaire demanderait deux comptes."""
+    import subprocess
+    from unittest import mock
+
+    from tfpdf.diff import git as gitmod
+
+    with mock.patch.object(gitmod.subprocess, "run") as run:
+        run.return_value = subprocess.CompletedProcess([], 0, b"", b"")
+        gitmod._git("/un/depot", "rev-parse", "HEAD")
+
+    argv = run.call_args[0][0]
+    assert argv[:4] == ["git", "-c", "safe.directory=*", "-C"], (
+        "le réglage doit être passé par -c : le Dockerfile l'écrivait dans un "
+        "$HOME que GitHub remplace à l'exécution, donc git ne le lisait jamais"
+    )
+    assert argv[4] == "/un/depot"
+    assert argv[5:] == ["rev-parse", "HEAD"]
+
+
+def test_an_ownership_refusal_is_reported_as_itself(tmp_path) -> None:
+    """Le message accusait la référence et conseillait `fetch-depth: 0` — sur
+    un workflow qui l'avait déjà — en reléguant la vraie cause en dernière
+    ligne. On envoyait l'utilisateur corriger ce qui était correct."""
+    import subprocess
+    from unittest import mock
+
+    from tfpdf.diff import git as gitmod
+
+    refus = subprocess.CompletedProcess(
+        [], 128, b"", b"fatal: detected dubious ownership in repository at '/github/workspace'"
+    )
+    with (
+        mock.patch.object(gitmod, "_git", return_value=refus),
+        pytest.raises(gitmod.GitError) as levee,
+    ):
+        gitmod._validate_refs(str(tmp_path), "origin/main", "HEAD")
+
+    message = str(levee.value)
+    assert "belongs to another user" in message
+    assert "fetch-depth" not in message, "ne pas conseiller un correctif sans rapport"
+
+
+def test_a_genuinely_missing_ref_still_says_so(tmp_path) -> None:
+    """Le pendant : la garde ne doit pas avaler le cas qu'elle borde."""
+    import subprocess
+    from unittest import mock
+
+    from tfpdf.diff import git as gitmod
+
+    absente = subprocess.CompletedProcess([], 128, b"", b"fatal: Needed a single revision")
+    with (
+        mock.patch.object(gitmod, "_git", return_value=absente),
+        pytest.raises(gitmod.GitError) as levee,
+    ):
+        gitmod._validate_refs(str(tmp_path), "origin/main", "HEAD")
+
+    assert "not found" in str(levee.value)

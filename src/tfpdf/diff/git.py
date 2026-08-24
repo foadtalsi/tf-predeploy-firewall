@@ -37,9 +37,41 @@ class ChangedFile:
     base_content: bytes | None = field(default=None)
 
 
+#: Ce que git refuse de faire sans qu'on le lui permette, et le message qu'il
+#: rend alors. Reconnu pour pouvoir le dire à l'utilisateur en clair plutôt que
+#: de le laisser passer pour autre chose.
+_DUBIOUS_OWNERSHIP = b"dubious ownership"
+
+
 def _git(repo_dir: str, *args: str) -> subprocess.CompletedProcess[bytes]:
+    """Exécute git sur `repo_dir`, en désarmant la garde de propriété.
+
+    Git refuse d'ouvrir un dépôt qui appartient à un autre utilisateur. Dans le
+    conteneur d'une GitHub Action, c'est exactement à quoi ressemble le
+    workspace monté : il appartient à l'utilisateur du runner, et le conteneur
+    tourne en root. Sans ce réglage, **aucun** diff n'est calculable et l'outil
+    ne sert à rien.
+
+    Le `Dockerfile` essayait déjà de le régler, et ne le pouvait pas :
+    `git config --global` écrit dans `$HOME/.gitconfig` au moment de la
+    construction de l'image, alors que GitHub réécrit `HOME` à l'exécution
+    (`/github/home`). Le fichier existait, git ne le lisait jamais, et la
+    tentative avait l'air d'une protection. C'est le pire état pour un
+    correctif : présent, commenté, inopérant.
+
+    Posé par `-c` plutôt que dans un fichier, donc : ce que reçoit ce processus
+    ne dépend plus de son environnement, et rien ne subsiste après lui. Cela
+    couvre aussi les usages hors image — un pip install dans un conteneur, un
+    hook pre-commit — que le Dockerfile ne pouvait pas atteindre.
+
+    `*` plutôt qu'un chemin : git résout un dépôt en remontant les répertoires,
+    donc le dossier qu'on lui désigne n'est pas forcément la racine à déclarer,
+    et cette racine n'est connaissable qu'en interrogeant git — ce qu'on
+    n'arrive pas à faire, précisément. La portée reste étroite : ces appels ne
+    font que lire, et l'utilisateur a lui-même désigné le dépôt.
+    """
     return subprocess.run(
-        ["git", "-C", repo_dir, *args],
+        ["git", "-c", "safe.directory=*", "-C", repo_dir, *args],
         capture_output=True,
         check=False,
     )
@@ -76,10 +108,31 @@ def _validate_refs(repo_dir: str, base_ref: str, head_ref: str) -> None:
     for ref in (base_ref, head_ref):
         p = _git(repo_dir, "rev-parse", "--verify", ref)
         if p.returncode != 0:
+            stderr = p.stderr.decode("utf-8", errors="replace").strip()
+
+            # Quand git n'a pas pu ouvrir le dépôt du tout, la référence n'y
+            # est pour rien. Le message d'origine annonçait « cette référence
+            # est introuvable, pensez à fetch-depth: 0 » — sur un workflow qui
+            # l'avait déjà — et reléguait la vraie cause en dernière ligne
+            # sous « Original error ». On envoyait donc l'utilisateur corriger
+            # ce qui était correct.
+            if _DUBIOUS_OWNERSHIP in p.stderr:
+                raise GitError(
+                    "git refused to open the repository: it belongs to another "
+                    "user.\n"
+                    f"      Repository: {repo_dir}\n\n"
+                    "      This is git's ownership guard, not a problem with your "
+                    "Terraform\n"
+                    "      or your workflow. It normally means the scanner is "
+                    "running as a\n"
+                    "      different user than the one that checked the code out.\n\n"
+                    f"Original error: {stderr}"
+                )
+
             raise GitError(
                 f"git ref {ref!r} not found — cannot compute the PR diff.\n"
                 f"{_build_ref_hint(repo_dir, ref)}\n"
-                f"Original error: {p.stderr.decode('utf-8', errors='replace').strip()}"
+                f"Original error: {stderr}"
             )
 
 
