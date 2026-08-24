@@ -3,6 +3,27 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- **L'Action ne calculait aucun diff, chez personne.** Git refuse d'ouvrir un
+  dépôt appartenant à un autre utilisateur, ce qui est exactement à quoi
+  ressemble le workspace monté dans le conteneur d'une Action : il appartient à
+  l'utilisateur du runner, le conteneur tourne en root. Chaque scan s'arrêtait
+  sur `fatal: detected dubious ownership`.
+
+  Le `Dockerfile` croyait le régler. `git config --global` écrit dans
+  `$HOME/.gitconfig` au moment de la construction de l'image, et GitHub réécrit
+  `HOME` à l'exécution (`/github/home`) : le fichier existait, git ne l'a jamais
+  lu. Le réglage passe désormais par `-c` à chaque appel git, donc il ne dépend
+  plus de l'environnement et couvre les usages hors image.
+
+  Le message trompait en prime : il conseillait `fetch-depth: 0` à des workflows
+  qui l'avaient déjà, et reléguait la vraie cause en dernière ligne sous
+  « Original error ».
+
+  Trouvé en ouvrant une vraie pull request contre l'Action publiée.
+
 ## [v1.2.0] — 2026-08-24
 
 ### Added
