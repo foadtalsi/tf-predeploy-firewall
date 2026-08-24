@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .. import cloudname
 from ..parser import Attribute, NestedBlock, Resource
 from ..report.finding import Category, Finding, Fix, Severity
 from ..ruledef import Match, Rule
@@ -114,6 +115,7 @@ class DeclarativeRule:
                 line=res.def_range.start.line,
                 category=Category(spec.category),
                 rule_name=spec.id,
+                cloud_name=cloudname.of(res),
                 severity=Severity(spec.severity),
                 resource=res.address(),
                 message=expand(spec.message, base_vars(res)),
@@ -147,6 +149,7 @@ class DeclarativeRule:
             line=loc.attribute.range.start.line,
             category=Category(spec.category),
             rule_name=spec.id,
+            cloud_name=cloudname.of(res),
             severity=Severity(spec.severity),
             resource=res.address(),
             message=expand(spec.message, variables),

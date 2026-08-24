@@ -154,6 +154,22 @@ class Finding:
     #: therefore compare against a name, never assume it is non-empty.
     rule_name: str = ""
 
+    #: Le nom que cette ressource porte réellement chez le fournisseur —
+    #: `"prod-backups"`, là où `resource` porte `"aws_s3_bucket.backups"`.
+    #:
+    #: Les deux existent parce qu'ils répondent à deux questions. `resource`
+    #: situe la découverte pour la personne qui relit la PR : c'est l'adresse
+    #: qu'elle verra dans un plan. `cloud_name` est ce qu'il faut donner à une
+    #: API pour parler de l'objet, et aucune API ne connaît l'adresse
+    #: Terraform.
+    #:
+    #: Vide dès qu'on ne peut pas l'affirmer : type dont on ne sait pas quel
+    #: attribut le nomme, attribut absent, ou nom construit à l'exécution. Un
+    #: appelant doit traiter le vide comme « je ne sais pas » et ne rien
+    #: conclure — surtout pas interroger le cloud avec, parce que le « cet
+    #: objet n'existe pas » qui reviendrait est indiscernable d'une vraie
+    #: absence. Voir `tfpdf.cloudname`.
+    cloud_name: str = ""
 
     #: An optional, mechanically-generated HCL snippet showing how to fix the
     #: finding — not a computed byte-range patch against the real file (this

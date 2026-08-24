@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from .. import cloudname
 from ..parser import Attribute, Kind, NestedBlock, Resource
 from ..report.finding import Category, Finding, Fix, Severity
 from ..schema import KnowledgeBase, PricingSpec
@@ -76,6 +77,7 @@ class UnknownAttributeRule:
                         rule_name="unknown_attribute",
                         severity=Severity.HIGH,
                         resource=res.address(),
+                        cloud_name=cloudname.of(res),
                         message=(
                             f'attribute "{name}" is not a known argument of {res.type} — '
                             "likely hallucinated or deprecated; verify against the provider docs"
@@ -101,6 +103,7 @@ class UnknownAttributeRule:
                             rule_name="unknown_attribute",
                             severity=Severity.HIGH,
                             resource=res.address(),
+                            cloud_name=cloudname.of(res),
                             message=(
                                 f'attribute "{name}" inside {blk.type} block is not a known '
                                 "argument — likely hallucinated or deprecated; verify against "
@@ -324,6 +327,7 @@ class MissingLifecycleRule:
                     rule_name="missing_lifecycle",
                     severity=Severity.MEDIUM,
                     resource=res.address(),
+                    cloud_name=cloudname.of(res),
                     message=detail,
                     suggestion=suggestion,
                     fix=fix,
@@ -401,6 +405,7 @@ def _check_module_source(path: str, res: Resource) -> list[Finding]:
                 rule_name="unpinned_version",
                 severity=Severity.MEDIUM,
                 resource=res.address(),
+                cloud_name=cloudname.of(res),
                 message=message,
                 suggestion=suggestion,
             )
@@ -650,6 +655,7 @@ def _check_policy_body(path: str, res: Resource, attribute: Attribute, body: str
                 rule_name="iam_wildcard",
                 severity=Severity.HIGH,
                 resource=res.address(),
+                cloud_name=cloudname.of(res),
                 message=detail,
                 suggestion=(
                     "# Name the actions this actually needs, and the resources it needs "
@@ -674,6 +680,7 @@ def _check_policy_body(path: str, res: Resource, attribute: Attribute, body: str
                     rule_name="iam_wildcard",
                     severity=Severity.HIGH,
                     resource=res.address(),
+                    cloud_name=cloudname.of(res),
                     message=(
                         f'the policy on {res.address()} names Principal "*" with no '
                         "Condition — this grants the listed actions to every AWS account "
@@ -763,6 +770,7 @@ class StaticCostRule:
                             rule_name="static_cost",
                             severity=Severity.MEDIUM,
                             resource=res.address(),
+                            cloud_name=cloudname.of(res),
                             message=(
                                 f"new {res.type} adds an estimated ${new_cost:.0f}/month"
                                 f"{_describe_pricing_driver(spec, attr_value)} — static "
@@ -782,6 +790,7 @@ class StaticCostRule:
                         rule_name="static_cost",
                         severity=Severity.MEDIUM,
                         resource=res.address(),
+                        cloud_name=cloudname.of(res),
                         message=(
                             f"{res.type} estimated cost rises from ${old_cost:.0f} to "
                             f"${new_cost:.0f}/month"

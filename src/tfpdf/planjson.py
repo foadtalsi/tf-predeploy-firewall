@@ -5,7 +5,7 @@ Port de internal/planjson/model.go.
 
 Contrairement au scan statique de la phase 1, ceci exige que le job CI de
 l'utilisateur exécute lui-même `terraform plan` avec de vrais identifiants
-cloud ; cet outil ne lance jamais terraform et ne touche jamais au cloud. Il ne
+cloud ; cet outil ne lance jamais terraform lui-même. Il ne
 fait que lire le JSON résultant, pour détecter des risques qu'un diff HCL pur ne
 peut pas voir : une destruction ou un remplacement confirmé, un plan touchant
 bien plus de ressources que le diff de la PR elle-même, ou un attribut sensible

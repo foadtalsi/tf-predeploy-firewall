@@ -1,8 +1,10 @@
 """Récupération des fichiers .tf modifiés dans une PR et, là où c'est
 nécessaire, de leur contenu d'avant changement — depuis un checkout git local.
 
-Port de internal/diff. Le scanner n'a jamais besoin d'identifiants cloud ni d'un
-fichier d'état terraform.
+Port de internal/diff. C'est de là que vient le fait qu'un scan n'exige aucun
+identifiant ni fichier d'état : tout ce qu'il lui faut est déjà dans le
+checkout. `cloudread` peut y ajouter une lecture du compte réel, mais seulement
+si on la lui accorde, et jamais pour obtenir le diff.
 """
 
 from .git import (

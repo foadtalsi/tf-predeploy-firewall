@@ -58,6 +58,16 @@ class RunOptions:
     #: behaves exactly as it did before, skipping non-literal values.
     repo_dir: str = ""
 
+    #: Set when `--cloud-read-access` was given *and* usable credentials were
+    #: found — see `tfpdf.cloudread.open_reader`. It is what lets
+    #: `engine.adjust_severity_against_the_cloud` run, which is the only place
+    #: the scanner asks a cloud API anything.
+    #:
+    #: None is the default and the whole of the free path: no credentials are
+    #: read, no request leaves the runner, and every rule scores exactly as it
+    #: always has. Typed loosely to keep `boto3` out of this module's imports.
+    cloud_reader: object | None = None
+
 
 @dataclass(slots=True)
 class Options:

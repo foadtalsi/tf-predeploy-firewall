@@ -23,12 +23,29 @@ inputs:
     description: >
       Phase 2 (optional): path to the output of `terraform show -json <planfile>`,
       run earlier in your own job with your own cloud credentials. This action never
-      runs terraform or touches the cloud itself — it only reads this file, if given,
-      to add confirmed-replace, unexpected-drift, large-blast-radius, and
-      cost-impact findings on top of the static .tf scan. Leave empty to run
-      phase 1 only.
+      runs terraform — it only reads this file, if given, to add confirmed-replace,
+      unexpected-drift, large-blast-radius, and cost-impact findings on top of the
+      static .tf scan. Leave empty to run phase 1 only.
     required: false
     default: ""
+  cloud-read-access:
+    description: >
+      Optional, off by default. Let the scan read whether the resources a finding is
+      about already exist in your account, and how much they hold, so that severity
+      reflects the real infrastructure rather than the source alone — `force_destroy`
+      on a bucket this PR invents and `force_destroy` on the bucket holding your
+      backups are identical HCL, and this is the only thing that tells them apart.
+      Read-only, and narrowly so: the scan may call sts:GetCallerIdentity and
+      s3:ListObjectsV2 and nothing else — a guard on boto3's default session refuses
+      any other operation before the request is built. It is never granted
+      s3:GetObject, so it can see that a bucket is not empty and cannot read what is
+      in it. Credentials come from the job (use aws-actions/configure-aws-credentials
+      with OIDC, before this step); missing or refused ones leave every severity
+      untouched instead of failing the scan. The IAM policy to copy is in
+      docs/cloud-read-access.md. Leave this off and the scanner authenticates to
+      nothing, exactly as before.
+    required: false
+    default: "false"
   plan-blast-radius-threshold:
     description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
     required: false
@@ -97,6 +114,7 @@ runs:
     - "--plan-json"
     - "${{ inputs.plan-json }}"
     - "--full-repo-scan=${{ inputs.full-repo-scan }}"
+    - "--cloud-read-access=${{ inputs.cloud-read-access }}"
     - "--baseline"
     - "${{ inputs.baseline }}"
   env:

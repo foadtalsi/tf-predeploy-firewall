@@ -175,10 +175,69 @@ def run(
             if base is not None:
                 changed_attrs[head.address()] = changed_attrs_for_resource(head, base)
 
+    if options.cloud_reader is not None:
+        adjust_severity_against_the_cloud(findings)
+
     kept = ignore.apply(findings, inline_by_file, options.global_ignore)
     attach_doc_urls(kept, knowledge_base)
 
     return Result(findings=kept, changed_attrs=changed_attrs)
+
+
+def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
+    """Réévalue la sévérité des découvertes que l'état réel du compte éclaire.
+
+    Appelée seulement quand l'accès en lecture a été accordé (`--cloud-read-access`) :
+    la vérification interroge AWS, et le scanner ne s'authentifie à rien tant
+    qu'on ne le lui a pas demandé. C'est la garde qui rend vraie la phrase de la
+    page d'accueil, pas une optimisation.
+
+    Placée après la boucle sur les fichiers, parce que `findings` doit être
+    complète : au-dessus, aucune règle n'a encore tourné et la liste est vide.
+
+    `cloud_name` et non `resource` : les API cloud ne connaissent pas les
+    adresses Terraform. Une découverte dont le nom réel n'a pas pu être établi
+    est laissée telle quelle — interroger S3 avec `aws_s3_bucket.backups`
+    recevrait « ce compartiment n'existe pas » et ferait baisser la sévérité de
+    chaque compartiment du dépôt.
+
+    Un scan sonde le compte une fois au plus : `available_context()` est
+    appelée ici, jamais depuis la vérification, et seulement s'il y a quelque
+    chose à corroborer.
+    """
+    adjustable = [
+        finding
+        for finding in findings
+        if finding.rule_name == "s3_force_destroy" and finding.cloud_name
+    ]
+    if not adjustable:
+        # Rien à corroborer : on ne monte même pas la session. Le cas courant
+        # sur la plupart des PR, et la raison pour laquelle activer l'option ne
+        # coûte rien tant qu'aucune règle concernée ne se déclenche.
+        return
+
+    # Importé ici et non en tête de module : en tête, un
+    # `tf-predeploy-firewall --version` chargerait boto3 pour rien.
+    from ..ruledef import severitycheck
+
+    # Une seule fois, ici, et pas dans la vérification : la sonde est un
+    # aller-retour vers STS plus la construction d'un client, et la faire par
+    # découverte multipliait les deux par le nombre de compartiments du dépôt.
+    # Le résultat est mémorisé dans `severitycheck.AWS_OK`, que la
+    # vérification lit.
+    if not severitycheck.available_context():  # type: ignore[no-untyped-call]
+        return
+
+    for finding in adjustable:
+        # `Severity(...)` parce que la vérification rend des chaînes nues
+        # ("low", "critical") : sans la conversion, le champ contiendrait
+        # tantôt une Severity tantôt un str, et le tri comme le seuil de
+        # blocage compareraient deux types différents.
+        finding.severity = Severity(
+            severitycheck.s3_force_destroy_severity_check(  # type: ignore[no-untyped-call]
+                severity=finding.severity, bucket=finding.cloud_name
+            )
+        )
 
 
 def attach_doc_urls(findings: list[Finding], knowledge_base: KnowledgeBase | None) -> None:

@@ -5,6 +5,37 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **Accès en lecture seule au compte cloud, facultatif (`cloud-read-access`).**
+  Une seule chose manquait au scan statique pour juger correctement, et elle
+  n'est pas dans le dépôt : `force_destroy = true` sur un compartiment que la
+  PR invente et `force_destroy = true` sur celui qui contient les sauvegardes
+  s'écrivent avec les mêmes onze caractères. La règle devait donc noter les
+  deux pareil — trop fort pour l'un, trop faible pour l'autre.
+
+  Avec l'option activée, le scan demande au compte lequel des deux c'est, et
+  écrit dans la découverte ce qu'il a vu : abaissée à `low` quand le
+  compartiment n'existe pas encore ou qu'il est vide, relevée à `high` quand
+  il contient déjà quelque chose. Une sévérité ne bouge jamais sans dire
+  pourquoi.
+
+  La lecture seule est tenue par le code, pas par la documentation : un
+  gestionnaire botocore posé sur la session par défaut de boto3 refuse toute
+  opération absente de la liste `sts:GetCallerIdentity`, `s3:ListObjectsV2`
+  avant que la requête soit construite, et la politique IAM demandée n'accorde pas
+  `s3:GetObject` — le scan peut voir qu'un compartiment n'est pas vide et ne
+  peut lire aucun de ses objets. Les identifiants restent dans votre CI.
+
+  Rien n'est exigé : sans l'option, aucun identifiant n'est lu, aucune requête
+  ne quitte le runner, et chaque règle note exactement comme avant. Des
+  identifiants absents ou refusés laissent toutes les sévérités intactes
+  plutôt que de faire échouer le scan. La politique à copier et l'exemple OIDC
+  sont dans [docs/cloud-read-access.md](docs/cloud-read-access.md).
+
+  `boto3` est un extra (`pip install "tf-predeploy-firewall[aws]"`) et non une
+  dépendance ; l'image de l'Action l'embarque pour que l'activation reste une
+  ligne de YAML.
+
 ### Fixed
 - **L'analyseur ne peut plus boucler indéfiniment.** Une compréhension `for`
   dont la clé passe à la ligne après le `:` — la forme que `terraform fmt`

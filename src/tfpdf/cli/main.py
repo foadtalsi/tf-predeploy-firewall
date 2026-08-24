@@ -22,7 +22,18 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .. import baseline, customrules, diff, ignore, planjson, report, ruledef, rules, schema
+from .. import (
+    baseline,
+    cloudread,
+    customrules,
+    diff,
+    ignore,
+    planjson,
+    report,
+    ruledef,
+    rules,
+    schema,
+)
 from ..report.finding import Finding, Severity
 from ..rules import Options, Rule, sprint
 from . import terraformscan
@@ -135,7 +146,18 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="path to `terraform show -json <planfile>` output (phase 2: adds "
         "confirmed-replace, drift and blast-radius findings). Optional — this tool never "
-        "runs terraform or touches cloud credentials itself.",
+        "runs terraform itself; you run the plan, it only reads the file.",
+    )
+    flag_bool(
+        "--cloud-read-access",
+        _env_or("TFPDF_CLOUD_READ_ACCESS", "") == "true",
+        "use the workflow's existing cloud credentials to read whether the resources a "
+        "finding is about already exist, and how much they hold, so severity reflects "
+        "the real account instead of the source alone. Off by default, and the whole "
+        "scanner works without it. Only ever reads (sts:GetCallerIdentity, "
+        "s3:ListObjectsV2 — see docs/cloud-read-access.md for the IAM policy); missing "
+        "or refused credentials leave every severity untouched rather than failing the "
+        "scan.",
     )
     p.add_argument(
         "--license-key",
@@ -413,6 +435,14 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
     if custom_rule_set is not None:
         ruleset = [*ruleset, custom_rule_set.as_engine_rule()]
 
+    # Opened before the scan so that a misconfigured role is reported once, on
+    # its own line, rather than inferred from severities that quietly did not
+    # move. Everything about it fails open: `reader` is None whenever anything
+    # is missing, and None is the ordinary free path.
+    cloud_access, cloud_note = cloudread.open_access(args.cloud_read_access)
+    if cloud_note:
+        _warn(cloud_note)
+
     result = rules.run(
         changed,
         kb,
@@ -423,6 +453,7 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
             # `var.x` and `local.y` — a credential one indirection away is the
             # common case, not the exotic one.
             repo_dir=args.repo_dir,
+            cloud_reader=cloud_access,
         ),
     )
     findings = list(result.findings)

@@ -7,7 +7,7 @@ rule_plan_drift.go, rule_plan_blast_radius.go et rule_plan_cost_impact.go.
 Tout ce que font les règles de phase 1 est une lecture de la source. Tout ce que
 font celles-ci est une lecture de la décision de Terraform lui-même, fournie par
 l'utilisateur sous forme de sortie `terraform show -json` — cet outil n'exécute
-jamais Terraform et ne touche jamais lui-même à des identifiants cloud. Cette
+jamais Terraform lui-même. Cette
 différence explique que ces découvertes n'aient pas de numéro de ligne : un plan
 n'a aucune position dans une source .tf sur laquelle pointer, elles sont donc
 rattachées au fichier de plan, ligne 1.
