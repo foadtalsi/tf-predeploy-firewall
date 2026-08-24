@@ -150,6 +150,11 @@ def test_with_the_opt_in_the_check_receives_the_real_bucket_name(
         received.append(bucket)
         return "critical"
 
+    # La sonde est simulée, sinon ce test dépend des identifiants AWS de la
+    # machine : il passait en local (où il en existe) et échouait en CI, pour
+    # une raison qui n'a rien à voir avec ce qu'il vérifie. Et une suite de
+    # tests ne doit appeler personne.
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", lambda: True)
     monkeypatch.setattr("tfpdf.ruledef.severitycheck.s3_force_destroy_severity_check", check)
     source = b"""resource "aws_s3_bucket" "backups" {
   bucket        = "prod-backups"
@@ -176,6 +181,9 @@ def test_a_bucket_whose_name_is_a_variable_is_never_looked_up(
     """Sans nom réel, pas de question — et surtout pas une question dont la
     réponse ferait baisser la sévérité."""
     called: list[str] = []
+    # Simulée elle aussi : sans cela le test serait vert parce que la sonde a
+    # échoué, et non parce que le nom n'a pas pu être établi.
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", lambda: True)
     monkeypatch.setattr(
         "tfpdf.ruledef.severitycheck.s3_force_destroy_severity_check",
         lambda severity, bucket: called.append(bucket) or "low",
