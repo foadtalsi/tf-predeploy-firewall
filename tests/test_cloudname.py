@@ -304,9 +304,21 @@ def test_the_check_itself_never_probes(kb: KnowledgeBase) -> None:
     """La contrepartie côté `severitycheck` : la vérification lit `AWS_OK`,
     elle ne le recalcule pas. Sans quoi la sonde unique du moteur ne servirait
     à rien — la vérification en referait une par découverte."""
+    import ast
     import inspect
+    import textwrap
 
     from tfpdf.ruledef import severitycheck
 
-    body = inspect.getsource(severitycheck.s3_force_destroy_severity_check)
-    assert "available_context" not in body
+    # L'arbre syntaxique et non le texte : chercher la chaîne attraperait un
+    # commentaire qui nomme la fonction, et faire échouer un test parce qu'on a
+    # documenté le code est la meilleure façon d'apprendre à le désactiver.
+    tree = ast.parse(
+        textwrap.dedent(inspect.getsource(severitycheck.s3_force_destroy_severity_check))
+    )
+    called = {
+        node.func.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+    }
+    assert "available_context" not in called

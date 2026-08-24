@@ -14,7 +14,7 @@ AWS_OK = None
 # AWS_OK, que les verifications lisent. Tant que personne ne l'a appelee,
 # AWS_OK vaut None : les verifications rendent la severity inchangee, ce qui
 # est le bon defaut.
-def available_context():
+def available_context() -> bool:
     global s3, AWS_OK
     try:
         boto3.client("sts").get_caller_identity()
@@ -25,8 +25,11 @@ def available_context():
     return AWS_OK
 
 
-def s3_force_destroy_severity_check(severity, bucket):
-    if not AWS_OK:
+def s3_force_destroy_severity_check(severity: str, bucket: str) -> str:
+    # `s3 is None` en plus de AWS_OK : les deux sont poses ensemble par
+    # available_context, mais rien dans le type ne le dit, et une verification
+    # appelee sans sonde prealable planterait au lieu de rendre la severity.
+    if not AWS_OK or s3 is None:
         return severity
 
     objects_counts = 0

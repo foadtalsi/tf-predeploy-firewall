@@ -225,7 +225,7 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
     # découverte multipliait les deux par le nombre de compartiments du dépôt.
     # Le résultat est mémorisé dans `severitycheck.AWS_OK`, que la
     # vérification lit.
-    if not severitycheck.available_context():  # type: ignore[no-untyped-call]
+    if not severitycheck.available_context():
         return
 
     for finding in adjustable:
@@ -234,7 +234,7 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
         # tantôt une Severity tantôt un str, et le tri comme le seuil de
         # blocage compareraient deux types différents.
         finding.severity = Severity(
-            severitycheck.s3_force_destroy_severity_check(  # type: ignore[no-untyped-call]
+            severitycheck.s3_force_destroy_severity_check(
                 severity=finding.severity, bucket=finding.cloud_name
             )
         )
