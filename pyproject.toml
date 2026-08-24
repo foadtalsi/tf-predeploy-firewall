@@ -63,6 +63,12 @@ tfpdf-genpack = "tfpdf.genpack.main:run_cli"
 # (schema/data/*.json.gz), the curated tables and config/default.yml are not
 # optional extras, they are what the scanner detects with. A wheel without them
 # installs cleanly and finds nothing.
+#
+# `py.typed` en fait partie, et il est vide à dessein : c'est un drapeau, pas
+# un fichier de données. Sans lui, mypy refuse de regarder ce paquet chez un
+# consommateur — « module is installed, but missing library stubs » — alors que
+# tout y est annoté et que mypy passe dessus ici. Le plan de contrôle l'importe
+# désormais pour sa démonstration publique, et c'est ce qui l'a révélé.
 packages = ["src/tfpdf"]
 
 [tool.pytest.ini_options]
