@@ -88,6 +88,20 @@ def _git_lines(repo_dir: str, *args: str) -> list[str]:
     return [ln for ln in p.stdout.decode("utf-8", errors="replace").strip().split("\n") if ln]
 
 
+def remote_url(repo_dir: str, remote: str = "origin") -> str:
+    """L'URL du dépôt distant `remote`, ou "" s'il n'y en a pas.
+
+    Sert à donner un nom au dépôt scanné quand aucune variable de CI ne le
+    fournit — le cas d'un scan lancé depuis un poste de travail. Le rendu vide
+    couvre tout : pas de dépôt git, aucun distant configuré, git absent du
+    PATH. C'est un renseignement de confort, jamais une condition du scan.
+    """
+    process = _git(repo_dir, "remote", "get-url", remote)
+    if process.returncode != 0:
+        return ""
+    return process.stdout.decode("utf-8", errors="replace").strip()
+
+
 def show_file(repo_dir: str, ref: str, path: str) -> bytes | None:
     """Le contenu de `path` à la référence `ref`, ou None s'il n'y est pas.
 

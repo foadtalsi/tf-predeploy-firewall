@@ -44,6 +44,7 @@ from .forges import (
     default_post_comment,
     post_suggestions,
     post_to_pr,
+    repo_full_name,
     request_second_reviewer_if_critical,
 )
 from .goflags import normalize_argv
@@ -191,6 +192,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=_env_or("TFPDF_LICENSE_KEY", ""),
         help="paid-plan API key. Entirely optional — leave unset to run the scanner "
         "exactly as the free, open-source tool it has always been.",
+    )
+    p.add_argument(
+        "--repo-name",
+        default=_env_or("TFPDF_REPO_NAME", ""),
+        help='the "owner/repo" this scan is reported under, for usage, waivers and org '
+        "policy. Only read with a license key. Normally resolved on its own — from "
+        "GITHUB_REPOSITORY or CI_PROJECT_PATH on CI, and from the origin remote "
+        "otherwise — so pass this only when neither is right.",
     )
     p.add_argument(
         "--license-api-base",
@@ -397,8 +406,15 @@ def main(argv: list[str] | None = None) -> int:
         # it in a real scan.
         return run_rules_dry_run(args.config, args.repo_dir)
 
+    # Résolu une seule fois, ici, et non à chacun des trois appels au plan de
+    # contrôle : politique, dérogations et usage doivent nommer le MÊME dépôt.
+    # S'ils divergeaient, un scan pourrait recevoir la politique de « acme/infra »
+    # et être compté sous un autre nom, qui apparaîtrait comme un second dépôt
+    # dans le tableau de bord et consommerait un second dépôt du plan.
+    args.repo_name = repo_full_name(args.repo_dir, args.repo_name)
+
     if args.license_key:
-        apply_org_policy(config, args.license_key, args.license_api_base)
+        apply_org_policy(config, args.license_key, args.license_api_base, args.repo_name)
     warn_unknown_threshold(config.block_threshold)
 
     try:
@@ -554,12 +570,12 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
         _warn(message)
 
     if args.license_key:
-        findings = apply_waivers(findings, args.license_key, args.license_api_base)
+        findings = apply_waivers(findings, args.license_key, args.license_api_base, args.repo_name)
 
     blocked = blocked_by(findings, config.block_threshold)
 
     if args.license_key and report_usage(
-        args.license_key, args.license_api_base, findings, blocked
+        args.license_key, args.license_api_base, findings, blocked, args.repo_name
     ):
         return 3
 

@@ -17,14 +17,15 @@ import sys
 from .. import licensing
 from ..report.finding import Finding
 from .config import Config
-from .forges import repo_full_name_from_env
 
 
 def _warn(message: str) -> None:
     print("tf-predeploy-firewall: " + message, file=sys.stderr)
 
 
-def apply_org_policy(config: Config, license_key: str, api_base: str) -> None:
+def apply_org_policy(
+    config: Config, license_key: str, api_base: str, repo_full_name: str = ""
+) -> None:
     """Récupère la politique Growth gérée centralement pour l'organisation, s'il
     y en a une, et la fusionne sur `cfg` sur place.
 
@@ -35,7 +36,7 @@ def apply_org_policy(config: Config, license_key: str, api_base: str) -> None:
     """
     client = licensing.new_client(license_key, api_base)
     try:
-        policy = client.get_policy(repo_full_name_from_env())
+        policy = client.get_policy(repo_full_name)
     except Exception as exc:
         _warn(f"fetching org policy failed, using local config ({exc})")
         return
@@ -65,7 +66,9 @@ def apply_org_policy(config: Config, license_key: str, api_base: str) -> None:
         config.require_second_reviewer_teams = list(policy.require_second_reviewer_teams)
 
 
-def apply_waivers(findings: list[Finding], license_key: str, api_base: str) -> list[Finding]:
+def apply_waivers(
+    findings: list[Finding], license_key: str, api_base: str, repo_full_name: str = ""
+) -> list[Finding]:
     """Marque comme couverte par une dérogation chaque découverte
     correspondante, en y attachant sa justification.
 
@@ -74,7 +77,6 @@ def apply_waivers(findings: list[Finding], license_key: str, api_base: str) -> l
     injoignable, les découvertes reviennent inchangées. Un hoquet du plan de
     contrôle ne doit jamais accorder, ni refuser, une dérogation en silence.
     """
-    repo_full_name = repo_full_name_from_env()
     if not repo_full_name:
         return findings
 
@@ -96,7 +98,13 @@ def apply_waivers(findings: list[Finding], license_key: str, api_base: str) -> l
     return findings
 
 
-def report_usage(license_key: str, api_base: str, findings: list[Finding], blocked: bool) -> bool:
+def report_usage(
+    license_key: str,
+    api_base: str,
+    findings: list[Finding],
+    blocked: bool,
+    repo_full_name: str = "",
+) -> bool:
     """Envoie l'issue de ce scan au service de licence. Rend True quand le quota
     de l'organisation est épuisé, auquel cas l'appelant s'arrête avant de poster
     des commentaires ou d'écrire du SARIF.
@@ -104,11 +112,16 @@ def report_usage(license_key: str, api_base: str, findings: list[Finding], block
     Échoue en ouvert : une panne ou une erreur réseau est journalisée mais ne
     bloque PAS le scan.
     """
-    repo_full_name = repo_full_name_from_env()
     if not repo_full_name:
+        # Le seul chemin qui laisse encore un scan non rapporté : ni CI, ni
+        # distant git exploitable, ni --repo-name. Il se dit à voix haute,
+        # parce qu'un scan silencieusement hors quota est un écart entre ce que
+        # l'organisation consomme et ce que son tableau de bord montre.
         _warn(
-            "TFPDF_LICENSE_KEY is set but neither GITHUB_REPOSITORY nor CI_PROJECT_PATH "
-            "is — skipping usage reporting for this run"
+            "TFPDF_LICENSE_KEY is set but this scan has no repository name — no "
+            "GITHUB_REPOSITORY or CI_PROJECT_PATH, and no usable git remote. This scan "
+            "will NOT be counted against your plan; pass --repo-name owner/repo (or set "
+            "TFPDF_REPO_NAME) to record it."
         )
         return False
 

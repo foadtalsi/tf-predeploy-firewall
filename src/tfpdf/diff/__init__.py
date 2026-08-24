@@ -14,6 +14,7 @@ from .git import (
     all_terragrunt_files,
     changed_terraform_files,
     changed_terragrunt_files,
+    remote_url,
     show_file,
 )
 from .local import (
@@ -40,6 +41,7 @@ __all__ = [
     "changed_terragrunt_files",
     "changed_tfvars_files",
     "is_tfvars",
+    "remote_url",
     "show_file",
     "staged_terraform_files",
     "staged_terragrunt_files",

@@ -3,6 +3,39 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [v1.2.2] — 2026-08-24
+
+### Fixed
+- **Un scan lancé hors CI n'était pas décompté du quota.** Le nom du dépôt
+  rapporté au plan de contrôle ne venait que de `GITHUB_REPOSITORY` ou
+  `CI_PROJECT_PATH`. Sur un poste de travail, aucune des deux n'existe : le nom
+  était vide, `report_usage` renonçait, et le scan n'était **ni compté ni
+  visible** dans le tableau de bord de l'organisation. Une clé de licence sur
+  une machine de développeur donnait donc des scans illimités, en silence — et
+  les dérogations comme la politique d'organisation étaient ignorées du même
+  coup, pour la même raison.
+
+  Le nom se replie maintenant sur l'URL du distant `origin`, réduite à son
+  chemin. Ce repli est fait pour **coïncider** avec la variable de CI et non
+  s'y ajouter : `git@github.com:acme/infra.git` donne `acme/infra`, ce que
+  GitHub Actions met dans `GITHUB_REPOSITORY`. Un dépôt scanné tantôt en CI
+  tantôt à la main reste un seul dépôt et n'en consomme qu'un dans la limite du
+  plan.
+
+  Ordre de résolution : `--repo-name` / `TFPDF_REPO_NAME`, puis la variable de
+  CI, puis le distant. Le seul cas encore non rapporté — pas de dépôt git, pas
+  de distant, ou un distant qui n'est qu'un chemin de dossier — le dit
+  maintenant à voix haute au lieu de passer sous silence, parce qu'un écart
+  entre ce qu'une organisation consomme et ce que son tableau de bord montre
+  est précisément ce qui vient d'être corrigé. Sans clé de licence, rien de
+  tout ceci ne s'exécute : le scanner ne contacte toujours personne.
+
+### Added
+- `--repo-name` / `TFPDF_REPO_NAME` : le nom sous lequel rapporter ce scan,
+  quand ni la CI ni le distant git ne donnent le bon. Notamment le cas d'un
+  dépôt cloné avec une autre casse que son nom canonique, que le repli ne
+  rattrape pas.
+
 ## [v1.2.1] — 2026-08-24
 
 ### Added

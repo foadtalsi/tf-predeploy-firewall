@@ -372,10 +372,7 @@ def test_apply_org_policy_custom_rules_yaml_overrides_local_config() -> None:
 # --- waivers_test.go --------------------------------------------------------
 
 
-def test_apply_waivers_matches_by_category_resource_file(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("GITHUB_REPOSITORY", "acme/infra")
+def test_apply_waivers_matches_by_category_resource_file() -> None:
     body = [
         {
             "category": "missing_lifecycle",
@@ -391,19 +388,16 @@ def test_apply_waivers_matches_by_category_resource_file(
     ]
 
     with StubServer(lambda r: Response(body=body)) as srv:
-        got = apply_waivers(findings, "test-key", srv.url)
+        got = apply_waivers(findings, "test-key", srv.url, "acme/infra")
 
     assert got[0].waived and got[0].waiver_note == "ticketed in INFRA-42"
     assert not got[1].waived, "a different resource must remain active"
 
 
-def test_apply_waivers_line_number_does_not_affect_match(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_apply_waivers_line_number_does_not_affect_match() -> None:
     """La ligne de la découverte a dérivé depuis la création de la dérogation —
     l'appariement n'est délibérément PAS sensible à la ligne, donc cela doit
     quand même correspondre."""
-    monkeypatch.setenv("GITHUB_REPOSITORY", "acme/infra")
     body = [
         {
             "category": "missing_lifecycle",
@@ -415,19 +409,20 @@ def test_apply_waivers_line_number_does_not_affect_match(
     findings = [_finding(resource="aws_db_instance.legacy", line=42, severity=Severity.CRITICAL)]
 
     with StubServer(lambda r: Response(body=body)) as srv:
-        assert apply_waivers(findings, "test-key", srv.url)[0].waived
+        assert apply_waivers(findings, "test-key", srv.url, "acme/infra")[0].waived
 
 
-def test_apply_waivers_no_repo_env_var_leaves_findings_untouched() -> None:
+def test_apply_waivers_without_a_repo_name_leaves_findings_untouched() -> None:
+    """Un dépôt que personne n'a su nommer : il n'y a rien à demander au plan
+    de contrôle, et surtout rien à accorder par défaut."""
     findings = [_finding(resource="x")]
-    got = apply_waivers(findings, "test-key", "http://127.0.0.1:1")
+    got = apply_waivers(findings, "test-key", "http://127.0.0.1:1", "")
     assert not got[0].waived
 
 
-def test_apply_waivers_fails_open_on_network_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GITHUB_REPOSITORY", "acme/infra")
+def test_apply_waivers_fails_open_on_network_error() -> None:
     findings = [_finding(resource="x", severity=Severity.CRITICAL)]
-    got = apply_waivers(findings, "test-key", "http://127.0.0.1:1")  # nothing listening
+    got = apply_waivers(findings, "test-key", "http://127.0.0.1:1", "acme/infra")  # rien n'écoute
     assert not got[0].waived
 
 

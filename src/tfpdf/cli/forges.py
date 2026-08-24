@@ -17,7 +17,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
-from .. import githubpr, gitlabmr, report
+from .. import diff, githubpr, gitlabmr, report
 from ..forge import InlineComment
 from ..report.finding import Finding, Severity
 from .config import Config
@@ -56,6 +56,85 @@ def repo_full_name_from_env() -> str:
     GitHub.
     """
     return os.environ.get("GITHUB_REPOSITORY") or os.environ.get("CI_PROJECT_PATH", "")
+
+
+def repo_full_name(repo_dir: str = ".", override: str = "") -> str:
+    """Le nom sous lequel ce scan est rapporté au plan de contrôle.
+
+    Hors CI, `GITHUB_REPOSITORY` et `CI_PROJECT_PATH` sont tous les deux
+    absents, et ce nom était alors vide. Or il est **obligatoire** côté
+    serveur : un scan sans lui n'était pas rapporté du tout, donc pas décompté
+    du quota. Un poste de travail portant une clé de licence scannait sans
+    limite, en silence, et l'organisation ne voyait jamais ces scans dans son
+    tableau de bord. C'est ce trou que le repli sur le distant git bouche.
+
+    L'ordre, du plus fort au plus faible :
+
+    1. `--repo-name` / `TFPDF_REPO_NAME`, qui tranche partout — c'est la sortie
+       de secours quand rien d'autre ne convient ;
+    2. la variable de la CI, qui reste la source d'autorité là où elle existe ;
+    3. l'URL du distant `origin`, réduite à son chemin.
+
+    Le point 3 est fait pour **coïncider** avec le point 2 et non pour s'y
+    ajouter : `git@github.com:acme/infra.git` donne `acme/infra`, exactement ce
+    que GitHub Actions met dans `GITHUB_REPOSITORY`. Un dépôt scanné tantôt en
+    CI tantôt sur un poste reste donc un seul dépôt, et n'en consomme qu'un
+    dans la limite de dépôts du plan.
+
+    Ce que ce repli ne rattrape pas : la casse. `GITHUB_REPOSITORY` porte le
+    nom canonique, tandis que le distant porte ce que la personne a tapé en
+    clonant — `Acme/Infra` cloné ainsi compterait pour un second dépôt. Rendre
+    la chaîne minuscule casserait les forges dont les chemins sont sensibles à
+    la casse ; `--repo-name` est la réponse à ce cas-là.
+
+    Rendre "" reste possible (aucun dépôt git, aucun distant, un distant qui
+    est un simple chemin de dossier). L'appelant traite ce cas ; jamais une
+    erreur, un scan ne dépendant pas de savoir se nommer.
+    """
+    if override.strip():
+        return override.strip()
+    if from_ci := repo_full_name_from_env():
+        return from_ci
+    return _repo_path_from_remote_url(diff.remote_url(repo_dir))
+
+
+def _repo_path_from_remote_url(url: str) -> str:
+    """Le « proprio/dépôt » contenu dans une URL de distant git, ou "".
+
+    Les trois formes qu'un `git remote get-url` peut rendre :
+    `https://hôte/chemin.git`, `ssh://git@hôte/chemin.git`, et la forme scp
+    `git@hôte:chemin.git`. Le chemin est gardé entier, sous-groupes GitLab
+    compris, parce que c'est entier que `CI_PROJECT_PATH` le donne.
+    """
+    url = url.strip().removesuffix("/")
+    if not url:
+        return ""
+    url = url.removesuffix(".git")
+
+    if "://" in url:
+        _, _, after_scheme = url.partition("://")
+        # Ce qui précède le premier « / » est l'hôte (et son éventuel
+        # utilisateur ou port) ; le reste est le chemin.
+        _, separator, path = after_scheme.partition("/")
+        if not separator:
+            return ""
+    else:
+        host, separator, path = url.partition(":")
+        # Un « : » absent, précédé d'un « / », ou précédé d'une seule lettre
+        # (« C:/dépôts/… », une lettre de lecteur Windows) signale un chemin de
+        # dossier et non un hôte : un dépôt cloné depuis un autre dossier du
+        # disque n'a aucune identité que le plan de contrôle puisse
+        # reconnaître, et lui en inventer une créerait un dépôt fantôme dans le
+        # tableau de bord.
+        if not separator or "/" in host or len(host) == 1:
+            return ""
+
+    path = path.strip("/")
+    # Au moins « quelque chose/quelque chose ». Un chemin d'un seul segment ne
+    # ressemble à aucune des deux forges et vaut mieux non rapporté.
+    if "/" not in path:
+        return ""
+    return path
 
 
 def default_base_ref() -> str:
