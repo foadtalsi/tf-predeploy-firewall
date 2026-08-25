@@ -23,11 +23,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Before your first Monday: a full-repo scan reads EVERY .tf in the
+      # checkout, including the ones you never meant as production — test
+      # fixtures, examples/, tutorial copies, a sandbox module. They are
+      # usually the worst Terraform in the repo, on purpose, so the very first
+      # audit goes red on code nobody was going to fix. A weekly red check
+      # stops being read after about two weeks, and then you have no audit at
+      # all.
+      #
+      # Two ways to keep the red meaningful, and you want one of them:
+      #
+      #   * a config file next to your Terraform, to drop whole trees —
+      #         ignore_paths:
+      #           - path: "test/fixtures/**"
+      #           - path: "examples/**"
+      #
+      #   * a baseline, to accept what already exists and block only what is
+      #     new. Generate it once with `--write-baseline`, commit it, and pass
+      #     it below.
+      #
+      # This repository does the first: see config/default.yml.
       - uses: foadtalsi/tf-predeploy-firewall@v1
         with:
           full-repo-scan: "true"
           block-threshold: high
           sarif-output: tf-firewall-audit.sarif
+          # baseline: .tf-firewall-baseline.json
           # No github-token / post-comment here — there's no PR to comment
           # on for a scheduled run.
 

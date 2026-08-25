@@ -1,0 +1,19 @@
+# La configuration que le scanner s'applique À LUI-MÊME.
+#
+# Rien ici ne part chez personne : le Dockerfile ne copie pas ce dossier, et
+# `--config` vaut par défaut `config/default.yml` relativement au dépôt scanné.
+# Dans un dépôt client ce fichier n'existe pas, et l'absence vaut « valeurs par
+# défaut ».
+#
+# Il existe parce que l'audit programmé de ce dépôt échouait tous les lundis
+# depuis des semaines. Les seuls .tf ici sont les fixtures des tests, et elles
+# sont mauvaises EXPRÈS — mots de passe en clair, attributs inventés, absence
+# de prevent_destroy : c'est ce que les tests vérifient qu'on détecte. Le
+# scanner les détectait donc, correctement, et rendait 1.
+#
+# Le résultat était un rouge hebdomadaire sur la branche principale, et un
+# rouge hebdomadaire cesse d'être lu au bout de deux semaines. Les exclure rend
+# à cet échec sa signification : à partir de maintenant, un audit rouge veut
+# dire que quelque chose de neuf est apparu.
+ignore_paths:
+  - path: "tests/data/**"
