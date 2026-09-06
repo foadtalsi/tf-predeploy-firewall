@@ -143,11 +143,15 @@ class Finding:
     #: `force_destroy = true` and no `prevent_destroy` carries two findings
     #: that agree on category *and* resource and come from different rules.
     #:
-    #: It is not serialised anywhere. SARIF keeps using the category as its
-    #: ruleId, the baseline file still matches on category+resource+file, and
-    #: the PR comment does not print it — those are all output formats pinned
-    #: byte-for-byte against the Go scanner, and this field exists for code
-    #: that has to tell two findings apart, not for the report.
+    #: Sérialisé dans un seul format : le fichier de référence, depuis sa
+    #: version 2, qui l'apparie. C'est ce qui empêche une entrée acceptée pour
+    #: « prevent_destroy manquant » de faire taire aussi le « force_destroy »
+    #: de la même ressource.
+    #:
+    #: Nulle part ailleurs. SARIF garde la catégorie comme ruleId et le
+    #: commentaire de PR ne l'imprime pas — deux formats épinglés octet pour
+    #: octet contre le scanner Go, que ce champ n'a aucune raison de faire
+    #: dériver.
     #:
     #: Empty is allowed and means "nothing asked": a finding built by hand in a
     #: test, or one that no pack entry describes. Code that branches on it must

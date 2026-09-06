@@ -568,6 +568,18 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
                 "--write-baseline"
             )
         _warn(message)
+        if base.legacy:
+            # Dit une fois, en clair, avec la conséquence plutôt que le numéro
+            # de version. « format version 1 » n'apprend rien à personne ; « une
+            # découverte que vous n'avez jamais acceptée peut être silencieuse »
+            # se comprend sans lire le code.
+            _warn(
+                f"baseline {args.baseline} is in the older format, which did not record "
+                "which rule each accepted finding came from. Several rules share a "
+                "category, so an entry accepted for one of them also silences the "
+                "others on the same resource — including findings you never saw. "
+                "Regenerate it with --write-baseline to match exactly."
+            )
 
     if args.license_key:
         findings = apply_waivers(findings, args.license_key, args.license_api_base, args.repo_name)

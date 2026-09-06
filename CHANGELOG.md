@@ -3,6 +3,46 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- **Une dérogation accordée pour une règle en faisait taire une autre.** Le
+  fichier de référence appariait sur catégorie + ressource + fichier. Or
+  plusieurs règles partagent une catégorie : « prevent_destroy manquant » et
+  « force_destroy sur un compartiment » sont toutes deux `missing_lifecycle`.
+  Sur la même ressource et le même fichier, elles avaient donc la même clé.
+
+  Ce n'est pas théorique. Sur notre propre infrastructure, la lecture cloud
+  avait fait monter `force_destroy` de medium à **critical** en constatant que
+  les deux compartiments existaient et n'étaient pas vides ; la découverte est
+  arrivée dans le rapport déjà neutralisée par une entrée écrite pour le
+  prevent_destroy manquant. Toute la valeur de la vérification était annulée
+  par une dérogation accordée pour autre chose.
+
+  Le même défaut mangeait des entrées à l'écriture : `--write-baseline`
+  dédoublonnait sur la clé, donc deux règles d'une catégorie ne produisaient
+  qu'une seule entrée. Regénérée, la référence de notre plan de contrôle passe
+  de 25 à 31 entrées — six découvertes que l'ancien format ne pouvait pas
+  distinguer.
+
+### Changed
+- **Le format de référence passe en version 2** : `rule_name` est écrit dans
+  chaque entrée et entre dans la clé.
+
+  **Les références en version 1 continuent de fonctionner**, appariées comme
+  avant, c'est-à-dire trop largement. Elles ne disent pas quelle règle leur
+  auteur avait acceptée et rien ne permet de le reconstruire ; refuser de les
+  apparier rendrait bloquantes des centaines de découvertes déjà acceptées, dans
+  chaque dépôt, à la première exécution après la mise à jour. Une montée de
+  version qui punit ceux qui ont adopté l'outil tôt est une montée de version
+  que personne n'applique.
+
+  Le scan le dit alors une fois, en clair, avec la conséquence plutôt que le
+  numéro de version, et `--write-baseline` referme le trou. C'est la version du
+  fichier qui décide de l'appariement, jamais le champ : une entrée de version 2
+  sans nom de règle — le cas d'un fichier que le scanner n'a pas su analyser —
+  reste appariée exactement, ce n'est pas un joker.
+
 ## [v1.2.2] — 2026-08-24
 
 ### Fixed
