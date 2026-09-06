@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v1.2.4] — 2026-09-06
 
 ### Fixed
 - **Le scanner jugeait contre une version que le dépôt n'utilise pas.** Un dépôt
