@@ -69,6 +69,34 @@ BENIGN_PREFIXES = (
 _WHITESPACE = (" ", "\t", "\n")
 
 
+def is_public_by_shape(value: str) -> bool:
+    """Dit si une valeur est publique par construction, quelle que soit son
+    entropie.
+
+    Cette connaissance existait déjà, enfermée dans `looks_like_secret` — donc
+    consultée par le seul repli statistique, et par aucune des règles qui
+    apparient une forme. Le résultat se voyait sur du vrai code :
+
+        policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+
+    rapporté en **critical** comme « possible AWS secret key (40-char base64) ».
+    Le motif `[a-z0-9/+]{40}` n'est pas ancré : il trouve une fenêtre de quarante
+    caractères à l'intérieur du nom de la policy, la confirmation ne juge que
+    cette fenêtre, et personne n'a jamais regardé la valeur entière — qui
+    commence par `arn:`, une des formes listées ici depuis toujours.
+
+    Une politique gérée d'AWS est publique, constante, et documentée. Accuser
+    quelqu'un de l'avoir commise est le genre de découverte qui fait couper la
+    règle, puis l'outil.
+
+    Ne juge que le PRÉFIXE. Tout ce qui ressemble à un secret enfoui dans une
+    valeur plus grande — une clé dans un script `user_data`, une armure PEM sur
+    plusieurs lignes — doit continuer de sortir, et c'est le motif qui s'en
+    charge.
+    """
+    return value.lower().startswith(BENIGN_PREFIXES)
+
+
 def shannon_entropy(s: str) -> float:
     """L'entropie par caractère de `s`, en bits.
 
@@ -110,12 +138,14 @@ def looks_like_secret(value: str) -> tuple[float, bool]:
     """
     if byte_len(value) < ENTROPY_MIN_LENGTH:
         return 0.0, False
-    # Anything with spaces is prose, a command line, or a key file's
-    # human-readable armor — all of which other checks handle better.
+    # Propre à l'entropie, et NON à `is_public_by_shape` : mesurer le hasard
+    # d'un blob de prose ne veut rien dire, mais une clé AWS posée au milieu
+    # d'un script `user_data` — donc au milieu d'espaces — est exactement ce
+    # qu'il faut trouver. Confondre les deux a coûté deux découvertes du corpus
+    # doré, dont une clé PEM.
     if any(c in value for c in _WHITESPACE):
         return 0.0, False
-    lower = value.lower()
-    if lower.startswith(BENIGN_PREFIXES):
+    if is_public_by_shape(value):
         return 0.0, False
 
     h = shannon_entropy(value)

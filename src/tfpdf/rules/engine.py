@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .. import ignore
+from .. import ignore, providerversion
 from ..hcl import EvalContext, HCLParseError
 from ..parser import Resource, build_scope, parse_file, parse_file_with_context, type_from_address
 from ..report.finding import Category, Finding, Severity
@@ -30,6 +30,11 @@ class Result:
     findings: list[Finding] = field(default_factory=list)
     #: resource address -> changed attribute keys
     changed_attrs: dict[str, set[ChangedAttrKey]] = field(default_factory=dict)
+    #: Ce que l'utilisateur doit savoir du scan lui-même, et qui n'est pas une
+    #: découverte : aujourd'hui, les fournisseurs dont le schéma embarqué est
+    #: hors de la fourchette épinglée, et pour lesquels on s'est donc tu. Le
+    #: moteur n'imprime rien ; l'appelant décide où ça va.
+    notes: list[str] = field(default_factory=list)
 
 
 class ScopeCache:
@@ -37,11 +42,58 @@ class ScopeCache:
     réutilise, pour que scanner vingt fichiers d'un même module lise les .tf de
     ce module une fois plutôt que vingt."""
 
-    __slots__ = ("_scope_by_directory", "repo_dir")
+    __slots__ = (
+        "_constraints_by_directory",
+        "_head_by_path",
+        "_scope_by_directory",
+        "repo_dir",
+    )
 
-    def __init__(self, repo_dir: str) -> None:
+    def __init__(self, repo_dir: str, head_by_path: dict[str, bytes] | None = None) -> None:
         self.repo_dir = repo_dir
         self._scope_by_directory: dict[str, EvalContext | None] = {}
+        self._constraints_by_directory: dict[str, dict[str, str]] = {}
+        #: Le contenu de TOUS les fichiers de cette passe, par chemin.
+        #:
+        #: Les contraintes de version d'un module vivent presque toujours dans
+        #: `versions.tf`, c'est-à-dire dans un autre fichier que celui qui porte
+        #: la ressource jugée. Sans cette vue d'ensemble, un appelant qui ne
+        #: donne pas de `repo_dir` — les tests, et tout usage en bibliothèque —
+        #: ne verrait la contrainte d'aucun module.
+        self._head_by_path = head_by_path or {}
+
+    def constraints_for(self, path: str, head_content: bytes | None) -> dict[str, str]:
+        """Les contraintes de version des fournisseurs qui s'appliquent à `path`.
+
+        Par répertoire, parce que c'est la portée que Terraform donne à
+        `required_providers` : un bloc dans `versions.tf` vaut pour tout le
+        module, et c'est presque toujours là qu'il vit — pas dans le fichier
+        qu'on est en train de scanner.
+
+        `head_content` prime sur la copie du disque, pour la même raison que la
+        portée : une PR qui déplace une contrainte doit être jugée sur ce
+        qu'elle écrit, pas sur ce qui était là avant.
+        """
+        directory = str(Path(path).parent)
+        if directory in self._constraints_by_directory:
+            return self._constraints_by_directory[directory]
+
+        files = self._read_dir(directory) if self.repo_dir else {}
+        # Ce que la passe a sous la main prime sur le disque, pour la même
+        # raison que la portée : une PR qui déplace une contrainte doit être
+        # jugée sur ce qu'elle écrit.
+        for other, content in self._head_by_path.items():
+            if str(Path(other).parent) == directory:
+                files[other] = content
+        if head_content is not None:
+            files[path] = head_content
+
+        found: dict[str, str] = {}
+        for _, source in sorted(files.items()):
+            for name, constraint in providerversion.constraints_in(source).items():
+                found.setdefault(name, constraint)
+        self._constraints_by_directory[directory] = found
+        return found
 
     def for_file(self, path: str, head_content: bytes | None) -> EvalContext | None:
         """La portée du répertoire contenant `path`. `head_content` est le contenu
@@ -119,8 +171,12 @@ def run(
     findings: list[Finding] = []
     inline_by_file: dict[str, dict[int, set[str]]] = {}
     changed_attrs: dict[str, set[ChangedAttrKey]] = {}
+    constraints_by_file: dict[str, dict[str, str]] = {}
 
-    scopes = ScopeCache(options.repo_dir)
+    scopes = ScopeCache(
+        options.repo_dir,
+        {f.path: f.head_content for f in files},
+    )
 
     for changed_file in files:
         # Collect inline ignore directives from the head revision source.
@@ -131,6 +187,9 @@ def run(
         # holds the checked-out revision, which is what we want, but being
         # explicit keeps the two consistent.
         scope = scopes.for_file(changed_file.path, changed_file.head_content)
+        constraints_by_file[changed_file.path] = scopes.constraints_for(
+            changed_file.path, changed_file.head_content
+        )
 
         try:
             head_resources = parse_file_with_context(
@@ -178,10 +237,91 @@ def run(
     if options.cloud_reader is not None:
         adjust_severity_against_the_cloud(findings)
 
+    notes = drop_findings_the_pinned_provider_contradicts(
+        findings, constraints_by_file, knowledge_base
+    )
+
     kept = ignore.apply(findings, inline_by_file, options.global_ignore)
     attach_doc_urls(kept, knowledge_base)
 
-    return Result(findings=kept, changed_attrs=changed_attrs)
+    return Result(findings=kept, changed_attrs=changed_attrs, notes=notes)
+
+
+#: Les découvertes tirées du SCHÉMA, et elles seules. Ce sont les deux qui
+#: disent « le fournisseur accepte ceci / ceci force une destruction » — deux
+#: affirmations qui ne valent que pour la version du schéma qu'on porte.
+#:
+#: Tout le reste juge une valeur écrite dans le fichier : un mot de passe en
+#: clair est un mot de passe en clair sur toutes les versions d'AWS, et retirer
+#: ces règles-là parce qu'un dépôt épingle un vieux fournisseur serait
+#: exactement le mauvais choix.
+SCHEMA_DERIVED_RULES = frozenset({"unknown_attribute", "force_new_change"})
+
+
+def drop_findings_the_pinned_provider_contradicts(
+    findings: list[Finding],
+    constraints_by_file: dict[str, dict[str, str]],
+    knowledge_base: KnowledgeBase | None,
+) -> list[str]:
+    """Retire les accusations que la version épinglée par le dépôt dément, et
+    rend de quoi le dire à l'utilisateur.
+
+    Le cas qui l'a motivé : un dépôt déclare `aws = "~> 3.0"` et écrit
+    `vpc = true` sur un `aws_eip`. C'est valide en 3.x — l'attribut n'a disparu
+    qu'en 6.x — et le scanner le rapportait en « attribut inconnu », severity
+    high, avec un lien vers la documentation 6.59.0. Une accusation confiante et
+    fausse, sur précisément ce qui distingue ce produit de `terraform validate`.
+
+    Se taire plutôt que corriger : nous n'avons pas le schéma de la version
+    qu'ils utilisent, donc nous n'avons rien à dire de leurs attributs. Prétendre
+    le contraire est ce qui vient d'arriver.
+
+    Retire **par fichier**, pas globalement : deux modules d'un même dépôt
+    épinglent souvent des fournisseurs différents, et la contrainte de l'un n'a
+    rien à dire des ressources de l'autre.
+    """
+    if knowledge_base is None:
+        return []
+    version_of = {p.name: p.version for p in knowledge_base.coverage().providers}
+    if not version_of:
+        return []
+
+    silenced: dict[tuple[str, str, str], None] = {}
+    kept: list[Finding] = []
+    for finding in findings:
+        provider = _provider_the_finding_judges(finding)
+        constraint = constraints_by_file.get(finding.file, {}).get(provider, "")
+        our_version = version_of.get(provider, "")
+        if (
+            finding.rule_name in SCHEMA_DERIVED_RULES
+            and constraint
+            and our_version
+            and not providerversion.allows(constraint, our_version)
+        ):
+            silenced[(provider, constraint, our_version)] = None
+            continue
+        kept.append(finding)
+
+    if len(kept) != len(findings):
+        findings[:] = kept
+
+    return [
+        f'{provider} is pinned to "{constraint}" here, and the schema this scanner '
+        f"carries is {version}. Attribute and ForceNew findings for {provider} were "
+        "dropped rather than judged against a version you do not use — every other "
+        "rule still ran."
+        for provider, constraint, version in silenced
+    ]
+
+
+def _provider_the_finding_judges(finding: Finding) -> str:
+    """Le fournisseur dont cette découverte parle, depuis son adresse de
+    ressource. Rend "" pour ce qui n'en désigne aucun — une erreur d'analyse
+    porte `-` en guise de ressource."""
+    resource_type, _, recognised = type_from_address(finding.resource)
+    if not recognised:
+        return ""
+    return providerversion.provider_of(resource_type)
 
 
 def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:

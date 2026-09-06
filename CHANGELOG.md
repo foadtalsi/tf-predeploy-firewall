@@ -3,6 +3,60 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+- **Le scanner jugeait contre une version que le dépôt n'utilise pas.** Un dépôt
+  qui déclare `aws = "~> 3.0"` écrit légitimement `vpc = true` sur un `aws_eip` :
+  l'attribut n'a disparu qu'en 6.x. Le scanner le rapportait en « attribut
+  inconnu », severity high, avec un lien vers la documentation 6.59.0.
+
+  C'est la phrase même de la page d'accueil — *whether an argument exists in the
+  provider you're actually pinned to* — et elle jouait à l'envers. C'est aussi ce
+  qui distingue ce produit de `terraform validate`.
+
+  La contrainte est maintenant lue dans le `required_providers` du **répertoire**
+  du fichier, la portée que Terraform lui donne : elle vit presque toujours dans
+  `versions.tf`, pas dans le fichier qui porte la ressource. Quand le schéma
+  embarqué est hors de la fourchette épinglée, les deux règles tirées du schéma —
+  `unknown_attribute` et `force_new_change` — se taisent pour ce fournisseur, et
+  le scan dit lequel et pourquoi. Se taire vaut mieux qu'avoir tort avec
+  assurance : nous n'avons pas leur schéma, donc nous n'avons rien à en dire.
+
+  Tout ce qui juge une valeur écrite continue de tourner. Un mot de passe en clair
+  est un mot de passe en clair sur toutes les versions d'AWS.
+
+- **La suggestion de correction inventait l'adresse du fournisseur.** Le bloc
+  proposé écrivait `source = "hashicorp/{nom}"` sans condition. Sur un dépôt qui
+  publie son propre fournisseur — Rootly publie `rootlyhq/rootly`, et l'écrit
+  dans l'entrée juste au-dessus — la suggestion **remplaçait l'adresse correcte
+  par une qui n'existe pas**, dans un bloc ```suggestion, donc derrière un bouton
+  « Commit suggestion ».
+
+  Une adresse déclarée est désormais reprise telle quelle, et aucune n'est jamais
+  écrite si elle n'était pas déjà là. Le `version = "~> 5.0"` était une constante
+  vraie d'aucun fournisseur ; le majeur vient de la base de connaissances. Pour un
+  fournisseur qu'elle ne couvre pas, il n'y a plus de suggestion du tout — la
+  découverte reste et dit ce qui manque, sans prétendre le remplir.
+
+- **Des valeurs publiques par construction étaient rapportées comme des secrets.**
+  `policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"`
+  sortait en **critical**, « possible AWS secret key (40-char base64) ». Le motif
+  n'est pas ancré : il trouve sa fenêtre de quarante caractères dans le nom de la
+  policy, la confirmation ne juge que cette fenêtre, et la valeur entière — qui
+  commence par `arn:` — n'était regardée par personne. La connaissance existait
+  pourtant, enfermée dans le repli statistique et consultée par lui seul.
+
+  Elle est maintenant appliquée à la valeur entière avant tout motif. S'y ajoutent
+  les attributs qui ne peuvent pas porter de secret : `public_key`, `thumbprint`,
+  `thumbprint_list`, `fingerprint`, `sid`, `records`. Sur un lot de dépôts publics,
+  ces quelques cas expliquaient l'essentiel des accusations à tort.
+
+  La garde de la garde : un secret enfoui dans une valeur plus grande — une clé
+  AWS au milieu d'un script `user_data`, une armure PEM sur plusieurs lignes —
+  continue de sortir. Une première version de l'exclusion l'avait cassé, et le
+  corpus doré l'a attrapée.
+
 ## [v1.2.3] — 2026-09-06
 
 ### Fixed

@@ -360,6 +360,9 @@ _KNOWN_MOBILE = frozenset({"main", "master", "HEAD", "develop", "trunk", "latest
 #: name and its body.
 _REQUIRED_PROVIDER_ENTRY = re.compile(r"([a-z][a-z0-9_-]*)\s*=\s*\{(.*?)\}", re.DOTALL)
 
+#: The `source = "namespace/type"` already written inside such an entry.
+_DECLARED_SOURCE = re.compile(r'source\s*=\s*"([^"]+)"')
+
 
 class UnpinnedVersionRule:
     """Signale les sources de modules et les exigences de fournisseurs qui
@@ -385,7 +388,7 @@ class UnpinnedVersionRule:
             if res.kind is not Kind.MODULE:
                 continue
             findings.extend(_check_module_source(in_.path, res))
-        findings.extend(_check_required_providers(in_.path, in_.head_source))
+        findings.extend(_check_required_providers(in_.path, in_.head_source, kb))
         return findings
 
 
@@ -459,7 +462,7 @@ def _is_git_source(value: str) -> bool:
     )
 
 
-def _check_required_providers(path: str, source: bytes) -> list[Finding]:
+def _check_required_providers(path: str, source: bytes, kb: KnowledgeBase | None) -> list[Finding]:
     """Signale les fournisseurs déclarés sans contrainte de version.
 
     Ceci lit le texte source plutôt que les ressources analysées, parce que
@@ -496,12 +499,69 @@ def _check_required_providers(path: str, source: bytes) -> list[Finding]:
                     "release of it can change or break this configuration with no commit "
                     "here to explain why"
                 ),
-                suggestion=(
-                    f'{name} = {{\n  source  = "hashicorp/{name}"\n  version = "~> 5.0"\n}}'
-                ),
+                suggestion=_pin_suggestion(name, entry, kb),
             )
         )
     return findings
+
+
+def _pin_suggestion(name: str, entry: str, kb: KnowledgeBase | None) -> str:
+    """Le bloc à coller pour épingler ce fournisseur, ou "" quand on ne sait pas.
+
+    Deux inventions vivaient ici, et la première était grave.
+
+    **L'adresse.** Le bloc écrivait `source = "hashicorp/{name}"` sans
+    condition. Sur un dépôt qui déclare son propre fournisseur — Rootly publie
+    `rootlyhq/rootly`, et l'écrit dans l'entrée juste au-dessus — la suggestion
+    remplaçait l'adresse correcte par une adresse qui n'existe pas. Dans un bloc
+    ```suggestion de GitHub, c'est-à-dire derrière un bouton « Commit
+    suggestion ». Envoyer cela à l'équipe qui publie ce fournisseur est le pire
+    résultat possible d'un outil qui se vend sur l'exactitude.
+
+    Une adresse déclarée est donc reprise telle quelle, et **aucune n'est jamais
+    écrite si elle n'était pas déjà là**. Terraform résout un `source` absent en
+    `hashicorp/<nom>` de toute façon ; l'écrire nous-mêmes n'ajouterait rien et
+    ferait passer une convention pour une vérification.
+
+    **La version.** `~> 5.0` était une constante, vraie d'aucun fournisseur en
+    particulier. Elle vient maintenant de la base de connaissances — la seule
+    chose ici qui sache réellement quelle version d'un fournisseur existe. Pour
+    un fournisseur qu'elle ne couvre pas, il n'y a pas de suggestion du tout :
+    la découverte reste, et elle dit ce qui manque sans prétendre le remplir.
+    """
+    if kb is None:
+        return ""
+    major = _known_major(name, entry, kb)
+    if major is None:
+        return ""
+
+    lines = [f"{name} = {{"]
+    declared = _DECLARED_SOURCE.search(entry)
+    if declared is not None:
+        lines.append(f'  source  = "{declared.group(1)}"')
+    lines.append(f'  version = "~> {major}.0"')
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def _known_major(name: str, entry: str, kb: KnowledgeBase) -> str | None:
+    """Le numéro majeur que la base de connaissances porte pour ce fournisseur,
+    ou None.
+
+    L'adresse décide, pas le nom local : `aws = { source = "someone/aws" }` est
+    un autre fournisseur que celui dont nous avons le schéma, et lui proposer
+    notre numéro de version serait la même erreur d'un cran plus discrète. Un
+    `source` absent vaut `hashicorp/<nom>`, ce que Terraform fait lui-même.
+    """
+    declared = _DECLARED_SOURCE.search(entry)
+    address = declared.group(1) if declared is not None else f"hashicorp/{name}"
+    namespace, _, type_ = address.rpartition("/")
+    if namespace.lower() != "hashicorp":
+        return None
+    for provider in kb.coverage().providers:
+        if provider.name == type_:
+            return provider.version.split(".")[0] or None
+    return None
 
 
 def _required_providers_body(source: str) -> tuple[str, int] | None:

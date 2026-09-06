@@ -13,7 +13,7 @@ from ..report.finding import Category, Finding, Fix, Severity
 from ..ruledef import Match, Rule
 from ..schema import KnowledgeBase
 from .base import FileInput
-from .entropy import byte_len
+from .entropy import byte_len, is_public_by_shape
 from .fix import credential_var_name, replace_attr_line, via_suffix
 from .predicates import CONFIRM_PREDICATES, VALUE_PREDICATES
 from .template import expand, expand_all, go_quote
@@ -223,6 +223,12 @@ def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool
     if m.attr_name_contains and m.attr_name_contains.lower() not in name.lower():
         return 0.0, False
 
+    # Avant les motifs, et non après : `value_matches` n'est pas ancré, donc il
+    # trouve sa fenêtre à l'intérieur d'un ARN aussi bien que dans un secret, et
+    # `confirm` ne regarde ensuite que la fenêtre. La valeur entière est la
+    # seule chose qui puisse dire « ceci est public ».
+    if m.value_not_public and is_public_by_shape(attribute.raw_value):
+        return 0.0, False
     if m.value_not_one_of and attribute.raw_value in m.value_not_one_of:
         return 0.0, False
     if m.value_contains and m.value_contains not in attribute.raw_value:

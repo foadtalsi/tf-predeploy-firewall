@@ -501,6 +501,12 @@ def _scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
     )
     findings = list(result.findings)
 
+    # Dit à voix haute, et pas seulement absent du rapport : un scan qui se tait
+    # sur un fournisseur doit dire lequel et pourquoi, sinon « aucune découverte »
+    # se lit comme « rien à signaler ».
+    for note in result.notes:
+        _warn(note)
+
     if args.plan_json:
         # A --plan-json that names a file we can't read or parse is fatal, not a
         # degraded scan: the operator asked for phase 2 explicitly, and silently

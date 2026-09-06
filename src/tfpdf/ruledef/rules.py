@@ -39,10 +39,30 @@ FORMAT_VERSION_DECLARED = 1
 # Défini une fois et référencé plus bas. Sept règles partagent l'exclusion par
 # nom de credential ; sept copies dériveraient dès qu'un fournisseur inventerait
 # une nouvelle orthographe.
-CREDENTIAL_ATTRIBUTE_NAMES = (
-    r"(?i)^(?:.*_)?(password|passwd|secret|secret_key|access_key|api_key|token"
+_CREDENTIAL_NAME_BODY = (
+    r"^(?:.*_)?(password|passwd|secret|secret_key|access_key|api_key|token"
     r"|private_key|client_secret|auth_token|connection_string)$"
 )
+
+CREDENTIAL_ATTRIBUTE_NAMES = "(?i)" + _CREDENTIAL_NAME_BODY
+
+#: Attributs dont la valeur est publiée par définition, quelle que soit son
+#: allure. Ils ne sont pas exclus par prudence mais par sens : le contenu d'un
+#: `public_key` est fait pour être distribué, une empreinte OIDC est publiée par
+#: le fournisseur d'identité, un enregistrement DNS est servi au monde entier
+#: par construction, et un `sid` est un identifiant de phrase de policy.
+#:
+#: Ce qui les rassemble est qu'ils portent tous de la haute entropie sans
+#: qu'aucun secret ne soit en jeu — la forme ne peut pas les distinguer d'un
+#: jeton, seul le nom le peut. Sur un lot de dépôts publics, ces quelques noms
+#: expliquaient à eux seuls l'essentiel des accusations à tort.
+_PUBLIC_NAME_BODY = r"^(?:.*_)?(public_key|thumbprint|thumbprint_list|fingerprint|sid|records)$"
+
+#: Ce que les règles par la VALEUR ignorent : les noms déjà couverts par
+#: `hardcoded_credential`, plus ceux qui ne peuvent pas porter de secret. Une
+#: seule expression parce qu'`attr_name_not_matches` n'en accepte qu'une, et un
+#: seul `(?i)` en tête parce que Python refuse un drapeau au milieu d'un motif.
+NOT_A_SECRET_BY_NAME = f"(?i)(?:{_CREDENTIAL_NAME_BODY})|(?:{_PUBLIC_NAME_BODY})"
 
 PLACEHOLDER_NAMES = (
     r"(?i)^(example|test|demo|foo|bar|my[-_]?bucket|my[-_]?app|sample|tmp|temp"
@@ -63,9 +83,14 @@ def credential_value_match(**conditions: object) -> Match:
         literal=True,
         # En dessous il n'y a pas assez de chaîne pour juger.
         min_length=16,
-        # Les noms déjà signalés par hardcoded_credential ; sans cette exclusion
-        # la même ligne porterait deux découvertes.
-        attr_name_not_matches=CREDENTIAL_ATTRIBUTE_NAMES,
+        # Les noms déjà signalés par hardcoded_credential — sans cette exclusion
+        # la même ligne porterait deux découvertes — et ceux qui ne peuvent pas
+        # porter de secret du tout.
+        attr_name_not_matches=NOT_A_SECRET_BY_NAME,
+        # Un ARN, une URL, une clé publique SSH : publics par construction, et
+        # jugés sur la valeur ENTIÈRE avant qu'un motif non ancré n'y trouve sa
+        # fenêtre de quarante caractères.
+        value_not_public=True,
         **conditions,  # type: ignore[arg-type]
     )
 

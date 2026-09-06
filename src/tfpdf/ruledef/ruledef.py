@@ -114,6 +114,13 @@ class Match:
     value_contains: str = ""
     value_not_one_of: list[str] = field(default_factory=list)
 
+    #: Rejette d'emblée les valeurs publiques par construction — un ARN, une
+    #: URL, une clé publique SSH, un identifiant de ressource Azure. Vaut pour
+    #: la valeur ENTIÈRE, avant tout motif, parce qu'un motif non ancré trouve
+    #: sa fenêtre à l'intérieur de n'importe quelle chaîne assez longue et que
+    #: la confirmation ne juge ensuite que cette fenêtre.
+    value_not_public: bool = False
+
     #: Applies to scope: resource_name.
     name_matches: str = ""
 
