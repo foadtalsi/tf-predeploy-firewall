@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [v1.2.3] — 2026-09-06
 
 ### Fixed
 - **Une dérogation accordée pour une règle en faisait taire une autre.** Le
