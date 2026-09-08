@@ -19,3 +19,8 @@ __pycache__/
 
 .env
 .DS_Store
+
+# Notes de travail personnelles, pas de la documentation : le README et le
+# CHANGELOG portent ce que le public doit savoir. Un TODO commité devient une
+# liste de faiblesses publiée sur le dépôt du scanner.
+/TODO.md
