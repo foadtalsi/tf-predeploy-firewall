@@ -4,7 +4,8 @@ approximatif — sans plan, sans état et sans identifiants.
 
 Port de internal/schema/loader.go et docs.go.
 
-Les packs sont des fichiers de données générés (voir `tfpdf.genpack`). Le
+Les packs sont des fichiers de données générés par un outil qui ne vit pas
+dans ce dépôt (`tfpdfcloud.genpack`, plan de contrôle). Le
 scanner embarque un pack de base et peut y superposer un pack plus large
 récupéré au moment du scan ; les deux viennent de la même version du
 fournisseur, donc la superposition ne contredit jamais la base.

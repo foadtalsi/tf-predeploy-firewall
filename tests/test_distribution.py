@@ -179,7 +179,10 @@ def test_the_console_scripts_point_at_functions_that_exist() -> None:
 
     document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     entries = document["project"]["scripts"]
-    assert set(entries) == {"tf-predeploy-firewall", "tfpdf-genpack"}
+    # Un seul, et l'égalité stricte est le test : `tfpdf-genpack` a été retiré
+    # d'ici parce qu'un `pip install` du scanner gratuit posait le générateur de
+    # la donnée payante sur le PATH. Rien ne doit le remettre par distraction.
+    assert set(entries) == {"tf-predeploy-firewall"}
 
     for name, target in entries.items():
         module_name, func_name = target.split(":")
@@ -237,3 +240,24 @@ def test_the_dockerfile_installs_git_and_entrypoints_the_scanner() -> None:
     # build on a runner rather than here.
     for copied in ("pyproject.toml", "README.md", "src"):
         assert (ROOT / copied).exists(), f"the Dockerfile COPYs {copied}, which is missing"
+
+
+def test_the_pack_generator_does_not_ship_with_the_scanner() -> None:
+    """`tfpdf.genpack` fabriquait les deux packs — celui, gratuit, qu'embarque le
+    scanner, et le complet que le plan de contrôle sert aux organisations sous
+    licence. Il était livré par `pip install` du produit gratuit, et sa
+    docstring donnait les trois commandes.
+
+    Les entrées sont publiques : le schéma vient de HashiCorp, les drapeaux
+    ForceNew des sources du fournisseur. Les 2 840 types que vend un plan se
+    régénéraient donc en dix minutes avec notre propre outil, installé par
+    l'outil gratuit.
+
+    Il vit maintenant dans le dépôt du plan de contrôle. Ceci empêche un
+    `git mv` distrait de le ramener.
+    """
+    assert not (ROOT / "src" / "tfpdf" / "genpack").exists()
+
+    import importlib.util
+
+    assert importlib.util.find_spec("tfpdf.genpack") is None
