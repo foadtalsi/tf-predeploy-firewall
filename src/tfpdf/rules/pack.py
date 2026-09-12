@@ -1,4 +1,4 @@
-"""Le câblage entre le pack de règles et ce moteur."""
+"""Connect rule-pack definitions to executable detectors."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ CREDENTIAL_VALUE_GROUP = "credential_value"
 
 
 class BrokenBuildError(RuntimeError):
-    """Pack intégré inutilisable : erreur fatale pour ne pas annoncer un scan réussi sans règles."""
+    """An unusable built-in pack. Stop rather than report success without running rules."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -43,7 +43,7 @@ class _PackRefs:
 
 
 def builtin_pack_source() -> bytes:
-    """Le YAML du pack de règles intégré, tel que livré."""
+    """Return the built-in pack as YAML."""
     return ruledef.builtin_yaml()
 
 
@@ -78,12 +78,12 @@ def _load_builtin() -> _PackRefs:
 
 
 def builtin_pack() -> Pack:
-    """Le pack de règles livré avec cette version."""
+    """Return the pack shipped with this version."""
     return _load_builtin().pack
 
 
 def _validate_predicates(p: Pack) -> None:
-    """Rejette un pack nommant un prédicat que cette version n'implémente pas."""
+    """Reject predicates unsupported by this scanner version."""
     confirm, value = known_predicates()
     for rule in p.rules:
         if rule.match is None:
@@ -102,9 +102,7 @@ def _validate_predicates(p: Pack) -> None:
 
 @dataclass(slots=True, frozen=True)
 class _BuiltRule:
-    """Une règle exécutable à côté de la déclaration dont elle vient, pour que
-    les appelants puissent filtrer sur ce que le pack en dit sans inspecter des
-    types."""
+    """An executable rule paired with its declaration for metadata-based filtering."""
 
     rule: Rule
     #: The definition, or a group's first member.
@@ -138,18 +136,17 @@ def _build_rules(p: Pack) -> list[_BuiltRule]:
 
 
 def from_pack(p: Pack) -> list[Rule]:
-    """Construit les règles dans l'ordre du pack, en regroupant les alternatives déclaratives
-    (première correspondance gagnante)."""
+    """Build rules in pack order, combining declarative alternatives into first-match groups."""
     return [b.rule for b in _build_rules(p)]
 
 
 def default_rules(opts: Options | None = None) -> list[Rule]:
-    """Le jeu de règles intégré, dans l'ordre du pack."""
+    """Return the built-in rules in pack order."""
     return from_pack(builtin_pack())
 
 
 def rules_for_category(p: Pack, category: str) -> Rule:
-    """Tout ce qu'un pack définit pour une catégorie, en une seule règle."""
+    """Combine every rule in a category into one detector."""
     out = RuleSet(b.rule for b in _build_rules(p) if b.spec.category == category)
     if not out:
         raise RulePackError(f"pack defines no runnable rules for category {category!r}")
@@ -157,8 +154,7 @@ def rules_for_category(p: Pack, category: str) -> Rule:
 
 
 def _compiled_engine(spec: RuleSpec) -> Rule | None:
-    """Construit une règle statique ; retourne None pour les règles de plan et les règles
-    désactivées."""
+    """Build a static detector, returning None for plan rules and disabled rules."""
     engine = spec.engine
     if engine == "unknown_attribute":
         return UnknownAttributeRule()
@@ -185,17 +181,14 @@ def _compiled_engine(spec: RuleSpec) -> Rule | None:
 
 
 def is_credential_attr_name(name: str) -> bool:
-    """Dit si `name` ressemble à un attribut porteur d'identifiant, au seul vu de son nom
-    (password, api_key, token, …)."""
+    """Check whether an attribute name suggests credentials, such as password, api_key, or token."""
     pattern = _load_builtin().credential_name
     return pattern is not None and pattern.search(name) is not None
 
 
 def match_credential_value_pattern(value: str) -> tuple[str, bool]:
-    """Confronte `value` aux formats d'identifiants bien connus que le pack
-    déclare, quel que soit l'attribut d'où elle vient.
-
-    Rend l'étiquette lisible du motif trouvé et True, ou ("", False).
+    """Match a value against known credential formats. Return (pattern label, True), or ("",
+    False).
     """
     from .entropy import byte_len
 
@@ -214,6 +207,5 @@ def match_credential_value_pattern(value: str) -> tuple[str, bool]:
 
 
 def is_open_cidr(value: str) -> bool:
-    """Dit si `value` est le bloc CIDR grand ouvert que cherche la règle
-    open_cidr du pack."""
+    """Check whether a value matches the pack's unrestricted CIDR pattern."""
     return value == _load_builtin().open_cidr

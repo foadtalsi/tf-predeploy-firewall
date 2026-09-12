@@ -1,33 +1,9 @@
-"""Le pack de règles intégré : ce que le scanner cherche, comment chaque
-découverte est formulée, et ce qu'elle explique ensuite au lecteur.
+"""Built-in rule definitions, messages, fixes, and category documentation.
 
-Deux familles de règles vivent ici :
-
-    match=  — entièrement déclarative. Le moteur parcourt les ressources et
-              les attributs et applique les conditions. Tout de la règle, y
-              compris son correctif en un clic, est dans ce fichier.
-
-    engine= — le parcours est compilé, parce que c'est quelque chose qu'un
-              matcher ne peut pas exprimer : une consultation du schéma du
-              fournisseur, une comparaison avec la révision de base, un scan
-              à accolades appariées du source brut. La règle déclare quand
-              même ici son identité, ses paramètres et sa documentation.
-
-Le vocabulaire qu'une règle peut invoquer (`confirm`, `predicate`,
-`fix.action`) est fixe et fourni par le binaire. Il n'y a pas de langage
-d'expression et pas d'échappée vers du code : ce scanner tourne dans la CI
-d'autres gens, et un format de règles qui peut exécuter est un format qu'on
-peut armer.
-
-Ce fichier était du YAML. Il est devenu du Python pour que mypy vérifie la
-forme de chaque règle et qu'une faute de frappe dans un nom de champ soit une
-erreur de typage plutôt qu'une clé silencieusement ignorée. Le prix est réel
-et assumé : corriger une règle demande maintenant une publication du paquet,
-là où éditer un fichier de données n'en demandait pas.
-
-Les packs des clients, eux, restent du YAML — voir `ruledef.load`. C'est
-délibéré : accepter du Python fourni par un client rendrait exécutable
-exactement le format qu'on vient de décrire comme ne l'étant pas.
+match rules use declarative conditions; engine rules delegate to specialized
+checks such as schema lookup or revision comparison. Predicates and fix actions
+come from a fixed vocabulary. Python definitions are type-checked; external
+packs remain YAML data and cannot execute Python.
 """
 
 from __future__ import annotations
@@ -36,9 +12,7 @@ from .ruledef import CategoryDoc, Fix, Match, Pack, Rule
 
 FORMAT_VERSION_DECLARED = 1
 
-# Défini une fois et référencé plus bas. Sept règles partagent l'exclusion par
-# nom de credential ; sept copies dériveraient dès qu'un fournisseur inventerait
-# une nouvelle orthographe.
+# Share credential-name exclusions so all affected rules stay consistent.
 _CREDENTIAL_NAME_BODY = (
     r"^(?:.*_)?(password|passwd|secret|secret_key|access_key|api_key|token"
     r"|private_key|client_secret|auth_token|connection_string)$"
@@ -46,22 +20,12 @@ _CREDENTIAL_NAME_BODY = (
 
 CREDENTIAL_ATTRIBUTE_NAMES = "(?i)" + _CREDENTIAL_NAME_BODY
 
-#: Attributs dont la valeur est publiée par définition, quelle que soit son
-#: allure. Ils ne sont pas exclus par prudence mais par sens : le contenu d'un
-#: `public_key` est fait pour être distribué, une empreinte OIDC est publiée par
-#: le fournisseur d'identité, un enregistrement DNS est servi au monde entier
-#: par construction, et un `sid` est un identifiant de phrase de policy.
-#:
-#: Ce qui les rassemble est qu'ils portent tous de la haute entropie sans
-#: qu'aucun secret ne soit en jeu — la forme ne peut pas les distinguer d'un
-#: jeton, seul le nom le peut. Sur un lot de dépôts publics, ces quelques noms
-#: expliquaient à eux seuls l'essentiel des accusations à tort.
+# Public attributes can contain high-entropy text without being secrets: keys, fingerprints, DNS
+# records, and policy statement IDs.
 _PUBLIC_NAME_BODY = r"^(?:.*_)?(public_key|thumbprint|thumbprint_list|fingerprint|sid|records)$"
 
-#: Ce que les règles par la VALEUR ignorent : les noms déjà couverts par
-#: `hardcoded_credential`, plus ceux qui ne peuvent pas porter de secret. Une
-#: seule expression parce qu'`attr_name_not_matches` n'en accepte qu'une, et un
-#: seul `(?i)` en tête parce que Python refuse un drapeau au milieu d'un motif.
+# Value checks exclude names covered by hardcoded_credential and public attributes. Keep one
+# leading regex case flag.
 NOT_A_SECRET_BY_NAME = f"(?i)(?:{_CREDENTIAL_NAME_BODY})|(?:{_PUBLIC_NAME_BODY})"
 
 PLACEHOLDER_NAMES = (
@@ -71,25 +35,18 @@ PLACEHOLDER_NAMES = (
 
 
 def credential_value_match(**conditions: object) -> Match:
-    """Où chaque vérification de credential par la valeur regarde, et ce qu'elle
-    ignore.
-
-    Les quatre champs communs sont ici plutôt que sur la première règle qui les
-    emploie, pour qu'une fusion de pack n'emporte aucun motif de travers avec
-    elle. Chaque appelant n'ajoute que la forme qu'il reconnaît.
+    """Build shared credential-value filters; callers add the specific credential format to
+    recognize.
     """
     return Match(
         scope="any_attribute",
         literal=True,
-        # En dessous il n'y a pas assez de chaîne pour juger.
+        # Shorter strings provide insufficient evidence.
         min_length=16,
-        # Les noms déjà signalés par hardcoded_credential — sans cette exclusion
-        # la même ligne porterait deux découvertes — et ceux qui ne peuvent pas
-        # porter de secret du tout.
+        # Avoid duplicate credential findings and exclude values that are public by definition.
         attr_name_not_matches=NOT_A_SECRET_BY_NAME,
-        # Un ARN, une URL, une clé publique SSH : publics par construction, et
-        # jugés sur la valeur ENTIÈRE avant qu'un motif non ancré n'y trouve sa
-        # fenêtre de quarante caractères.
+        # Inspect the whole value for public forms before searching credential-shaped
+        # substrings.
         value_not_public=True,
         **conditions,  # type: ignore[arg-type]
     )
@@ -1238,13 +1195,7 @@ DOCS: list[CategoryDoc] = [
 
 
 def build() -> Pack:
-    """Construit et valide le pack.
-
-    `index()` fait tout le travail de vérification : il compile chaque
-    expression régulière, vérifie chaque énumération et rejette les doublons
-    d'identifiant — le même code que pour un pack YAML chargé depuis un
-    fichier, pour qu'un pack écrit ici ne bénéficie d'aucune indulgence.
-    """
+    """Build and validate the pack using the same indexing checks as external YAML packs."""
     pack = Pack(version=FORMAT_VERSION_DECLARED, rules=RULES, docs=DOCS)
     pack.index()
     return pack

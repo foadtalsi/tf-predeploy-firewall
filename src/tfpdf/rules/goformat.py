@@ -1,4 +1,4 @@
-"""Rend une valeur issue d'un JSON décodé comme le `fmt.Sprint` de Go."""
+"""Format decoded JSON values using Go fmt.Sprint conventions."""
 
 from __future__ import annotations
 
@@ -8,8 +8,7 @@ from typing import Any
 
 
 def sprint(v: Any) -> str:
-    """Rend une valeur issue d'un décodage JSON comme le ferait le `fmt.Sprint`
-    de Go."""
+    """Format a decoded JSON value as Go fmt.Sprint would."""
     if v is None:
         return "<nil>"
     if v is True:
@@ -33,7 +32,7 @@ def sprint(v: Any) -> str:
 
 
 def format_float(f: float) -> str:
-    """Rend un float64 comme le fait le `%v` de Go — `strconv.FormatFloat(f, 'g', -1, 64)`."""
+    """Format a float as Go strconv.FormatFloat(f, 'g', -1, 64) would."""
     if math.isnan(f):
         return "NaN"
     if math.isinf(f):

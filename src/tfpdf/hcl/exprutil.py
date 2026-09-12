@@ -1,11 +1,7 @@
-"""Questions structurelles sur une expression, sans l'évaluer.
+"""Inspect expression structure without evaluating it.
 
-Porte les deux aides `hcl.Expr*` que le scanner utilise : `ExprMap` et
-`ExprAsKeyword`. Toutes deux existent parce que le `inputs = { … }` de Terragrunt
-doit être parcouru clé par clé plutôt qu'évalué d'un bloc — la plupart de ses
-valeurs référencent des dépendances et ne se résolvent à rien, et un map qui
-échouerait entièrement à s'évaluer emporterait avec lui chaque secret littéral
-qu'il contient.
+Terragrunt inputs must be inspected entry by entry: an unresolved dependency
+in one value must not hide literal secrets elsewhere in the same object.
 """
 
 from __future__ import annotations
@@ -22,13 +18,7 @@ class KeyValuePair:
 
 
 def expr_map(expr: Expression) -> list[KeyValuePair] | None:
-    """Les paires clé/valeur d'une expression de construction d'objet, ou None
-    si l'expression n'en est pas une.
-
-    None est la réponse « ce n'est pas un littéral de map », correspondant à ce
-    que l'appelant Go fait d'un diagnostic : arrêter de descendre, il n'y a rien
-    de plus à inspecter.
-    """
+    """Return key/value expression pairs for an object constructor, or None for other expressions."""
     inner = _unwrap(expr)
     if not isinstance(inner, ObjectConsExpr):
         return None
@@ -36,13 +26,8 @@ def expr_map(expr: Expression) -> list[KeyValuePair] | None:
 
 
 def expr_as_keyword(expr: Expression) -> str:
-    """L'identifiant nu dont une expression est faite, ou « ».
-
-    `inputs = { db_password = "x" }` donne la clé sous forme de traversée à une
-    seule étape — un mot-clé — tandis que `"db-password" = "x"` donne un
-    littéral de chaîne. Tout le reste, c'est-à-dire une clé calculée, rend « »,
-    et l'appelant inspecte quand même la valeur, simplement sans clé pointée
-    dans ses messages.
+    """Return a bare identifier, or an empty string for quoted or computed keys. Callers can still
+    inspect the value without a key name.
     """
     inner = _unwrap(expr)
     if isinstance(inner, ObjectConsKeyExpr):

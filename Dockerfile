@@ -44,17 +44,7 @@ COPY --from=build /dist/*.whl /tmp/
 # so the bytes sit unused for anyone who never asks for it.
 RUN pip install --no-cache-dir "$(ls /tmp/*.whl)[aws]" && rm /tmp/*.whl
 
-# La garde de propriété de git ne se règle PAS ici, et c'est délibéré.
-#
-# Il y avait à cet endroit un `git config --global --add safe.directory`. Il
-# n'a jamais eu d'effet : `--global` écrit dans `$HOME/.gitconfig` au moment de
-# la construction de l'image, et GitHub réécrit `HOME` à l'exécution
-# (`/github/home`). Le fichier existait, git ne le lisait jamais, et chaque
-# scan échouait sur « dubious ownership » — donc l'Action ne calculait aucun
-# diff, chez personne.
-#
-# Le réglage est désormais passé par `-c` à chaque appel git, dans
-# `tfpdf.diff.git`. Il ne dépend plus de l'environnement, et il couvre les
-# usages que cette image ne voit pas.
+# Git ownership overrides are passed per command in tfpdf.diff.git; a build-time global config
+# would be lost when Actions changes HOME.
 
 ENTRYPOINT ["tf-predeploy-firewall"]

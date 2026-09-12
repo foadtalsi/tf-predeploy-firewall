@@ -1,17 +1,8 @@
-"""Les diagnostics — le canal d'erreurs de l'analyseur et de l'évaluateur.
+"""Parser and evaluator diagnostics.
 
-Modelés sur hcl.Diagnostics plutôt que sur les exceptions Python, et la raison
-est dans l'évaluateur plutôt que dans l'analyseur. `expr.value(ctx)` est appelé
-sur chaque attribut de chaque ressource, et *la plupart de ces appels sont
-censés échouer* : une valeur qui lit `var.region` sans contexte, un appel de
-fonction, tout ce qui se calcule au moment du plan. C'est le chemin normal et
-courant, pas un chemin d'erreur.
-
-Rendre `(valeur, diagnostics)` le maintient ainsi. Lever ferait du cas ordinaire
-une exception, et tous les sites d'appel seraient un `try/except` autour de ce
-qu'ils veulent réellement. Cela correspond aussi ligne pour ligne à la source Go
-dont ceci est porté, ce qui rend les deux comparables quand une découverte
-diffère.
+Evaluation returns (value, diagnostics) because unresolved references and
+function calls are normal during static analysis. They are not exceptions.
+Callers must check diagnostics before trusting a returned value.
 """
 
 from __future__ import annotations
@@ -42,14 +33,13 @@ class Diagnostic:
 
 
 class Diagnostics(list[Diagnostic]):
-    """Une liste de diagnostics, avec les deux helpers que hcl lui donne."""
+    """Diagnostics with error detection and summary helpers."""
 
     def has_errors(self) -> bool:
         return any(diagnostic.severity is Severity.ERROR for diagnostic in self)
 
     def error(self) -> str:
-        """Rend comme le fait hcl.Diagnostics.Error() : le premier diagnostic,
-        plus le décompte de ceux qui suivaient."""
+        """Format the first diagnostic and the count of additional diagnostics, matching HCL."""
         if not self:
             return "no diagnostics"
         if len(self) == 1:
@@ -64,13 +54,12 @@ class Diagnostics(list[Diagnostic]):
 
 
 def error(summary: str, detail: str = "", subject: Range | None = None) -> Diagnostics:
-    """Raccourci pour le cas à une seule erreur, qui est presque tous les cas."""
+    """Create diagnostics containing a single error."""
     return Diagnostics([Diagnostic(Severity.ERROR, summary, detail, subject)])
 
 
 class HCLParseError(Exception):
-    """Levée uniquement là où le code Go rend une erreur dure à son appelant :
-    `ParseFile` sur un fichier malformé. L'évaluation ne lève jamais."""
+    """A malformed file rejected by parse_file. Expression evaluation uses diagnostics instead."""
 
     def __init__(self, diags: Diagnostics) -> None:
         super().__init__(diags.error())

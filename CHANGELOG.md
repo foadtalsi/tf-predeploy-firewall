@@ -1,255 +1,102 @@
 # Changelog
 
-All notable changes to this project are documented here. Format loosely
-follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Notable changes to the scanner. Historical entries describe behavior at the time of
+release; see the [usage guide](docs/usage.md) for current behavior.
+
+## [Unreleased]
+
+### Changed
+
+- Reorganized the English documentation around installation, usage, architecture,
+  and contribution. Shortened and translated source and test explanations.
+
+### Fixed
+
+- A hosted quota refusal no longer hides the report or fails the build with exit
+  code 3. The scan remains visible locally and in PR comments; only hosted recording
+  is skipped. Findings determine the exit code.
 
 ## [v1.2.4] — 2026-09-06
 
 ### Fixed
-- **Le scanner jugeait contre une version que le dépôt n'utilise pas.** Un dépôt
-  qui déclare `aws = "~> 3.0"` écrit légitimement `vpc = true` sur un `aws_eip` :
-  l'attribut n'a disparu qu'en 6.x. Le scanner le rapportait en « attribut
-  inconnu », severity high, avec un lien vers la documentation 6.59.0.
 
-  C'est la phrase même de la page d'accueil — *whether an argument exists in the
-  provider you're actually pinned to* — et elle jouait à l'envers. C'est aussi ce
-  qui distingue ce produit de `terraform validate`.
-
-  La contrainte est maintenant lue dans le `required_providers` du **répertoire**
-  du fichier, la portée que Terraform lui donne : elle vit presque toujours dans
-  `versions.tf`, pas dans le fichier qui porte la ressource. Quand le schéma
-  embarqué est hors de la fourchette épinglée, les deux règles tirées du schéma —
-  `unknown_attribute` et `force_new_change` — se taisent pour ce fournisseur, et
-  le scan dit lequel et pourquoi. Se taire vaut mieux qu'avoir tort avec
-  assurance : nous n'avons pas leur schéma, donc nous n'avons rien à en dire.
-
-  Tout ce qui juge une valeur écrite continue de tourner. Un mot de passe en clair
-  est un mot de passe en clair sur toutes les versions d'AWS.
-
-- **La suggestion de correction inventait l'adresse du fournisseur.** Le bloc
-  proposé écrivait `source = "hashicorp/{nom}"` sans condition. Sur un dépôt qui
-  publie son propre fournisseur — Rootly publie `rootlyhq/rootly`, et l'écrit
-  dans l'entrée juste au-dessus — la suggestion **remplaçait l'adresse correcte
-  par une qui n'existe pas**, dans un bloc ```suggestion, donc derrière un bouton
-  « Commit suggestion ».
-
-  Une adresse déclarée est désormais reprise telle quelle, et aucune n'est jamais
-  écrite si elle n'était pas déjà là. Le `version = "~> 5.0"` était une constante
-  vraie d'aucun fournisseur ; le majeur vient de la base de connaissances. Pour un
-  fournisseur qu'elle ne couvre pas, il n'y a plus de suggestion du tout — la
-  découverte reste et dit ce qui manque, sans prétendre le remplir.
-
-- **Des valeurs publiques par construction étaient rapportées comme des secrets.**
-  `policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"`
-  sortait en **critical**, « possible AWS secret key (40-char base64) ». Le motif
-  n'est pas ancré : il trouve sa fenêtre de quarante caractères dans le nom de la
-  policy, la confirmation ne juge que cette fenêtre, et la valeur entière — qui
-  commence par `arn:` — n'était regardée par personne. La connaissance existait
-  pourtant, enfermée dans le repli statistique et consultée par lui seul.
-
-  Elle est maintenant appliquée à la valeur entière avant tout motif. S'y ajoutent
-  les attributs qui ne peuvent pas porter de secret : `public_key`, `thumbprint`,
-  `thumbprint_list`, `fingerprint`, `sid`, `records`. Sur un lot de dépôts publics,
-  ces quelques cas expliquaient l'essentiel des accusations à tort.
-
-  La garde de la garde : un secret enfoui dans une valeur plus grande — une clé
-  AWS au milieu d'un script `user_data`, une armure PEM sur plusieurs lignes —
-  continue de sortir. Une première version de l'exclusion l'avait cassé, et le
-  corpus doré l'a attrapée.
+- Respect module-level provider constraints when judging schema-derived findings.
+  If the loaded schema falls outside the pinned range, warn and drop
+  `unknown_attribute` and `force_new_change` findings for that provider. Other
+  checks still run; the scanner does not assume an older provider's schema.
+- Preserve declared provider source addresses in pinning suggestions. Use a known
+  provider major version instead of a hardcoded constraint; omit an exact version
+  fix when the provider is not covered.
+- Avoid reporting public values as credentials. Check whole-value forms such as
+  ARNs before substring matching, and exclude public attributes such as keys,
+  fingerprints, policy statement IDs, and DNS records. Continue detecting known
+  credentials embedded in scripts and multiline values.
 
 ## [v1.2.3] — 2026-09-06
 
 ### Fixed
-- **Une dérogation accordée pour une règle en faisait taire une autre.** Le
-  fichier de référence appariait sur catégorie + ressource + fichier. Or
-  plusieurs règles partagent une catégorie : « prevent_destroy manquant » et
-  « force_destroy sur un compartiment » sont toutes deux `missing_lifecycle`.
-  Sur la même ressource et le même fichier, elles avaient donc la même clé.
 
-  Ce n'est pas théorique. Sur notre propre infrastructure, la lecture cloud
-  avait fait monter `force_destroy` de medium à **critical** en constatant que
-  les deux compartiments existaient et n'étaient pas vides ; la découverte est
-  arrivée dans le rapport déjà neutralisée par une entrée écrite pour le
-  prevent_destroy manquant. Toute la valeur de la vérification était annulée
-  par une dérogation accordée pour autre chose.
-
-  Le même défaut mangeait des entrées à l'écriture : `--write-baseline`
-  dédoublonnait sur la clé, donc deux règles d'une catégorie ne produisaient
-  qu'une seule entrée. Regénérée, la référence de notre plan de contrôle passe
-  de 25 à 31 entrées — six découvertes que l'ancien format ne pouvait pas
-  distinguer.
+- Include rule identity in baseline matching. Accepting `missing_lifecycle` no longer
+  also accepts `s3_force_destroy` on the same resource and file merely because the
+  two findings share a category.
 
 ### Changed
-- **Le format de référence passe en version 2** : `rule_name` est écrit dans
-  chaque entrée et entre dans la clé.
 
-  **Les références en version 1 continuent de fonctionner**, appariées comme
-  avant, c'est-à-dire trop largement. Elles ne disent pas quelle règle leur
-  auteur avait acceptée et rien ne permet de le reconstruire ; refuser de les
-  apparier rendrait bloquantes des centaines de découvertes déjà acceptées, dans
-  chaque dépôt, à la première exécution après la mise à jour. Une montée de
-  version qui punit ceux qui ont adopté l'outil tôt est une montée de version
-  que personne n'applique.
-
-  Le scan le dit alors une fois, en clair, avec la conséquence plutôt que le
-  numéro de version, et `--write-baseline` referme le trou. C'est la version du
-  fichier qui décide de l'appariement, jamais le champ : une entrée de version 2
-  sans nom de règle — le cas d'un fichier que le scanner n'a pas su analyser —
-  reste appariée exactement, ce n'est pas un joker.
+- Baseline format version 2 stores `rule_name`, including an empty name for findings
+  without a rule. Version 1 remains readable with its original broader matching and
+  a warning. Regenerate it with `--write-baseline` to use exact matching.
 
 ## [v1.2.2] — 2026-08-24
 
 ### Fixed
-- **Un scan lancé hors CI n'était pas décompté du quota.** Le nom du dépôt
-  rapporté au plan de contrôle ne venait que de `GITHUB_REPOSITORY` ou
-  `CI_PROJECT_PATH`. Sur un poste de travail, aucune des deux n'existe : le nom
-  était vide, `report_usage` renonçait, et le scan n'était **ni compté ni
-  visible** dans le tableau de bord de l'organisation. Une clé de licence sur
-  une machine de développeur donnait donc des scans illimités, en silence — et
-  les dérogations comme la politique d'organisation étaient ignorées du même
-  coup, pour la même raison.
 
-  Le nom se replie maintenant sur l'URL du distant `origin`, réduite à son
-  chemin. Ce repli est fait pour **coïncider** avec la variable de CI et non
-  s'y ajouter : `git@github.com:acme/infra.git` donne `acme/infra`, ce que
-  GitHub Actions met dans `GITHUB_REPOSITORY`. Un dépôt scanné tantôt en CI
-  tantôt à la main reste un seul dépôt et n'en consomme qu'un dans la limite du
-  plan.
-
-  Ordre de résolution : `--repo-name` / `TFPDF_REPO_NAME`, puis la variable de
-  CI, puis le distant. Le seul cas encore non rapporté — pas de dépôt git, pas
-  de distant, ou un distant qui n'est qu'un chemin de dossier — le dit
-  maintenant à voix haute au lieu de passer sous silence, parce qu'un écart
-  entre ce qu'une organisation consomme et ce que son tableau de bord montre
-  est précisément ce qui vient d'être corrigé. Sans clé de licence, rien de
-  tout ceci ne s'exécute : le scanner ne contacte toujours personne.
+- Resolve repository identity for licensed local scans from the `origin` remote
+  when CI variables are absent. Local usage, history, and repository-scoped settings
+  now use the same owner/repository identity as CI. Warn when no identity can be
+  resolved instead of silently skipping reporting.
 
 ### Added
-- `--repo-name` / `TFPDF_REPO_NAME` : le nom sous lequel rapporter ce scan,
-  quand ni la CI ni le distant git ne donnent le bon. Notamment le cas d'un
-  dépôt cloné avec une autre casse que son nom canonique, que le repli ne
-  rattrape pas.
+
+- `--repo-name` / `TFPDF_REPO_NAME` explicitly selects the reported identity, taking
+  precedence over CI variables and the Git remote.
 
 ## [v1.2.1] — 2026-08-24
 
 ### Added
-- **Le paquet déclare qu'il est typé.** `py.typed` manquait, si bien qu'un
-  consommateur qui importe `tfpdf` recevait de mypy « module is installed, but
-  missing library stubs » — alors que tout est annoté ici et que la CI passe
-  mypy en mode strict dessus. Le marqueur est vide à dessein : c'est un
-  drapeau, pas un fichier de données. Révélé par le plan de contrôle, qui
-  importe le scanner pour sa démonstration publique.
-- **Une sortie lisible dans un terminal.** Le CLI n'avait qu'un rendu, le
-  Markdown du commentaire de PR, et l'imprimait tel quel : tableau Markdown,
-  balises `<details>`, commentaire HTML de marquage et une URL de registre
-  complète par ligne. GitHub le rend joliment ; un terminal affiche trente-trois
-  découvertes en trois cents lignes de syntaxe.
 
-  Le nouveau rendu groupe par règle plutôt que par fichier — un scan de dépôt
-  entier répète deux ou trois motifs, et lire l'explication une fois puis
-  parcourir les emplacements tient sur un écran. Chaque ligne ne porte que ce
-  que l'en-tête ne dit pas déjà : sur une règle ForceNew, l'attribut concerné.
-  Les emplacements s'écrivent `fichier:ligne`, la forme qu'un éditeur sait
-  ouvrir.
-
-  Le choix est automatique : mise en forme terminal quand stdout est un
-  terminal, Markdown sinon. Un tube, une redirection, un runner de CI reçoivent
-  donc exactement ce qu'ils recevaient — le Markdown est comparé octet pour
-  octet au scanner Go et part dans les PR, il n'a pas bougé d'un caractère.
-  `--format text|markdown` force l'un ou l'autre.
-
-  Les couleurs suivent `NO_COLOR` et disparaissent hors terminal.
+- Ship `py.typed` so downstream consumers can use the package's type annotations.
+- Add a compact terminal report grouped by rule, with `file:line` locations and
+  shared explanations printed once. Automatically use text on a TTY and Markdown
+  otherwise; `--format text|markdown` overrides the choice. Colors respect
+  `NO_COLOR` and are disabled for redirected output.
 
 ## [v1.2.0] — 2026-08-24
 
 ### Added
-- **Accès en lecture seule au compte cloud, facultatif (`cloud-read-access`).**
-  Une seule chose manquait au scan statique pour juger correctement, et elle
-  n'est pas dans le dépôt : `force_destroy = true` sur un compartiment que la
-  PR invente et `force_destroy = true` sur celui qui contient les sauvegardes
-  s'écrivent avec les mêmes onze caractères. La règle devait donc noter les
-  deux pareil — trop fort pour l'un, trop faible pour l'autre.
 
-  Avec l'option activée, le scan demande au compte lequel des deux c'est, et
-  écrit dans la découverte ce qu'il a vu : abaissée à `low` quand le
-  compartiment n'existe pas encore ou qu'il est vide, relevée à `high` quand
-  il contient déjà quelque chose. Une sévérité ne bouge jamais sans dire
-  pourquoi.
-
-  La lecture seule est tenue par le code, pas par la documentation : un
-  gestionnaire botocore posé sur la session par défaut de boto3 refuse toute
-  opération absente de la liste `sts:GetCallerIdentity`, `s3:ListObjectsV2`
-  avant que la requête soit construite, et la politique IAM demandée n'accorde pas
-  `s3:GetObject` — le scan peut voir qu'un compartiment n'est pas vide et ne
-  peut lire aucun de ses objets. Les identifiants restent dans votre CI.
-
-  Rien n'est exigé : sans l'option, aucun identifiant n'est lu, aucune requête
-  ne quitte le runner, et chaque règle note exactement comme avant. Des
-  identifiants absents ou refusés laissent toutes les sévérités intactes
-  plutôt que de faire échouer le scan. La politique à copier et l'exemple OIDC
-  sont dans [docs/cloud-read-access.md](docs/cloud-read-access.md).
-
-  `boto3` est un extra et non une dépendance ; l'image de l'Action l'embarque
-  pour que l'activation reste une ligne de YAML. Hors de l'Action :
-  `pip install "tf-predeploy-firewall[aws] @ git+https://github.com/foadtalsi/tf-predeploy-firewall@v1"`.
+- Optional `--cloud-read-access` / Action `cloud-read-access` uses AWS observations
+  to adjust S3 `force_destroy` findings. The botocore guard permits only
+  `sts:GetCallerIdentity` and `s3:ListObjectsV2`; object contents are not read.
+  Missing credentials or access failures preserve static severity. `boto3` is an
+  optional `aws` extra and is included in the Action image. See the
+  [AWS guide](docs/cloud-read-access.md) for the current severity mapping and setup.
 
 ### Fixed
-- **L'Action ne calculait aucun diff, chez personne.** Git refuse d'ouvrir un
-  dépôt appartenant à un autre utilisateur, ce qui est exactement à quoi
-  ressemble le workspace monté dans le conteneur d'une Action : il appartient à
-  l'utilisateur du runner, le conteneur tourne en root. Chaque scan s'arrêtait
-  sur `fatal: detected dubious ownership`.
 
-  Le `Dockerfile` croyait le régler. `git config --global` écrit dans
-  `$HOME/.gitconfig` au moment de la construction de l'image, et GitHub réécrit
-  `HOME` à l'exécution (`/github/home`) : le fichier existait, git ne l'a jamais
-  lu. Le réglage passe désormais par `-c` à chaque appel git, donc il ne dépend
-  plus de l'environnement et couvre les usages hors image.
-
-  Le message trompait en prime : il conseillait `fetch-depth: 0` à des workflows
-  qui l'avaient déjà, et reléguait la vraie cause en dernière ligne sous
-  « Original error ».
-
-  Trouvé en ouvrant une vraie pull request contre l'Action publiée.
-
-- **L'analyseur ne peut plus boucler indéfiniment.** Une compréhension `for`
-  dont la clé passe à la ligne après le `:` — la forme que `terraform fmt`
-  produit lui-même sur une expression un peu longue — faisait tourner le
-  scanner sans jamais rendre la main. Dans une CI, le job partait jusqu'à son
-  délai sans le moindre message.
-
-  Deux corrections, parce que le déclencheur n'a pas à être le dernier : les
-  sauts de ligne sont désormais ignorés là où HCL les autorise à l'intérieur
-  d'une compréhension, et la boucle qui lit le corps d'un fichier garantit
-  qu'un tour ne peut pas se terminer sans avoir consommé un jeton. Le pire
-  qu'une entrée incomprise puisse produire est un diagnostic.
-
-  Le binaire Go n'a jamais eu ce défaut, `hashicorp/hcl` s'en chargeant pour
-  lui ; les tests différentiels le confirment.
+- Pass the Git ownership override with each command so container-mounted Action
+  checkouts work even when GitHub changes `HOME`. Report ownership errors directly
+  rather than incorrectly suggesting a missing base ref.
+- Handle newlines in HCL comprehensions and guarantee parser progress after errors,
+  preventing malformed or multiline input from hanging the scanner.
 
 ### Changed
-- **Le scanner est réécrit en Python.** Même produit, même version, mêmes
-  règles, mêmes sorties : le SARIF et le rapport GitLab Code Quality sont
-  identiques octet pour octet à ceux que produisait le binaire Go, et une
-  suite de tests différentiels le vérifie contre lui.
 
-  Ce qui change pour vous : l'image de l'Action est maintenant
-  `python:3.12-slim` au lieu d'un binaire statique, et une installation
-  manuelle se fait depuis l'URL git ou le wheel attaché à la release — il n'y
-  a plus de binaire précompilé, et rien n'est publié sur un index. Les drapeaux de la
-  ligne de commande sont inchangés, y compris les formes à un seul tiret
-  (`-base-ref`) et `--drapeau=false`, que le paquet `flag` de Go acceptait.
-
-  Un seul comportement diffère volontairement. Quand deux découvertes tombent
-  sur le même fichier et la même ligne, leur ordre relatif dans le commentaire
-  de PR était décidé par le tri de Go, qui n'est pas stable ; il est désormais
-  spécifié (catégorie puis message). Les mêmes découvertes, dans un ordre qui
-  ne bougera plus d'une version à l'autre.
-
-  L'analyseur HCL2 est écrit à la main plutôt que pris sur PyPI : les
-  bibliothèques disponibles rendent des dictionnaires et perdent la ligne et
-  la colonne, dont dépend chaque sortie de cet outil.
-
+- Rewrite the scanner in Python with the same rules, CLI conventions, and
+  machine-readable outputs, checked against historical Go parity fixtures. The
+  Action uses a Python container; local installation uses Git or release wheels
+  instead of precompiled binaries. Single-dash long flags remain supported.
+- Make Markdown finding order deterministic when findings share a file and line.
+  The in-tree HCL parser retains source positions needed by reports and suggestions.
 
 ### Added
 - **Eleven new detectors for guards that were explicitly switched off**, in

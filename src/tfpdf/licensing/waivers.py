@@ -1,8 +1,4 @@
-"""Dérogations par découverte, posées par un administrateur dans le tableau de
-bord.
-
-Port des types de internal/licensing/waivers.go.
-"""
+"""Finding-specific waivers granted by an administrator in the hosted dashboard."""
 
 from __future__ import annotations
 
@@ -12,8 +8,9 @@ from typing import Any
 
 @dataclass(slots=True, frozen=True)
 class Waiver:
-    """La décision d'un administrateur (Starter et plus, via le tableau de bord) d'accepter une
-    découverte précise plutôt que de la laisser bloquer les fusions."""
+    """An administrator's decision to accept a finding instead of blocking merges, available on
+    Starter and above.
+    """
 
     category: str = ""
     resource: str = ""
@@ -22,11 +19,7 @@ class Waiver:
 
 
 def waivers_from_json(document: Any) -> list[Waiver]:
-    """Décode la liste des dérogations.
-
-    Une liste vide est la réponse normale pour un dépôt sur lequel personne
-    n'a encore rien accordé.
-    """
+    """Decode waivers; an empty list is normal when none have been granted."""
     if not isinstance(document, list):
         return []
     out: list[Waiver] = []

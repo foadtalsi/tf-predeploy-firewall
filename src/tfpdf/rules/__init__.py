@@ -1,8 +1,4 @@
-"""Les détecteurs de motifs de risque et le moteur qui les exécute sur un
-diff analysé.
-
-Port de internal/rules.
-"""
+"""Risk detectors and the engine that runs them against parsed changes."""
 
 from .base import FileInput, Options, Rule, RuleSet, RunOptions
 from .changedattrs import ChangedAttrKey, bare_resource_address, changed_attrs_for_resource

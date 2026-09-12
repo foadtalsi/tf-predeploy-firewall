@@ -1,4 +1,4 @@
-"""Le choix de la forge depuis l'environnement CI, et tout ce qui y est posté."""
+"""Detect the code host from CI and publish scan results to it."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ github_api_base_for_test = ""
 
 
 class ForgeError(RuntimeError):
-    """L'environnement CI ambiant ne décrit aucun changement où poster."""
+    """The CI environment does not identify a pull or merge request to comment on."""
 
 
 class _Forge(Protocol):
@@ -40,13 +40,12 @@ def _warn(message: str) -> None:
 
 
 def repo_full_name_from_env() -> str:
-    """L'identité org/dépôt utilisée pour la licence — usage, dérogations, politique
-    d'organisation — sur la CI où tourne cette exécution."""
+    """Return the CI repository identity used for license usage and waivers."""
     return os.environ.get("GITHUB_REPOSITORY") or os.environ.get("CI_PROJECT_PATH", "")
 
 
 def repo_full_name(repo_dir: str = ".", override: str = "") -> str:
-    """Résout le dépôt : argument explicite, variables de CI, puis distant Git."""
+    """Resolve the repository from an explicit argument, CI variables, or the Git remote."""
     if override.strip():
         return override.strip()
     if from_ci := repo_full_name_from_env():
@@ -55,7 +54,7 @@ def repo_full_name(repo_dir: str = ".", override: str = "") -> str:
 
 
 def _repo_path_from_remote_url(url: str) -> str:
-    """Le « proprio/dépôt » contenu dans une URL de distant git, ou ""."""
+    """Extract owner/repository from a Git remote URL, or return an empty string."""
     url = url.strip().removesuffix("/")
     if not url:
         return ""
@@ -63,36 +62,26 @@ def _repo_path_from_remote_url(url: str) -> str:
 
     if "://" in url:
         _, _, after_scheme = url.partition("://")
-        # Ce qui précède le premier « / » est l'hôte (et son éventuel
-        # utilisateur ou port) ; le reste est le chemin.
+        # The first slash separates the host (including user or port) from the repository path.
         _, separator, path = after_scheme.partition("/")
         if not separator:
             return ""
     else:
         host, separator, path = url.partition(":")
-        # Un « : » absent, précédé d'un « / », ou précédé d'une seule lettre
-        # (« C:/dépôts/… », une lettre de lecteur Windows) signale un chemin de
-        # dossier et non un hôte : un dépôt cloné depuis un autre dossier du
-        # disque n'a aucune identité que le plan de contrôle puisse
-        # reconnaître, et lui en inventer une créerait un dépôt fantôme dans le
-        # tableau de bord.
+        # Reject local paths and Windows drive letters: they do not identify a hosted
+        # repository.
         if not separator or "/" in host or len(host) == 1:
             return ""
 
     path = path.strip("/")
-    # Au moins « quelque chose/quelque chose ». Un chemin d'un seul segment ne
-    # ressemble à aucune des deux forges et vaut mieux non rapporté.
+    # Require at least owner/repository to avoid reporting an invented identity.
     if "/" not in path:
         return ""
     return path
 
 
 def default_base_ref() -> str:
-    """La branche cible de la PR ou MR, depuis la CI qui la fournit.
-
-    Les deux livrent un nom de branche nu ; le préfixe `origin/` est ce qu'un
-    checkout récupéré possède réellement.
-    """
+    """Return the CI target branch with an origin/ prefix to match the fetched remote ref."""
     if v := os.environ.get("GITHUB_BASE_REF"):
         return "origin/" + v.removeprefix("origin/")
     if v := os.environ.get("CI_MERGE_REQUEST_TARGET_BRANCH_NAME"):
@@ -101,7 +90,7 @@ def default_base_ref() -> str:
 
 
 def default_post_comment() -> bool:
-    """Poster quand un jeton pour la forge ambiante est présent."""
+    """Enable comments by default when the active code host has a token."""
     if os.environ.get("GITLAB_CI"):
         return bool(os.environ.get("TFPDF_GITLAB_TOKEN") or os.environ.get("GITLAB_TOKEN"))
     return bool(os.environ.get("GITHUB_TOKEN"))
@@ -137,8 +126,7 @@ def _pr_number_from_event() -> int:
 
 
 def head_sha_from_event() -> str:
-    """Lit le SHA de tête de la PR dans l'événement Actions, sans utiliser le commit de merge
-    synthétique."""
+    """Read the PR head SHA from the Actions event rather than its synthetic merge commit."""
     event_path = os.environ.get("GITHUB_EVENT_PATH")
     if not event_path:
         return ""
@@ -158,10 +146,7 @@ def head_sha_from_event() -> str:
 
 
 def github_pr_client() -> githubpr.Client:
-    """Construit un client depuis le contexte GitHub Actions — partagé par
-    `post_to_pr` et `request_second_reviewer_if_critical`, pour que les deux
-    échouent de la même façon quand ce contexte n'est pas disponible, par
-    exemple hors d'un événement de PR."""
+    """Build the shared GitHub client, rejecting missing pull request context consistently."""
     token = os.environ.get("GITHUB_TOKEN", "")
     repo_full = os.environ.get("GITHUB_REPOSITORY", "")
     if not token or not repo_full:
@@ -180,8 +165,7 @@ def github_pr_client() -> githubpr.Client:
 
 
 def active_forge() -> tuple[_Forge, str]:
-    """La forge, et le SHA de tête sur lequel le scan a tourné (vide quand il est
-    indéterminable)."""
+    """Return the code host and scanned head SHA, leaving the SHA empty if unknown."""
     if os.environ.get("GITLAB_CI"):
         try:
             client = gitlabmr.from_env()
@@ -192,23 +176,20 @@ def active_forge() -> tuple[_Forge, str]:
 
 
 def suggestion_body_for() -> Callable[[Finding], str]:
-    """Le rendu correspondant à la grammaire de suggestion de la forge active —
-    la seule chose sur laquelle les deux hôtes sont réellement en désaccord."""
+    """Render a suggestion using the active code host's syntax."""
     if os.environ.get("GITLAB_CI"):
         return report.gitlab_suggestion_body
     return report.review_comment_body
 
 
 def post_to_pr(body: str) -> None:
-    """Met à jour ou crée le rapport en commentaire de PR ou MR, sur la forge à
-    laquelle appartient l'environnement CI de cette exécution."""
+    """Create or update the summary comment on the active pull or merge request."""
     forge_client, _ = active_forge()
     forge_client.upsert_comment(body, report.MARKER)
 
 
 def post_suggestions(findings: list[Finding]) -> None:
-    """Publie les correctifs exacts en commentaires de revue ; conserve le rapport même si la
-    publication échoue."""
+    """Post exact fixes as review comments; keep the report if posting fails."""
     render = suggestion_body_for()
     comments: list[InlineComment] = []
     dropped = 0
@@ -269,7 +250,7 @@ def post_suggestions(findings: list[Finding]) -> None:
 
 
 def request_second_reviewer_if_critical(findings: list[Finding], config: Config) -> None:
-    """Demande les relecteurs configurés pour les découvertes critiques non acceptées."""
+    """Request configured reviewers for unaccepted critical findings."""
     if not config.require_second_reviewer_users and not config.require_second_reviewer_teams:
         return
     if os.environ.get("GITLAB_CI"):

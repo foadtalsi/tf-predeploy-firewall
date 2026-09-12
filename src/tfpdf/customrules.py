@@ -1,4 +1,4 @@
-"""Règles de détection définies par l'organisation, de façon déclarative."""
+"""Declarative custom detection rules loaded from local configuration."""
 
 from __future__ import annotations
 
@@ -16,26 +16,23 @@ VALID_SEVERITIES = frozenset({"low", "medium", "high", "critical"})
 
 
 class CustomRuleError(ValueError):
-    """Un jeu de règles personnalisées qui n'a pas pu être analysé ou validé."""
+    """A custom ruleset that could not be parsed or validated."""
 
 
 @dataclass(slots=True)
 class Rule:
-    """Une règle de détection personnalisée, telle qu'écrite en YAML."""
+    """A custom detection rule as declared in YAML."""
 
     id: str = ""
-    #: Type exact, ou « * » pour n'importe quelle ressource.
+    # Exact resource type, or * for every resource.
     resource_type: str = ""
-    #: Type de bloc imbriqué où chercher (par exemple « ingress ») ; à omettre
-    #: pour vérifier les attributs de premier niveau de la ressource.
+    # Optional nested block type; omit to inspect top-level attributes.
     block: str = ""
-    #: Nom de l'attribut à vérifier ; à omettre pour simplement signaler toute
-    #: correspondance de resource_type et block.
+    # Optional attribute name; omit to flag the resource or block itself.
     attribute: str = ""
-    #: Expression régulière testée contre la valeur littérale de l'attribut.
+    # Regex tested against the attribute's literal value.
     pattern: str = ""
-    #: Signale quand le motif NE correspond PAS, ou que l'attribut est absent —
-    #: pour les règles du type « doit avoir X ».
+    # Flag an absent attribute or a nonmatching value for must-have rules.
     negate: bool = False
     severity: str = ""
     message: str = ""
@@ -91,15 +88,12 @@ class Rule:
         attrs: dict[str, Attribute],
         fallback_line: int,
     ) -> Finding | None:
-        """Évalue une règle contre un jeu d'attributs : soit ceux de premier
-        niveau d'une ressource, soit ceux d'un bloc imbriqué."""
+        """Evaluate a rule against resource attributes or a nested block's attributes."""
         line = fallback_line
         matched = False
 
         if not self.attribute:
-            # Aucun attribut précisé : cette règle signale la simple présence
-            # de la ressource ou du bloc — par exemple « n'utilisez pas
-            # aws_iam_user, utilisez aws_iam_role ».
+            # Without an attribute filter, flag the resource or block itself.
             matched = True
         else:
             attribute = attrs.get(self.attribute)
@@ -107,14 +101,10 @@ class Rule:
                 line = attribute.range.start.line
                 matched = bool(self.compiled.search(attribute.raw_value)) != self.negate
             elif attribute is not None and not self.negate:
-                # L'attribut existe mais n'est pas un littéral que l'on peut
-                # comparer à un motif — c'est une variable ou une expression.
-                # On ne peut pas l'évaluer, donc on ne devine pas.
+                # Skip unresolved expressions rather than guessing their values.
                 matched = False
             elif attribute is None:
-                # Un attribut absent ne « correspond » que pour une règle
-                # niée, c'est-à-dire « cet attribut doit être présent et
-                # correspondre au motif ».
+                # An absent attribute matches only a negated must-have rule.
                 matched = self.negate
 
         if not matched:
@@ -123,17 +113,10 @@ class Rule:
         return Finding(
             file=path,
             line=line,
-            # Les découvertes personnalisées sont rapportées sous
-            # `custom:<id de règle>`. `Category` est une énumération fermée des
-            # catégories que les packs de règles documentent, et un identifiant
-            # personnalisé n'en fait par définition pas partie : une chaîne
-            # simple est donc passée — exactement ce que le type ouvert
-            # `report.Category` de Go contient ici. Tout l'aval traite une
-            # catégorie comme du texte : le mécanisme d'exclusion la compare,
-            # les rendus l'affichent.
+            # Custom categories use custom:<id> strings rather than the closed built-in Category
+            # enum.
             category="custom:" + self.id,
-            # Même forme que la catégorie : un nom de règle sur mesure doit
-            # être impossible à confondre avec celui d'une règle du pack.
+            # Prefix custom rule IDs to prevent collisions with built-in IDs.
             rule_name="custom:" + self.id,
             severity=Severity(self.severity),
             resource=res.address(),
@@ -143,14 +126,12 @@ class Rule:
 
 @dataclass(slots=True)
 class Config:
-    """Un jeu complet de règles personnalisées, tel que chargé depuis la
-    configuration YAML d'une organisation."""
+    """A complete custom ruleset loaded from YAML configuration."""
 
     rules: list[Rule] = field(default_factory=list)
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
-        """Adapte la configuration en une `rules.Rule`, pour qu'elle entre
-        directement dans le même moteur que toute règle intégrée."""
+        """Run custom rules through the same engine interface as built-in rules."""
         findings: list[Finding] = []
         for resource in file_input.head_resources:
             for r in self.rules:
@@ -158,13 +139,12 @@ class Config:
         return findings
 
     def as_engine_rule(self) -> Config:
-        """Conservé par symétrie avec l'API Go ; `Config` satisfait déjà le
-        protocole de règle."""
+        """Return this ruleset as an engine rule; retained for Go API compatibility."""
         return self
 
 
 def load(data: bytes | str) -> Config:
-    """Analyse et valide un jeu de règles personnalisées."""
+    """Parse and validate a custom ruleset."""
     try:
         raw = yaml.safe_load(data)
     except yaml.YAMLError as exc:

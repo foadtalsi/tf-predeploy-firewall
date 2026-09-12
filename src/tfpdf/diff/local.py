@@ -1,6 +1,4 @@
-"""Sources de changement locales, hors pull request : l'index git pour un hook de pre-commit, et
-la copie de travail pour un développeur qui demande « que dirait le pare-feu ? » avant tout
-commit ou push."""
+"""Read staged or working-tree changes for local scans before a commit or push."""
 
 from __future__ import annotations
 
@@ -10,13 +8,12 @@ from .git import ChangedFile, GitError, _git_lines, show_file
 
 
 def staged_terraform_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tf ayant des changements indexés : le contenu indexé comme tête, la version
-    de HEAD comme base."""
+    """Collect staged .tf files with index contents as head and HEAD contents as base."""
     return _staged_files(repo_dir, "*.tf")
 
 
 def staged_terragrunt_files(repo_dir: str) -> list[ChangedFile]:
-    """`staged_terraform_files`, pour terragrunt.hcl."""
+    """Collect staged terragrunt.hcl files using the same semantics as staged_terraform_files."""
     return _staged_files(repo_dir, "**/terragrunt.hcl")
 
 
@@ -28,16 +25,11 @@ def _staged_files(repo_dir: str, pathspec: str) -> list[ChangedFile]:
 
     files: list[ChangedFile] = []
     for p in paths:
-        # Une référence vide lit le blob de l'index, c'est-à-dire le contenu
-        # que le commit contiendrait réellement — qui peut différer de la copie
-        # de travail si l'utilisateur a indexé sélectivement (git add -p).
-        # Scanner la copie de travail à la place reviendrait à juger des lignes
-        # qui ne sont pas dans le commit.
+        # An empty ref reads the index, not the working tree, preserving selectively staged
+        # contents.
         head = show_file(repo_dir, "", p)
         if head is None:
-            continue  # suppression indexée ; rien à scanner
-        # Au tout premier commit, HEAD n'existe pas : tous les fichiers sont
-        # nouveaux.
+            continue  # Staged deletions have no content to scan. Without HEAD, remaining staged files are new.
         files.append(
             ChangedFile(path=p, head_content=head, base_content=show_file(repo_dir, "HEAD", p))
         )
@@ -45,30 +37,28 @@ def _staged_files(repo_dir: str, pathspec: str) -> list[ChangedFile]:
 
 
 def uncommitted_terraform_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tf qui diffère entre la copie de travail et HEAD — indexé,
-    non indexé ou non suivi indifféremment — avec le contenu sur disque comme
-    tête et la version de HEAD comme base."""
+    """Collect .tf files differing from HEAD, including untracked files, using on-disk contents as
+    head.
+    """
     return _uncommitted_files(repo_dir, "*.tf")
 
 
 def uncommitted_terragrunt_files(repo_dir: str) -> list[ChangedFile]:
-    """`uncommitted_terraform_files`, pour terragrunt.hcl."""
+    """Collect working-tree terragrunt.hcl changes using the same semantics as
+    uncommitted_terraform_files.
+    """
     return _uncommitted_files(repo_dir, "**/terragrunt.hcl")
 
 
 def _uncommitted_files(repo_dir: str, pathspec: str) -> list[ChangedFile]:
-    # Changements suivis, indexés ou non. Sauté en silence quand HEAD n'existe
-    # pas (dépôt vide) : le listage des fichiers non suivis ci-dessous est alors
-    # la réponse entière.
+    # Collect tracked changes when HEAD exists; untracked-file collection covers an empty
+    # repository.
     try:
         tracked = _git_lines(repo_dir, "diff", "--name-only", "HEAD", "--", pathspec)
     except GitError:
         tracked = []
 
-    # Les fichiers non suivis sont les changements les plus locaux qui soient :
-    # un main.tf tout neuf jamais passé par `git add` est précisément le fichier
-    # sur lequel on interroge un scan local. `git diff` ne les liste jamais, il
-    # leur faut donc leur propre listage — en respectant .gitignore.
+    # Git diff omits untracked files, so collect them separately while respecting .gitignore.
     try:
         untracked = _git_lines(
             repo_dir, "ls-files", "--others", "--exclude-standard", "--", pathspec

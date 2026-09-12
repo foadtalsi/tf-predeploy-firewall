@@ -1,4 +1,4 @@
-"""Port de internal/terragrunt/terragrunt_test.go, cas pour cas."""
+"""Terragrunt input and remote-state configuration checks."""
 
 from __future__ import annotations
 
@@ -10,11 +10,9 @@ from tfpdf.terragrunt import scan_file
 
 
 def test_flags_hardcoded_credential_in_inputs() -> None:
-    """« password » (exact) correspond au motif de nom d'identifiant de la même
-    façon qu'un attribut de ressource .tf littéralement nommé `password` — un
-    nom préfixé comme db_password NE correspond PAS, par conception (le même
-    motif que celui de la règle .tf) ; seule la vérification du motif de valeur
-    l'attraperait."""
+    """Exact credential names follow resource-rule patterns; other names may still match through
+    credential-value checks.
+    """
     findings = scan_file(
         "live/prod/terragrunt.hcl",
         b"""
@@ -90,9 +88,7 @@ inputs = {
 
 
 def test_skips_variable_references_gracefully() -> None:
-    """Des entrées qui référencent des locals ou des sorties de dépendance ne
-    peuvent pas être évaluées sans portée — elles doivent être sautées, pas
-    traitées comme une erreur."""
+    """Skip unresolved local and dependency references without treating them as errors."""
     findings = scan_file(
         "terragrunt.hcl",
         b"""

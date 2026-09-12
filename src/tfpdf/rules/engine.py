@@ -1,7 +1,4 @@
-"""Exécution du jeu de règles sur un diff analysé.
-
-Port de internal/rules/engine.go et scopecache.go.
-"""
+"""Run rules against parsed file changes and cache directory scopes."""
 
 from __future__ import annotations
 
@@ -23,24 +20,18 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class Result:
-    """Le résultat d'une passe de scan statique : les découvertes, plus
-    l'ensemble des clés d'attributs que le diff .tf de cette PR a réellement
-    touchées, par adresse de ressource."""
+    """Static findings plus changed attribute keys grouped by resource address."""
 
     findings: list[Finding] = field(default_factory=list)
     #: resource address -> changed attribute keys
     changed_attrs: dict[str, set[ChangedAttrKey]] = field(default_factory=dict)
-    #: Ce que l'utilisateur doit savoir du scan lui-même, et qui n'est pas une
-    #: découverte : aujourd'hui, les fournisseurs dont le schéma embarqué est
-    #: hors de la fourchette épinglée, et pour lesquels on s'est donc tu. Le
-    #: moteur n'imprime rien ; l'appelant décide où ça va.
+    # Non-finding scan warnings, including schema versions outside provider constraints. The
+    # caller decides where to display them.
     notes: list[str] = field(default_factory=list)
 
 
 class ScopeCache:
-    """Construit une portée de résolution de références par répertoire et la
-    réutilise, pour que scanner vingt fichiers d'un même module lise les .tf de
-    ce module une fois plutôt que vingt."""
+    """Cache reference-resolution scopes per directory so files in one module share a single read."""
 
     __slots__ = (
         "_constraints_by_directory",
@@ -53,26 +44,18 @@ class ScopeCache:
         self.repo_dir = repo_dir
         self._scope_by_directory: dict[str, EvalContext | None] = {}
         self._constraints_by_directory: dict[str, dict[str, str]] = {}
-        #: Le contenu de TOUS les fichiers de cette passe, par chemin.
-        #:
-        #: Les contraintes de version d'un module vivent presque toujours dans
-        #: `versions.tf`, c'est-à-dire dans un autre fichier que celui qui porte
-        #: la ressource jugée. Sans cette vue d'ensemble, un appelant qui ne
-        #: donne pas de `repo_dir` — les tests, et tout usage en bibliothèque —
-        #: ne verrait la contrainte d'aucun module.
+        # All scanned files, indexed by path, so constraints in sibling versions.tf files work
+        # even without repo_dir.
         self._head_by_path = head_by_path or {}
 
     def constraints_for(self, path: str, head_content: bytes | None) -> dict[str, str]:
-        """Résout les contraintes fournisseur par répertoire ; les contenus du scan priment sur
-        le disque."""
+        """Resolve directory-scoped provider constraints, preferring scanned contents over disk."""
         directory = str(Path(path).parent)
         if directory in self._constraints_by_directory:
             return self._constraints_by_directory[directory]
 
         files = self._read_dir(directory) if self.repo_dir else {}
-        # Ce que la passe a sous la main prime sur le disque, pour la même
-        # raison que la portée : une PR qui déplace une contrainte doit être
-        # jugée sur ce qu'elle écrit.
+        # Scanned contents override disk so constraints reflect the revision under review.
         for other, content in self._head_by_path.items():
             if str(Path(other).parent) == directory:
                 files[other] = content
@@ -87,8 +70,9 @@ class ScopeCache:
         return found
 
     def for_file(self, path: str, head_content: bytes | None) -> EvalContext | None:
-        """Construit et mémorise la portée du répertoire. Le contenu fourni prime sur le disque ;
-        sans repo_dir, retourne None."""
+        """Build and cache a directory's scope, preferring supplied contents over disk. Return None
+        without repo_dir.
+        """
         if not self.repo_dir:
             return None
 
@@ -104,9 +88,8 @@ class ScopeCache:
         return scope
 
     def _read_dir(self, directory: str) -> dict[str, bytes]:
-        """Charge les fichiers .tf d'un répertoire, sans récursion : Terraform
-        cloisonne les locals et les variables à un seul répertoire et ne descend
-        pas.
+        """Read only this directory's Terraform files; variables and locals do not cross module
+        directories.
         """
         sources_by_path: dict[str, bytes] = {}
 
@@ -146,8 +129,9 @@ def run(
     ruleset: list[Rule],
     options: RunOptions | None = None,
 ) -> Result:
-    """Scanne les fichiers et applique les exclusions. Une erreur HCL devient une découverte et
-    ne bloque pas les autres fichiers."""
+    """Scan files and apply exclusions. Report HCL errors as findings while continuing with other
+    files.
+    """
     options = options or RunOptions()
 
     findings: list[Finding] = []
@@ -231,14 +215,8 @@ def run(
     return Result(findings=retained_findings, changed_attrs=changed_attrs, notes=notes)
 
 
-#: Les découvertes tirées du SCHÉMA, et elles seules. Ce sont les deux qui
-#: disent « le fournisseur accepte ceci / ceci force une destruction » — deux
-#: affirmations qui ne valent que pour la version du schéma qu'on porte.
-#:
-#: Tout le reste juge une valeur écrite dans le fichier : un mot de passe en
-#: clair est un mot de passe en clair sur toutes les versions d'AWS, et retirer
-#: ces règles-là parce qu'un dépôt épingle un vieux fournisseur serait
-#: exactement le mauvais choix.
+# Only schema-derived checks depend on provider version. Value checks must still run with older
+# provider pins.
 SCHEMA_DERIVED_RULES = frozenset({"unknown_attribute", "force_new_change"})
 
 
@@ -247,8 +225,9 @@ def drop_findings_the_pinned_provider_contradicts(
     constraints_by_file: dict[str, dict[str, str]],
     knowledge_base: KnowledgeBase | None,
 ) -> list[str]:
-    """Retire les accusations que la version épinglée par le dépôt dément, et rend de quoi le
-    dire à l'utilisateur."""
+    """Remove schema claims incompatible with pinned provider versions and return explanatory
+    warnings.
+    """
     if knowledge_base is None:
         return []
     versions_by_provider = {p.name: p.version for p in knowledge_base.coverage().providers}
@@ -284,9 +263,9 @@ def drop_findings_the_pinned_provider_contradicts(
 
 
 def _provider_the_finding_judges(finding: Finding) -> str:
-    """Le fournisseur dont cette découverte parle, depuis son adresse de
-    ressource. Rend "" pour ce qui n'en désigne aucun — une erreur d'analyse
-    porte `-` en guise de ressource."""
+    """Resolve the finding's provider from its resource address, or return an empty string for
+    findings without one.
+    """
     resource_type, _, recognised = type_from_address(finding.resource)
     if not recognised:
         return ""
@@ -294,35 +273,26 @@ def _provider_the_finding_judges(finding: Finding) -> str:
 
 
 def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
-    """Réévalue la sévérité des découvertes que l'état réel du compte éclaire."""
+    """Adjust eligible findings using optional read-only cloud observations."""
     adjustable = [
         finding
         for finding in findings
         if finding.rule_name == "s3_force_destroy" and finding.cloud_name
     ]
     if not adjustable:
-        # Rien à corroborer : on ne monte même pas la session. Le cas courant
-        # sur la plupart des PR, et la raison pour laquelle activer l'option ne
-        # coûte rien tant qu'aucune règle concernée ne se déclenche.
+        # Do not open a cloud session when no finding can use it.
         return
 
-    # Importé ici et non en tête de module : en tête, un
-    # `tf-predeploy-firewall --version` chargerait boto3 pour rien.
+    # Import lazily so commands such as --version do not load boto3.
     from ..ruledef import severitycheck
 
-    # Une seule fois, ici, et pas dans la vérification : la sonde est un
-    # aller-retour vers STS plus la construction d'un client, et la faire par
-    # découverte multipliait les deux par le nombre de compartiments du dépôt.
-    # Le résultat est mémorisé dans `severitycheck.AWS_OK`, que la
-    # vérification lit.
+    # Probe once before the loop; checks reuse AWS_OK rather than querying STS per finding.
     if not severitycheck.available_context():
         return
 
     for finding in adjustable:
-        # `Severity(...)` parce que la vérification rend des chaînes nues
-        # ("low", "critical") : sans la conversion, le champ contiendrait
-        # tantôt une Severity tantôt un str, et le tri comme le seuil de
-        # blocage compareraient deux types différents.
+        # Convert returned strings to Severity to keep sorting and threshold comparisons
+        # consistent.
         finding.severity = Severity(
             severitycheck.s3_force_destroy_severity_check(
                 severity=finding.severity, bucket=finding.cloud_name
@@ -331,7 +301,7 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
 
 
 def attach_doc_urls(findings: list[Finding], knowledge_base: KnowledgeBase | None) -> None:
-    """Remplit le `doc_url` de chaque découverte à partir de son adresse de ressource."""
+    """Attach provider documentation URLs based on resource addresses."""
     if knowledge_base is None:
         return
     url_by_resource: dict[str, str] = {}

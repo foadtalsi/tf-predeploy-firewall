@@ -1,4 +1,4 @@
-"""L'interface en ligne de commande. Port de cmd/tf-predeploy-firewall."""
+"""Command-line interface for the scanner."""
 
 from .main import VERSION, blocked_by, build_parser, main, run
 

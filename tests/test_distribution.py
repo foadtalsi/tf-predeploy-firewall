@@ -1,17 +1,5 @@
-"""Les trois fichiers qui décident si quiconque peut réellement exécuter
-ceci.
-
-Aucun d'eux n'est exercé en se servant du scanner, et tous trois échouent d'une
-façon qui n'apparaît que dans le pipeline de quelqu'un d'autre :
-
-* `action.yml` passe une liste d'arguments fixe. Un seul drapeau qu'il nomme et
-  que le CLI n'accepte pas, et chaque workflow qui utilise l'action échoue au
-  démarrage — y compris sur les valeurs par défaut de l'action elle-même, ce par
-  quoi `--full-repo-scan=false` a bien failli passer.
-* `.pre-commit-hooks.yaml` nomme un `entry:` que pre-commit exécute tel quel.
-* `pyproject.toml` décide de ce qui finit dans la roue. Une roue sans les packs
-  de règles s'installe parfaitement et ne trouve rien — le pire échec disponible
-  pour un scanner de sécurité, parce qu'il ressemble à un dépôt propre.
+"""Check distribution contracts: Action arguments, pre-commit entry point, and packaged detection
+data must work after installation.
 """
 
 from __future__ import annotations
@@ -38,20 +26,8 @@ _EXPRESSION = re.compile(r"\$\{\{\s*([^}]+?)\s*\}\}")
 
 
 def _resolve_expressions(arg: str, inputs: dict[str, Any]) -> str:
-    """Résout `${{ … }}` comme le ferait un workflow qui ne pose rien.
-
-    Un `inputs.x` devient la valeur par défaut déclarée de x — qui, pour
-    `full-repo-scan`, est la chaîne « false » et non la chaîne vide. Cette
-    distinction est tout le propos : `--full-repo-scan=false` est ce que l'action
-    passe à chaque vérification de PR ordinaire, et `--full-repo-scan=` est une
-    erreur d'analyse dans les deux versions (Go dit `invalid boolean value ""
-    for -full-repo-scan`, celle-ci dit `must be true or false, got ''`, toutes
-    deux sortant en 2). Substituer aveuglément aurait testé le chemin d'erreur en
-    l'appelant le chemin heureux.
-
-    Tout le reste — `github.token`,
-    `github.event.pull_request.base.ref` — se résout à vide, ce qu'il vaut hors
-    d'un événement de PR.
+    """Resolve Action input expressions using declared defaults; other expressions are empty
+    outside PR context.
     """
 
     def repl(m: re.Match[str]) -> str:
@@ -85,24 +61,14 @@ def test_the_action_argument_list_is_accepted_by_the_cli() -> None:
 
 
 def test_an_empty_boolean_input_fails_the_same_way_the_go_build_did() -> None:
-    """`full-repo-scan: ""` dans un workflow — une condition qui s'est évaluée
-    à rien — atteint le CLI en `--full-repo-scan=`.
-
-    Go le rejette (`invalid boolean value "" for -full-repo-scan`, sortie 2) et
-    celui-ci aussi, avec un message qui dit ce qui était attendu. Épinglé parce
-    que la forme à valeur optionnelle qui fait marcher `=false` est exactement le
-    mécanisme qui aurait pu être écrit de façon à accepter silencieusement `=`
-    comme vrai.
-    """
+    """An empty attached boolean must fail rather than silently become true."""
     with pytest.raises(SystemExit) as exc:
         build_parser().parse_args(["--full-repo-scan="])
     assert exc.value.code == 2
 
 
 def test_every_action_input_reaches_the_cli() -> None:
-    """Une entrée documentée mais câblée à rien est pire qu'une entrée
-    manquante : l'auteur du workflow la pose, ne voit aucune erreur, et obtient
-    un scan qui l'a ignoré."""
+    """Every advertised Action input must reach a recognized CLI option."""
     action = _load_yaml("action.yml")
     args_text = " ".join(action["runs"]["args"])
     env_text = " ".join(f"{k}: {v}" for k, v in action["runs"]["env"].items())
@@ -153,9 +119,7 @@ def test_the_hook_entry_is_a_command_the_cli_accepts() -> None:
 
 
 def test_the_hook_file_filter_covers_tfvars() -> None:
-    """Un commit qui n'ajoute que terraform.tfvars est le plus précieux de tous
-    pour ce hook — ce fichier est là où vivent les valeurs, donc là où atterrit
-    un secret. `\\.tf` ancré à la fin ne lui correspond pas."""
+    """The hook must run on variable-file-only commits."""
     import re
 
     pattern = re.compile(_load_yaml(".pre-commit-hooks.yaml")[0]["files"])
@@ -172,16 +136,13 @@ def test_the_hook_file_filter_covers_tfvars() -> None:
 
 
 def test_the_console_scripts_point_at_functions_that_exist() -> None:
-    """Une faute de frappe ici se compile et s'installe proprement, et échoue à
-    la première utilisation."""
+    """Installed console entry points must resolve to real functions."""
     import importlib
     import tomllib
 
     document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     entries = document["project"]["scripts"]
-    # Un seul, et l'égalité stricte est le test : `tfpdf-genpack` a été retiré
-    # d'ici parce qu'un `pip install` du scanner gratuit posait le générateur de
-    # la donnée payante sur le PATH. Rien ne doit le remettre par distraction.
+    # The scanner has one console entry point; pack generation belongs to separate tooling.
     assert set(entries) == {"tf-predeploy-firewall"}
 
     for name, target in entries.items():
@@ -202,10 +163,7 @@ def test_the_console_scripts_point_at_functions_that_exist() -> None:
     ],
 )
 def test_the_detection_data_is_reachable_as_package_data(resource: str) -> None:
-    """Lu comme le paquet installé le lit — à travers le système d'import, pas
-    par un chemin relatif à l'arbre source. Un fichier qui ne se résout que
-    depuis une copie de travail est un fichier que la roue ne livre pas
-    vraiment."""
+    """Load detection data through package resources, as an installed wheel does."""
     from importlib import resources as importlib_resources
 
     package, _, filename = resource.rpartition("/")
@@ -214,11 +172,7 @@ def test_the_detection_data_is_reachable_as_package_data(resource: str) -> None:
 
 
 def test_the_runtime_dependency_list_is_still_one_line() -> None:
-    """Le scanner tourne dans l'intégration continue des autres. Chaque
-    dépendance est une chose de plus qui peut casser leur pipeline ou retenir
-    leur revue de chaîne d'approvisionnement, ce qui est la raison pour laquelle
-    l'analyseur HCL est dans l'arbre. C'est l'assertion qui garde cet argument
-    honnête."""
+    """Keep the mandatory runtime dependency list minimal."""
     import tomllib
 
     document = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -228,10 +182,7 @@ def test_the_runtime_dependency_list_is_still_one_line() -> None:
 
 
 def test_the_dockerfile_installs_git_and_entrypoints_the_scanner() -> None:
-    """Le scanner lit un diff git depuis une copie de travail locale, ce qui est
-    la raison pour laquelle il n'a besoin d'aucun identifiant cloud — et la
-    raison pour laquelle une image sans git est une image qui ne peut rien
-    scanner."""
+    """The container needs Git and the scanner's console entry point."""
     text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
     assert "git" in text
     assert 'ENTRYPOINT ["tf-predeploy-firewall"]' in text
@@ -242,19 +193,7 @@ def test_the_dockerfile_installs_git_and_entrypoints_the_scanner() -> None:
 
 
 def test_the_pack_generator_does_not_ship_with_the_scanner() -> None:
-    """`tfpdf.genpack` fabriquait les deux packs — celui, gratuit, qu'embarque le
-    scanner, et le complet que le plan de contrôle sert aux organisations sous
-    licence. Il était livré par `pip install` du produit gratuit, et sa
-    docstring donnait les trois commandes.
-
-    Les entrées sont publiques : le schéma vient de HashiCorp, les drapeaux
-    ForceNew des sources du fournisseur. Les 2 840 types que vend un plan se
-    régénéraient donc en dix minutes avec notre propre outil, installé par
-    l'outil gratuit.
-
-    Il vit maintenant dans le dépôt du plan de contrôle. Ceci empêche un
-    `git mv` distrait de le ramener.
-    """
+    """Pack generation belongs to separate tooling and must not ship as a scanner entry point."""
     assert not (ROOT / "src" / "tfpdf" / "genpack").exists()
 
     import importlib.util

@@ -1,4 +1,4 @@
-"""Port de internal/gitlabmr/gitlabmr_test.go, cas pour cas."""
+"""GitLab merge request client tests."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def refs_ok() -> dict[str, str]:
 
 
 class _State:
-    """Reproduit les champs du glServer du test Go."""
+    """Shared state for the GitLab HTTP stub."""
 
     def __init__(
         self,
@@ -75,10 +75,9 @@ def test_upsert_comment_creates_then_updates() -> None:
 
 
 def test_post_suggestions_anchors_at_start_line_with_diff_refs() -> None:
-    """L'objet position est ce qui rend un commentaire en ligne réellement en
-    ligne ; les SHA viennent des diff_refs de la MR elle-même, et l'ancre est la
-    PREMIÈRE ligne du correctif, le bloc de suggestion de GitLab s'étendant vers
-    le bas depuis son ancre."""
+    """Anchor at the first replacement line using the merge request's diff refs; GitLab suggestion
+    ranges extend from that anchor.
+    """
     s = _State(diff_refs=refs_ok())
     with StubServer(s.handler) as srv:
         out = _client(srv).post_suggestions(
@@ -107,10 +106,7 @@ def test_post_suggestions_anchors_at_start_line_with_diff_refs() -> None:
 
 
 def test_post_suggestions_refuses_when_the_mr_head_moved() -> None:
-    """Si la branche a bougé depuis le scan, les lignes que visent les
-    correctifs peuvent ne plus dire ce que le scan a vu. Refuser en bloc vaut
-    mieux que poster des suggestions périmées que quelqu'un applique en un
-    clic."""
+    """Reject suggestions when the merge request head changed after scanning."""
     s = _State(diff_refs=refs_ok())
     with StubServer(s.handler) as srv, pytest.raises(HTTPError, match="moved"):
         _client(srv).post_suggestions(

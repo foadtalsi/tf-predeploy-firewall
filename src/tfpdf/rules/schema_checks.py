@@ -1,4 +1,4 @@
-"""Validation des attributs et détection des remplacements à partir du schéma."""
+"""Validate attributes and detect replacement risks using provider schemas."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ from .base import FileInput
 
 
 class UnknownAttributeRule:
-    """Signale les attributs absents du schéma connu pour un type de ressource — signature
-    courante d'une hallucination d'IA : un attribut qui « sonne juste » mais n'existe pas."""
+    """Flag attributes absent from the known schema for their resource type."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if knowledge_base is None:
@@ -82,8 +81,7 @@ class UnknownAttributeRule:
 
 
 class ForceNewChangeRule:
-    """Signale les modifications d'attributs connus comme ForceNew dans le schéma du fournisseur,
-    sur une ressource qui existait déjà avant ce changement."""
+    """Flag changes to ForceNew attributes on resources that existed in the base revision."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if knowledge_base is None:

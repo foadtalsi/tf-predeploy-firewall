@@ -1,4 +1,4 @@
-"""Déclaration des options CLI et de leurs valeurs par défaut."""
+"""CLI options and their default values."""
 
 from __future__ import annotations
 
@@ -9,7 +9,16 @@ from .forges import default_base_ref, default_post_comment
 
 _LICENSE_API_BASE_DEFAULT = "https://api.tfpredeployfirewall.com"
 
-CLI_DESCRIPTION = "Le CLI de TF Pre-Deploy Firewall.\n\nPort de cmd/tf-predeploy-firewall/main.go.\n\nScanne les fichiers .tf modifiés entre deux références git, rapporte les\ndécouvertes de risque, et éventuellement poste ou met à jour un commentaire de\nPR et conditionne le code de sortie à un seuil de sévérité.\n\nCodes de sortie, inchangés depuis la version Go parce que des CI en dépendent :\n\n    0  exécuté, rien au niveau du seuil de blocage ni au-dessus\n    1  bloqué — une découverte a atteint le seuil\n    2  le scan n'a pas pu tourner (mauvais drapeaux, config illisible, échec git)\n    3  le quota du plan de l'organisation est épuisé\n"
+CLI_DESCRIPTION = """Scan Terraform changes for risky configuration before deployment.
+
+Compare Git revisions, staged files, working-tree changes, or a full repository.
+Optionally publish findings as pull request comments and machine-readable reports.
+
+Exit codes:
+    0  no unaccepted finding reaches the blocking threshold
+    1  a finding reaches the blocking threshold
+    2  the scan could not run (invalid options, configuration, or Git failure)
+"""
 
 
 def _env_or(key: str, fallback: str) -> str:
@@ -17,7 +26,7 @@ def _env_or(key: str, fallback: str) -> str:
 
 
 def _go_bool(value: str) -> bool:
-    """`strconv.ParseBool`, pour une valeur attachée à un drapeau booléen."""
+    """Parse an attached boolean value using Go's strconv.ParseBool conventions."""
     if value in ("1", "t", "T", "true", "TRUE", "True"):
         return True
     if value in ("0", "f", "F", "false", "FALSE", "False"):
@@ -26,7 +35,7 @@ def _go_bool(value: str) -> bool:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Options CLI. Les booléens acceptent une valeur attachée, notamment --full-repo-scan=false."""
+    """Build the CLI parser, including attached booleans such as --full-repo-scan=false."""
     parser = argparse.ArgumentParser(
         prog="tf-predeploy-firewall",
         description=CLI_DESCRIPTION,

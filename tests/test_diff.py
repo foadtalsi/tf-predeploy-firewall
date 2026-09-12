@@ -1,10 +1,5 @@
-"""Port de internal/diff/git_test.go et internal/diff/local_test.go.
-
-Ces seize tests étaient les derniers de l'arbre Go à ne pas avoir de
-contrepartie ici. Ils sont les seuls du dépôt à lancer un vrai `git` sur un
-vrai dépôt : c'est délibéré et non un raccourci, parce que ce que ce paquet
-fait *est* d'invoquer git, et qu'un faux qui rendrait la sortie attendue de
-`git diff --name-only` ne testerait que ma lecture de git.
+"""Exercise file selection against real temporary Git repositories, including index and
+working-tree differences.
 """
 
 from __future__ import annotations
@@ -69,9 +64,9 @@ def git_repo(tmp_path: Path) -> str:
 def make_repo(
     tmp_path: Path, base_path: str, base_tf: str, head_path: str, head_tf: str
 ) -> tuple[str, str, str]:
-    """Un dépôt temporaire : `base_tf` commité en `base_path`, puis `head_tf`
-    commité en `head_path` (qui peut être le même fichier). Rend
-    `(répertoire, ref de base, ref de tête)`."""
+    """Commit base_tf at base_path and head_tf at head_path; return (directory, base ref, head
+    ref).
+    """
     dir_ = git_repo(tmp_path)
 
     write_file(tmp_path / base_path, base_tf)
@@ -89,7 +84,7 @@ def by_path(files: list[ChangedFile]) -> dict[str, ChangedFile]:
     return {f.path: f for f in files}
 
 
-# --- git.py : le diff entre deux références ------------------------------
+# Git changes between two refs.
 
 
 def test_changed_terraform_files_basic_diff(tmp_path: Path) -> None:
@@ -134,10 +129,10 @@ def test_changed_terraform_files_invalid_ref(tmp_path: Path) -> None:
 
     with pytest.raises(Exception) as exc:
         changed_terraform_files(dir_, "nonexistent-ref", "HEAD")
-    assert "nonexistent-ref" in str(exc.value), "l'erreur doit nommer la mauvaise référence"
+    assert "nonexistent-ref" in str(exc.value), "the error must name the missing ref"
 
 
-# --- git.py : le parcours du dépôt entier --------------------------------
+# Full-repository traversal.
 
 
 def test_all_terraform_files_finds_every_tf_file_with_base_equal_to_head(
@@ -146,16 +141,14 @@ def test_all_terraform_files_finds_every_tf_file_with_base_equal_to_head(
     write_file(tmp_path / "main.tf", 'resource "aws_instance" "x" {}\n')
     write_file(tmp_path / "modules" / "rds" / "db.tf", 'resource "aws_db_instance" "y" {}\n')
     write_file(tmp_path / "README.md", "not terraform")
-    # Un répertoire .git plein de plomberie non-.tf ne doit jamais être parcouru.
+    # Never traverse Git's internal metadata directory.
     (tmp_path / ".git" / "objects").mkdir(parents=True)
 
     files = all_terraform_files(str(tmp_path))
 
     assert len(files) == 2, files
     for f in files:
-        assert f.head_content == f.base_content, (
-            "un scan d'audit du dépôt entier n'a pas de « avant »"
-        )
+        assert f.head_content == f.base_content, "a full-repository audit has no previous revision"
 
 
 def test_all_terragrunt_files_finds_every_terragrunt_hcl(tmp_path: Path) -> None:
@@ -196,11 +189,7 @@ def test_changed_terragrunt_files_ignores_tf_files(tmp_path: Path) -> None:
 
 
 def test_staged_scans_the_index_not_the_worktree(tmp_path: Path) -> None:
-    """C'est l'index, pas la copie de travail, que le commit contiendra. Un
-    utilisateur qui a indexé une version propre puis a continué à éditer doit
-    être jugé sur ce qu'il a indexé — scanner la copie de travail bloquerait un
-    commit sur des lignes qui n'y sont pas (et, pire, en laisserait passer un
-    dont le contenu indexé est sale)."""
+    """Scan staged contents, which can differ from the working tree after selective staging."""
     dir_ = git_repo(tmp_path)
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "a" {}\n')
     git(dir_, "add", ".")
@@ -208,23 +197,22 @@ def test_staged_scans_the_index_not_the_worktree(tmp_path: Path) -> None:
 
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "staged" {}\n')
     git(dir_, "add", "main.tf")
-    # On continue à éditer après l'indexation.
+    # Continue editing after staging.
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "worktree_only" {}\n')
 
     files = staged_terraform_files(dir_)
 
     assert len(files) == 1
     assert files[0].head_content == b'resource "aws_vpc" "staged" {}\n', (
-        "la tête doit être le blob indexé"
+        "head contents must come from the index"
     )
     assert files[0].base_content == b'resource "aws_vpc" "a" {}\n', (
-        "la base doit être la version de HEAD"
+        "base contents must come from HEAD"
     )
 
 
 def test_staged_works_on_the_first_commit(tmp_path: Path) -> None:
-    """Un hook pre-commit tourne aussi sur le tout premier commit d'un dépôt,
-    où HEAD n'existe pas. Tout ce qui est indexé est simplement nouveau."""
+    """A first commit has no HEAD; all staged files are new."""
     dir_ = git_repo(tmp_path)
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "a" {}\n')
     git(dir_, "add", ".")
@@ -232,7 +220,7 @@ def test_staged_works_on_the_first_commit(tmp_path: Path) -> None:
     files = staged_terraform_files(dir_)
 
     assert len(files) == 1
-    assert files[0].base_content is None, "sans HEAD, la base doit être absente"
+    assert files[0].base_content is None, "without HEAD, base contents must be absent"
 
 
 def test_staged_nothing_staged_means_nothing_to_scan(tmp_path: Path) -> None:
@@ -240,12 +228,10 @@ def test_staged_nothing_staged_means_nothing_to_scan(tmp_path: Path) -> None:
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "a" {}\n')
     git(dir_, "add", ".")
     git(dir_, "commit", "-qm", "init")
-    # Édition non indexée seulement.
+    # Unstaged change only.
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "edited" {}\n')
 
-    assert staged_terraform_files(dir_) == [], (
-        "une édition non indexée ne fait pas partie du commit"
-    )
+    assert staged_terraform_files(dir_) == [], "unstaged changes do not belong to the commit"
 
 
 def test_staged_deletion_is_skipped(tmp_path: Path) -> None:
@@ -255,24 +241,20 @@ def test_staged_deletion_is_skipped(tmp_path: Path) -> None:
     git(dir_, "commit", "-qm", "init")
     git(dir_, "rm", "-q", "main.tf")
 
-    assert staged_terraform_files(dir_) == [], (
-        "une suppression indexée n'a pas de contenu à scanner"
-    )
+    assert staged_terraform_files(dir_) == [], "staged deletions have no contents to scan"
 
 
-# --- local.py : la copie de travail ----------------------------------------
+# Working-tree file selection.
 
 
 def test_uncommitted_includes_untracked_staged_and_unstaged(tmp_path: Path) -> None:
-    """Les fichiers non suivis sont toute la raison pour laquelle ce mode
-    existe à côté de --staged : le main.tf tout neuf que personne n'a encore
-    `git add` est exactement ce que « que dirait le pare-feu ? » demande."""
+    """Local scans must include untracked files as well as staged and unstaged changes."""
     dir_ = git_repo(tmp_path)
     write_file(tmp_path / "committed.tf", 'resource "aws_vpc" "a" {}\n')
     git(dir_, "add", ".")
     git(dir_, "commit", "-qm", "init")
 
-    write_file(tmp_path / "committed.tf", 'resource "aws_vpc" "edited" {}\n')  # non indexé
+    write_file(tmp_path / "committed.tf", 'resource "aws_vpc" "edited" {}\n')  # Unstaged.
     write_file(tmp_path / "staged.tf", 'resource "aws_vpc" "s" {}\n')
     git(dir_, "add", "staged.tf")
     write_file(tmp_path / "untracked.tf", 'resource "aws_vpc" "u" {}\n')
@@ -281,7 +263,7 @@ def test_uncommitted_includes_untracked_staged_and_unstaged(tmp_path: Path) -> N
 
     assert set(files) == {"committed.tf", "staged.tf", "untracked.tf"}
     assert files["committed.tf"].head_content == b'resource "aws_vpc" "edited" {}\n', (
-        "la tête doit être le contenu de la copie de travail"
+        "head contents must come from the working tree"
     )
     assert files["committed.tf"].base_content is not None, (
         "un fichier suivi doit porter la version de HEAD comme base"
@@ -295,17 +277,14 @@ def test_uncommitted_respects_gitignore(tmp_path: Path) -> None:
     write_file(tmp_path / "main.tf", 'resource "aws_vpc" "a" {}\n')
     git(dir_, "add", ".")
     git(dir_, "commit", "-qm", "init")
-    # Les caches de fournisseurs contiennent des .tf vendus ; les scanner
-    # enterrerait les découvertes de l'utilisateur sous un arbre de modules
-    # qui ne lui appartient pas.
+    # Skip provider caches so vendored Terraform does not drown out the repository's own
+    # findings.
     write_file(
         tmp_path / ".terraform" / "modules" / "x" / "main.tf",
         'resource "aws_db_instance" "p" { password = "x" }\n',
     )
 
-    assert uncommitted_terraform_files(dir_) == [], (
-        "les fichiers ignorés par git ne doivent pas être scannés"
-    )
+    assert uncommitted_terraform_files(dir_) == [], "Git-ignored files must not be scanned"
 
 
 def test_uncommitted_clean_tree_finds_nothing(tmp_path: Path) -> None:
@@ -317,21 +296,11 @@ def test_uncommitted_clean_tree_finds_nothing(tmp_path: Path) -> None:
     assert uncommitted_terraform_files(dir_) == []
 
 
-# --- la garde de propriété de git -------------------------------------------
-#
-# Sans équivalent Go. Le binaire Go tournait dans une image alpine où le
-# problème ne s'est pas posé ; le port Python a hérité d'un `Dockerfile` qui
-# croyait le régler et ne le réglait pas.
+# Per-command Git ownership handling for container-mounted checkouts.
 
 
 def test_every_git_call_disarms_the_ownership_guard() -> None:
-    """Git refuse d'ouvrir un dépôt appartenant à un autre utilisateur — ce à
-    quoi ressemble exactement le workspace monté dans le conteneur d'une
-    GitHub Action. Sans ce réglage, AUCUN diff n'est calculable et l'outil ne
-    sert à rien, chez tout le monde.
-
-    Vérifié sur la ligne de commande construite et non sur un effet observable :
-    reproduire une différence de propriétaire demanderait deux comptes."""
+    """Check the per-command ownership override used for container-mounted Git checkouts."""
     import subprocess
     from unittest import mock
 
@@ -343,17 +312,15 @@ def test_every_git_call_disarms_the_ownership_guard() -> None:
 
     argv = run.call_args[0][0]
     assert argv[:4] == ["git", "-c", "safe.directory=*", "-C"], (
-        "le réglage doit être passé par -c : le Dockerfile l'écrivait dans un "
-        "$HOME que GitHub remplace à l'exécution, donc git ne le lisait jamais"
+        "pass the override with -c; build-time global config is lost when "
+        "GitHub replaces HOME at runtime"
     )
     assert argv[4] == "/un/depot"
     assert argv[5:] == ["rev-parse", "HEAD"]
 
 
 def test_an_ownership_refusal_is_reported_as_itself(tmp_path) -> None:
-    """Le message accusait la référence et conseillait `fetch-depth: 0` — sur
-    un workflow qui l'avait déjà — en reléguant la vraie cause en dernière
-    ligne. On envoyait l'utilisateur corriger ce qui était correct."""
+    """Report repository ownership failures directly instead of suggesting a missing-ref fix."""
     import subprocess
     from unittest import mock
 
@@ -374,7 +341,7 @@ def test_an_ownership_refusal_is_reported_as_itself(tmp_path) -> None:
 
 
 def test_a_genuinely_missing_ref_still_says_so(tmp_path) -> None:
-    """Le pendant : la garde ne doit pas avaler le cas qu'elle borde."""
+    """Preserve useful diagnostics for an actually missing ref."""
     import subprocess
     from unittest import mock
 

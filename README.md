@@ -1,252 +1,135 @@
 # TF Pre-Deploy Firewall
 
-Terraform review on every pull request. Free, MIT-licensed, no account.
+An open-source scanner that reviews Terraform changes before deployment. It detects
+unknown provider arguments, replacement risks, hardcoded credentials, and unsafe
+configuration, then reports the affected files and lines.
 
-It reads the Terraform changed in a pull request against the provider's real
-schema and comments on the line that caused the finding. No `terraform init`,
-no plan, no state file, no credentials, no network call. Unlimited
-repositories, unlimited scans.
+The core is **MIT-licensed** and runs locally without an account, Terraform, cloud
+credentials, or a plan. It includes its parser, rules, provider schema packs, and
+report renderers. GitHub comments, AWS lookups, and hosted features use network
+access when enabled.
 
-[tfpredeployfirewall.com](https://tfpredeployfirewall.com) · [Rules reference](docs/rules.md) · [Changelog](CHANGELOG.md)
+[Usage](docs/usage.md) · [Rules](docs/rules.md) · [Architecture](docs/architecture.md) ·
+[Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
----
+## Run your first scan
 
-## The problem it exists for
+Requires Python 3.11 or later and Git. Install from this repository:
 
-An agent asked to rename a database and turn on deletion protection produced
-exactly this:
-
-```hcl
-resource "aws_db_instance" "primary" {
-  identifier     = "prod-primary"
-- db_name        = "appdb"
-+ db_name        = "app_production"
-  ...
-+ enable_deletion_protection = true
-}
+```sh
+pip install git+https://github.com/foadtalsi/tf-predeploy-firewall@v1
+cd /path/to/your/terraform-repository
+tf-predeploy-firewall --full-repo-scan
 ```
 
-Both lines are wrong, and neither is wrong in a way that reads wrong.
+A full scan checks existing files. To review a change instead:
 
-`db_name` is ForceNew on `aws_db_instance` — changing it destroys and recreates
-the database. `enable_deletion_protection` is not an argument of that resource
-at all; the real one is `deletion_protection`, so the guard the pull request
-claims to add does not exist. A reviewer sees a rename and a safety flag. The
-plan sees a destroy.
+```sh
+# Compare two commits or branches. Fetch the base branch first.
+tf-predeploy-firewall --base-ref origin/main --head-ref HEAD
 
-## Install
+# Review local edits, including untracked files.
+tf-predeploy-firewall --uncommitted
 
-Both paths run the same engine on the same 32 rules. Pick whichever you already
-have.
+# Review exactly what is staged for the next commit.
+tf-predeploy-firewall --staged
+```
 
-### GitHub Actions
+The scanner also checks `terragrunt.hcl`, `.tfvars`, and `.tfvars.json` files.
+Use `--help` for all options and `--format text` for a compact report in CI logs.
+
+## GitHub Actions
+
+Save this as `.github/workflows/terraform-review.yml`:
 
 ```yaml
-name: tf-predeploy-firewall
+name: Terraform review
 on:
   pull_request:
-    paths: ["**/*.tf"]
+    paths:
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - "**/*.tfvars.json"
+      - "**/terragrunt.hcl"
 
 permissions:
-  pull-requests: write
   contents: read
+  pull-requests: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
       - uses: foadtalsi/tf-predeploy-firewall@v1
 ```
 
-That is the whole file — no key, no secret, no `with:` block. `fetch-depth: 0`
-matters: without it the runner has no base branch to diff against.
+The full checkout makes the base revision available. The action creates or updates
+a summary comment and posts exact fixes as review suggestions. Review a suggestion
+before accepting it with **Commit suggestion**. Repository branch protection controls
+whether a failed scan prevents merging.
 
-### CLI
-
-```console
-$ pip install \
-  git+https://github.com/foadtalsi/tf-predeploy-firewall@v1
-
-$ cd infra/terraform
-$ tf-predeploy-firewall --full-repo-scan
-```
-
-### pre-commit
-
-```yaml
-repos:
-  - repo: https://github.com/foadtalsi/tf-predeploy-firewall
-    rev: v1.2.4
-    hooks:
-      - id: tf-predeploy-firewall
-```
-
-This one scans the git index, so a secret is caught while removing it is still
-an edit rather than a rotation.
+These docs describe the current source. Installation examples use `@v1`; newer
+features such as Bedrock auto-fix require a release or commit containing them.
+See [the Action inputs](action.yml) and [usage guide](docs/usage.md).
 
 ## What it checks
 
-Twelve categories, 32 rules. The full reference — what each detects, why it
-interrupts a merge, and how to disagree with it — is in
-[`docs/rules.md`](docs/rules.md).
-
-| | |
+| Check | Example |
 |---|---|
-| **Hallucinated arguments** | Arguments the provider does not declare, checked against a generated schema rather than a hand-written list |
-| **Destroy+recreate traps** | ForceNew attributes whose value the pull request changes |
-| **Credentials in source** | Known key formats, plus a calibrated entropy fallback for the ones with no format |
-| **Missing guards** | Stateful resources with no `prevent_destroy`, `force_destroy` on buckets |
-| **Unpinned versions** | Module sources and providers with no version constraint |
-| **Open exposure** | `0.0.0.0/0` ingress, public buckets, disabled encryption, wildcard IAM |
+| Unknown arguments | An attribute absent from the loaded provider schema |
+| Replacement risks | A changed `ForceNew` attribute on an existing resource |
+| Credentials | Hardcoded passwords, known token formats, high-entropy secrets |
+| Destruction guards | Missing `prevent_destroy`, S3 `force_destroy = true` |
+| Version constraints | Unpinned modules or providers |
+| Unsafe configuration | Public access, disabled encryption, broad IAM permissions |
+| Optional plan checks | Confirmed replacement, unexplained drift, large blast radius |
 
-It also reads `terragrunt.hcl`, `.tfvars` and `.tfvars.json` — a secret moved
-out of `main.tf` has to land somewhere.
+The [rule reference](docs/rules.md) explains each category and suggested remediation.
+Severity is ordered **low → medium → high → critical**. By default, an unaccepted
+finding at **high** or **critical** makes the scan fail.
 
-## What it does not do
+Static analysis has limits. Unresolved expressions are not guessed. Schema checks
+cover the resource types in the loaded packs. If a module's provider constraint
+excludes the loaded schema version, the scanner warns and skips unknown-attribute
+and ForceNew findings for that provider; other checks still run. It does not fetch
+an older matching schema or replace `terraform validate` and plan review.
 
-This list is the product, not a disclaimer.
+## Adopt it on an existing repository
 
-- **It never runs `terraform`.** No `init`, no `plan`, no provider download.
-- **It reads no state.** Your state file is where your secrets are.
-- **It needs no credentials.** Nothing to grant, nothing to rotate, nothing to
-  leak from a CI runner.
-- **It makes no network call**, unless you hand it a license key.
-- **It never fails your build because of us.** A finding fails the build; an
-  error on our side does not.
-
-## It judges against the provider you pinned
-
-This is the difference between this scanner and `terraform validate`.
-
-A repository that declares `aws = "~> 3.0"` legitimately writes `vpc = true` on
-an `aws_eip` — the attribute only disappeared in 6.x. The scanner reads the
-`required_providers` constraint from the module's directory, and when the
-schema it carries falls outside the pinned range it drops the two
-schema-derived rules for that provider and says so:
-
-```
-aws is pinned to "~> 3.0" here, and the schema this scanner carries is 6.59.0.
-Attribute and ForceNew findings for aws were dropped rather than judged against
-a version you do not use — every other rule still ran.
-```
-
-Silence beats a confident wrong answer: we do not hold that version's schema,
-so we have nothing to say about its arguments. Every rule that judges a written
-value — credentials, entropy, open CIDRs, missing guards — still runs. A
-hardcoded password is a hardcoded password on every version of AWS.
-
-## Pointing it at a repository that already exists
-
-It will find a lot. That is usually where these tools die, so there are four
-levels of suppression, narrowest first:
-
-| Scope | How |
-|---|---|
-| One line | `# tf-firewall-ignore: <category>` above or on the line |
-| One path | `ignore_paths:` in the config file, optionally scoped to categories |
-| One category, everywhere | `ignore_rules:` in the same file |
-| Everything that exists today | a committed baseline |
-
-The baseline is the one that matters on adoption day:
-
-```console
-$ tf-predeploy-firewall --full-repo-scan --write-baseline .tf-firewall-baseline.json
-$ git add .tf-firewall-baseline.json
-```
-
-Commit it and pass `--baseline`. Everything in it stays visible in the pull
-request comment and stops blocking; anything new blocks. Entries match on
-rule + category + resource + file, never on line number — a baseline that
-breaks when you add a line above would be worse than none.
-
-The config file is read from `config/default.yml` by default, overridable with
-`--config` or `SCANNER_CONFIG`.
-
-## Optional extras
-
-Each is off unless you ask for it.
-
-| Flag | What it adds |
-|---|---|
-| `--plan-json <file>` | Reads the output of `terraform show -json` that **you** produced, with your own credentials, to add confirmed-replace, drift and blast-radius findings. This tool never runs terraform. |
-| `--cloud-read-access` | Uses the job's existing credentials to read whether the resources a finding is about already exist and how much they hold, so severity reflects the real account. Read-only and narrowly so — see [`docs/cloud-read-access.md`](docs/cloud-read-access.md). |
-| `--sarif-output <file>` | SARIF 2.1.0 for GitHub Code Scanning. |
-| `--codequality-output <file>` | GitLab Code Quality report, rendered in the merge request widget with no token. |
-| `--license-key` | A paid plan: the full 2,840-type provider knowledge base, the dashboard, waivers, history. |
-
-## Exit codes
-
-| | |
-|---|---|
-| `0` | No finding at or above the blocking threshold |
-| `1` | Blocked — something reached the threshold |
-| `2` | The scanner could not run (bad flag, unreadable config, unreachable git ref) |
-| `3` | A license key was given and its plan's quota is exhausted |
-
-## Free and paid
-
-The scanner is MIT and stays that way. It carries embedded packs covering 80
-AWS and Azure resource types — the ones most repositories use most, generated
-from `terraform providers schema -json` rather than curated by hand.
-
-A plan swaps them for all 2,840 types across both providers, and adds the
-operational half: dashboard, per-finding waivers with
-a written justification, history, SSO. Most repositories never need it, and we
-would rather you find that out than be told it.
-
-Nothing you install today stops working if you never buy a plan.
-
-## Licence
-
-MIT. See [LICENSE](LICENSE).
-
-### Scan history attribution
-
-Paid dashboards provide a Findings page with date, user and severity sorting.
-Usage reports attach the scan initiator from `TFPDF_SCAN_ACTOR`, then
-`GITHUB_TRIGGERING_ACTOR`, `GITHUB_ACTOR`, or `GITLAB_USER_LOGIN` (first non-empty
-value). For local scans, set `TFPDF_SCAN_ACTOR` explicitly. This is a reported
-identity, not verified dashboard authentication or the author of the affected code.
-Older scans without this field display “Not recorded”. Reporting still requires
-`TFPDF_LICENSE_KEY` and a repository identity.
-
-### Bedrock auto-fix (Growth)
-
-Opt in with `--autofix` to send affected `.tf` files and their findings to the cloud service.
-An active Growth subscription is checked by the server; other plans cannot use Bedrock.
+Review the initial findings, then record accepted existing risks:
 
 ```sh
-export TFPDF_LICENSE_KEY="your-api-key"
-tf-predeploy-firewall --uncommitted --autofix
+tf-predeploy-firewall --full-repo-scan --write-baseline .tf-firewall-baseline.json
+tf-predeploy-firewall --full-repo-scan --baseline .tf-firewall-baseline.json
 ```
 
-The CLI shows a diff and asks `Apply this correction? [y/N]` for each file.
-Without a terminal it only previews corrections. It never stages or commits files,
-and refuses to overwrite a file that differs from the version used for the proposal.
-After acceptance, review and rerun the scan (and stage changes again for `--staged`).
-The current scan keeps its original verdict; accepting generated code does not waive findings.
+Commit the baseline and pass it in subsequent scans. Accepted findings remain
+visible without blocking; new findings still count. Entries match rule, category,
+resource, and file, so moving a line does not invalidate them.
 
-In GitHub Actions, add these inputs to the scanner step:
+For narrower exclusions, configuration, reports, and pre-commit setup, read the
+[usage guide](docs/usage.md).
 
-```yaml
-with:
-  license-key: ${{ secrets.TFPDF_LICENSE_KEY }}
-  autofix: "true"
-```
+## Optional integrations
 
-Keep `pull-requests: write` and `actions/checkout` with `fetch-depth: 0`, as in
-[the example workflow](.github/workflows/example-usage.yml). The action scans the PR head
-and posts review suggestions: read the code, then use **Commit suggestion** to accept it.
-Corrections outside the PR diff remain available in the summary for manual application.
-Fork PRs without access to the license secret run the scan without Bedrock corrections.
+The local scanner works independently of the hosted service. A license key enables
+extended provider coverage, scan history, and dashboard waivers. Bedrock-generated
+fixes require explicit opt-in and an active **Growth** plan; users accept the proposed
+code in the CLI or GitHub. The cloud backend is a separate project.
 
-There is one proposal per affected `.tf` file, covering its unwaived findings.
-Existing deterministic suggestions remain available when Bedrock fails. Empty, malformed
-or truncated model responses are rejected. Large files may exceed the service limits
-(64 KiB request, 2,048 generated tokens); failures leave the files and scan verdict unchanged.
-Terraform validation and a new scan are still required after reviewing generated code.
+[AWS read-only access](docs/cloud-read-access.md) is independent of paid plans. It
+can adjust S3 findings using bucket existence and contents metadata without reading
+object contents. Neither integration is required to run or contribute to the core.
 
-The cloud Lambda and `/v1/autofix` route must be deployed, and the CLI/action version
-must contain this feature. An older `@v1` release will not recognize the new input.
+## Read and contribute to the code
+
+Start with the [architecture guide](docs/architecture.md) to follow a scan from Git
+changes to findings. [CONTRIBUTING.md](CONTRIBUTING.md) covers local setup, tests, rule
+changes, and generated documentation.
+
+## License
+
+[MIT](LICENSE).

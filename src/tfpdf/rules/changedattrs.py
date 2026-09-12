@@ -1,4 +1,4 @@
-"""Quels attributs le diff .tf propre à cette PR a réellement touchés."""
+"""Identify attributes actually changed by this pull request's Terraform diff."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ ChangedAttrKey = str
 
 
 def changed_attrs_for_resource(head: Resource | None, base: Resource | None) -> set[ChangedAttrKey]:
-    """Les clés d'attributs dont la valeur littérale diffère entre la base et la tête, ou dont la
-    présence a changé (ajouté ou retiré)."""
+    """Return attributes whose literal values or presence differ between base and head."""
     changed: set[ChangedAttrKey] = set()
     if head is None or base is None:
         return changed
@@ -56,8 +55,7 @@ def _diff_attr_maps(
 
 
 def bare_resource_address(plan_addr: str) -> str:
-    """Réduit une adresse de plan terraform à la forme nue « type.nom » que produit l'analyseur
-    HCL."""
+    """Reduce a plan address to the type.name form used by the HCL parser."""
     addr = plan_addr
     index = addr.find("[")
     if index >= 0:

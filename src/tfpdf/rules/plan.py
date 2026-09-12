@@ -1,4 +1,4 @@
-"""Règles de phase 2 : ce que `terraform plan` dit qu'il va réellement se passer."""
+"""Optional plan checks based on Terraform's proposed actions."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .goformat import sprint
 
 @dataclass(slots=True)
 class PlanRuleConfig:
-    """Configure les règles de phase 2 fondées sur le plan."""
+    """Configuration for plan-based checks."""
 
     #: The number of destroy/replace actions that triggers the blast-radius
     #: rule. Zero disables it.
@@ -30,7 +30,7 @@ def run_plan_rules(
     kb: KnowledgeBase | None,
     config: PlanRuleConfig,
 ) -> list[Finding]:
-    """Exécute chaque règle de phase 2 contre un plan `terraform show -json` analysé."""
+    """Run plan checks against parsed terraform show -json output."""
     findings: list[Finding] = []
     findings += ConfirmedReplaceRule().check(plan_path, pf.resource_changes, kb)
     findings += DriftRule().check(plan_path, pf.resource_changes, changed_attrs, kb)
@@ -49,8 +49,7 @@ def run_plan_rules(
 def deduplicate_force_new_against_plan(
     static_findings: list[Finding], plan_findings: list[Finding]
 ) -> list[Finding]:
-    """Retire les découvertes force-new de phase 1 pour toute ressource dont le plan a déjà
-    confirmé le remplacement."""
+    """Remove static ForceNew findings when the plan already confirms replacement of that resource."""
     confirmed = {
         bare_resource_address(finding.resource)
         for finding in plan_findings
@@ -70,9 +69,9 @@ def deduplicate_force_new_against_plan(
 
 
 class ConfirmedReplaceRule:
-    """Signale toute ressource que Terraform a réellement décidé de détruire — suppression pure,
-    ou remplacement par suppression puis création — sur un type de ressource critique ou à
-    état."""
+    """Flag destruction or replacement of critical or stateful resource types confirmed by the
+    plan.
+    """
 
     def check(
         self,
@@ -128,8 +127,7 @@ class ConfirmedReplaceRule:
 
 
 class DriftRule:
-    """Signale une mise à jour de plan où la valeur d'un attribut sensible change alors que le
-    diff .tf de cette PR n'y a jamais touché."""
+    """Flag sensitive attribute updates in the plan that the Terraform source diff did not change."""
 
     def check(
         self,
@@ -197,11 +195,7 @@ class DriftRule:
 
 @dataclass(slots=True)
 class BlastRadiusRule:
-    """Signale un plan dont le nombre d'actions de destruction ou de
-    remplacement dépasse un seuil configurable — signe que quelque chose (une
-    refonte de module, une montée de version de fournisseur, une ressource
-    déplacée sans bloc `moved`) s'apprête à toucher bien plus d'infrastructure
-    qu'une PR ordinaire ne devrait."""
+    """Flag plans exceeding the configured destruction/replacement count threshold."""
 
     #: The number of destroy+replace actions that triggers the finding. Zero or
     #: negative disables the rule.

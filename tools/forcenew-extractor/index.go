@@ -102,10 +102,7 @@ func extractorFor(provider string) func(string) (*forceNewIndex, error) {
 	return extractForceNew
 }
 
-// dedupe retire les doublons en préservant l'ordre. Copié depuis
-// schemajson.go de genpack, qui reste dans l'arbre Go : c'est douze lignes,
-// et les importer aurait voulu dire faire dépendre cet outil du module même
-// dont on le détache.
+// dedupe removes duplicates while preserving order.
 func dedupe(in []string) []string {
 	seen := make(map[string]bool, len(in))
 	out := in[:0]

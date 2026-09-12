@@ -1,4 +1,4 @@
-"""Résolution de portée : transformer `var.x` et `local.y` en les valeurs qu'ils portent."""
+"""Resolve variable defaults and locals for static analysis."""
 
 from __future__ import annotations
 
@@ -7,8 +7,7 @@ from ..hcl import EvalContext, Value
 
 
 def build_scope(files_by_path: dict[str, bytes]) -> EvalContext | None:
-    """Rend un contexte d'évaluation pour un répertoire, à partir du contenu de ses fichiers .tf
-    indexé par chemin."""
+    """Build a directory's evaluation context from Terraform file contents indexed by path."""
     locals_: dict[str, Value] = {}
     vars_: dict[str, Value] = {}
 

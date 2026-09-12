@@ -1,5 +1,4 @@
-"""Port de internal/schema/schema_test.go, docs_test.go et
-multiprovider_test.go, cas pour cas."""
+"""Provider schema, overlay, coverage, and documentation-link tests."""
 
 from __future__ import annotations
 
@@ -103,11 +102,7 @@ def test_load_marks_critical_types(kb: schema.KnowledgeBase, r_type: str) -> Non
 def test_resource_schema_covers_real_world_arguments(
     kb: schema.KnowledgeBase, r_type: str, args: list[str]
 ) -> None:
-    """La surface générée doit être réellement complète, et pas simplement
-    présente. Ces arguments sont exactement le genre qu'une liste curée à la main
-    ratait sans cesse, et chaque omission était une fausse découverte
-    « attribut halluciné » de sévérité haute — c'est-à-dire une PR bloquée sur du
-    Terraform valide."""
+    """Real provider arguments must be covered to avoid blocking valid Terraform as unknown."""
     rs = kb.resource_schema(r_type)
     assert rs is not None
     valid = set(rs.top_level)
@@ -132,9 +127,7 @@ def test_resource_schema_covers_real_world_arguments(
 def test_force_new_known_attributes(
     kb: schema.KnowledgeBase, r_type: str, attrs: list[str]
 ) -> None:
-    """Les données ForceNew pilotent la règle qui avertit d'une
-    destruction-recréation : une mauvaise entrée est donc pire qu'une entrée
-    manquante."""
+    """Verify replacement-triggering attributes against known schema examples."""
     spec = kb.force_new(r_type)
     assert spec is not None
     got = set(spec.top_level)
@@ -143,9 +136,7 @@ def test_force_new_known_attributes(
 
 
 def test_force_new_excludes_in_place_updatable(kb: schema.KnowledgeBase) -> None:
-    """Quelque chose de manifestement modifiable sur place ne doit PAS être
-    rapporté comme ForceNew, sinon chaque édition de tag avertirait d'une
-    destruction."""
+    """Do not report ordinary in-place updates as replacements."""
     spec = kb.force_new("aws_instance")
     assert spec is not None
     for a in ("tags", "instance_type"):
@@ -153,10 +144,7 @@ def test_force_new_excludes_in_place_updatable(kb: schema.KnowledgeBase) -> None
 
 
 def test_force_new_references_real_arguments(kb: schema.KnowledgeBase) -> None:
-    """Chaque argument ForceNew doit exister dans la surface d'arguments du
-    même pack. Une entrée ForceNew nommant un argument que le fournisseur ne
-    déclare pas voudrait dire que le générateur a mal lu la source du
-    fournisseur."""
+    """Every ForceNew attribute must exist in the same pack's argument schema."""
     problems: list[str] = []
     for pack in kb._packs:
         for r_type in pack.resources:
@@ -208,9 +196,7 @@ def test_coverage_base_pack_only(kb: schema.KnowledgeBase) -> None:
 
 
 def test_load_with_overlay_takes_precedence() -> None:
-    """Un pack en surcouche doit l'emporter sur le pack de base pour un type
-    qu'ils partagent, et ajouter les types que le pack de base n'a jamais
-    eus."""
+    """Overlays replace shared resource types and add newly covered types."""
     overlay = _make_pack(
         """{
         "format_version": 1,
@@ -237,9 +223,7 @@ def test_load_with_overlay_takes_precedence() -> None:
 
 
 def test_load_with_bad_pack_does_not_break_loading() -> None:
-    """Un pack étendu corrompu ou illisible dégrade la couverture ; il
-    n'empêche jamais un scan. Tout le chemin de livraison est bâti sur cette
-    promesse."""
+    """Invalid extended packs degrade coverage without preventing embedded-pack loading."""
     kb, errs = schema.load_with(io.BytesIO(b"not a gzip pack"))
     assert len(errs) == 1
     assert kb is not None
@@ -269,16 +253,12 @@ def test_doc_url_pins_the_provider_version(kb: schema.KnowledgeBase) -> None:
 
 
 def test_doc_url_empty_for_uncovered_type(kb: schema.KnowledgeBase) -> None:
-    """Deviner l'URL depuis le nom du type marcherait la plupart du temps, et
-    le reste du temps enverrait quelqu'un sur un 404 pour vérifier une
-    affirmation."""
+    """Do not invent documentation URLs for uncovered types."""
     assert kb.doc_url("google_storage_bucket") == ""
 
 
 def test_doc_url_uses_the_overlaid_packs_version() -> None:
-    """Un pack étendu en surcouche et le pack de base peuvent être construits
-    depuis des publications de fournisseur différentes ; le lien doit porter
-    celle qui a répondu."""
+    """Link to the provider version from the pack that actually supplied the resource schema."""
     overlay = _make_pack(
         """{
         "format_version": 1, "id": "aws-full", "provider": "aws",
@@ -294,9 +274,7 @@ def test_doc_url_uses_the_overlaid_packs_version() -> None:
 
 
 def test_multiprovider_lookups_need_no_routing(kb: schema.KnowledgeBase) -> None:
-    """Les types de ressources sont espacés par leur préfixe, si bien qu'une
-    seule base de connaissances répond pour chaque fournisseur chargé sans qu'on
-    lui dise lequel consulter."""
+    """Provider-prefixed resource types resolve through one shared knowledge base."""
     assert kb.resource_schema("aws_db_instance") is not None
     assert kb.resource_schema("azurerm_mssql_server") is not None
 

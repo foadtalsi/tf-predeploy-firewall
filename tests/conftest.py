@@ -1,9 +1,5 @@
-"""Configuration pytest partagée.
-
-`--update-docs` est le port du `go test ./internal/report -run RuleDocs -update`
-de Go : docs/rules.md est généré depuis le pack de règles, et chaque `helpUri`
-SARIF pointe dedans — le fichier doit donc être régénérable par quiconque édite
-le pack, plutôt que tenu à jour à la main.
+"""Shared pytest configuration. --update-docs regenerates docs/rules.md from the built-in pack
+without changing frozen Go fixtures.
 """
 
 from __future__ import annotations

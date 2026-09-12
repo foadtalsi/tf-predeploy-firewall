@@ -1,4 +1,4 @@
-"""Vérification des versions des modules et des fournisseurs."""
+"""Check module and provider version constraints."""
 
 from __future__ import annotations
 
@@ -35,8 +35,7 @@ _DECLARED_SOURCE = re.compile(r'source\s*=\s*"([^"]+)"')
 
 
 class UnpinnedVersionRule:
-    """Signale les sources de modules et les exigences de fournisseurs qui flottent au lieu de
-    nommer une version."""
+    """Flag module sources and provider requirements without version constraints."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         findings: list[Finding] = []
@@ -123,7 +122,7 @@ def _is_git_source(value: str) -> bool:
 def _check_required_providers(
     path: str, source: bytes, knowledge_base: KnowledgeBase | None
 ) -> list[Finding]:
-    """Signale les fournisseurs déclarés sans contrainte de version."""
+    """Flag providers declared without a version constraint."""
     if not source:
         return []
     text = source.decode("utf-8", errors="replace")
@@ -158,7 +157,7 @@ def _check_required_providers(
 
 
 def _pin_suggestion(name: str, entry: str, knowledge_base: KnowledgeBase | None) -> str:
-    """Le bloc à coller pour épingler ce fournisseur, ou "" quand on ne sait pas."""
+    """Suggest a provider-pinning block, or return an empty string when unavailable."""
     if knowledge_base is None:
         return ""
     major = _known_major(name, entry, knowledge_base)
@@ -175,7 +174,7 @@ def _pin_suggestion(name: str, entry: str, knowledge_base: KnowledgeBase | None)
 
 
 def _known_major(name: str, entry: str, knowledge_base: KnowledgeBase) -> str | None:
-    """Le numéro majeur que la base de connaissances porte pour ce fournisseur, ou None."""
+    """Return the provider's known major version, or None."""
     declared = _DECLARED_SOURCE.search(entry)
     address = declared.group(1) if declared is not None else f"hashicorp/{name}"
     namespace, _, type_ = address.rpartition("/")
@@ -188,8 +187,7 @@ def _known_major(name: str, entry: str, knowledge_base: KnowledgeBase) -> str | 
 
 
 def _required_providers_body(source: str) -> tuple[str, int] | None:
-    """Le texte à l'intérieur de `required_providers { … }` et la ligne où il
-    commence, par appariement d'accolades depuis le mot-clé."""
+    """Find required_providers body text and its starting line using balanced braces."""
     index = source.find("required_providers")
     if index < 0:
         return None

@@ -1,4 +1,4 @@
-"""Port de internal/tfvars/tfvars_test.go, cas pour cas."""
+"""Terraform variable-file detection tests."""
 
 from __future__ import annotations
 
@@ -14,9 +14,7 @@ def messages(findings: list[Finding]) -> str:
 
 
 def test_catches_a_credential_by_name() -> None:
-    """Le cas pour lequel ce module existe. Quand on leur dit de sortir un
-    secret de main.tf, les gens le déplacent dans terraform.tfvars — et
-    commitent ça."""
+    """Moving a hardcoded secret to terraform.tfvars must not hide it."""
     findings = scan_file(
         "terraform.tfvars",
         b"""
@@ -42,8 +40,7 @@ instance_ct = 3
 
 
 def test_recurses_into_objects_and_lists() -> None:
-    """Une valeur .tfvars peut être un objet de réglages ; un identifiant niché
-    dedans n'en est pas moins commité."""
+    """Inspect credentials nested inside objects and lists."""
     got = messages(
         scan_file(
             "prod.auto.tfvars",
@@ -75,9 +72,7 @@ another_setting     = "Vt5wYq2Jn8RkLp3zXcB7dHm4gFa9eSu6TbNr"
 
 
 def test_stays_quiet_on_ordinary_values() -> None:
-    """Les faux positifs sont ce qui fait désactiver un scanner. Un fichier
-    .tfvars est surtout de la configuration ordinaire et doit rester
-    silencieux."""
+    """Ordinary configuration values must not produce credential false positives."""
     findings = scan_file(
         "terraform.tfvars",
         b"""
@@ -96,8 +91,7 @@ subnet_ids      = ["subnet-0a1b2c3d4e5f6a7b8", "subnet-1b2c3d4e5f6a7b8c9"]
 
 
 def test_skips_unresolvable_values() -> None:
-    """Une valeur que le scanner ne peut pas résoudre ne doit jamais être
-    devinée."""
+    """Never guess unresolved values."""
     findings = scan_file("terraform.tfvars", b'password = file("secret.txt")')
     assert findings == [], messages(findings)
 
@@ -118,8 +112,7 @@ def test_handles_the_json_form() -> None:
 
 
 def test_reports_parse_errors() -> None:
-    """Un fichier que le scanner ne peut pas lire est un trou que l'appelant
-    doit rapporter, pas un trou qu'il doit sauter en silence."""
+    """Report unreadable variable files instead of silently skipping them."""
     with pytest.raises(HCLParseError):
         scan_file("bad.tfvars", b"this is = not ( valid")
     with pytest.raises(ValueError):

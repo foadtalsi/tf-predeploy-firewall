@@ -1,15 +1,11 @@
-"""Le commentaire de pull request.
-
-Port de internal/report/markdown.go.
-"""
+"""Render the pull request summary in Markdown."""
 
 from __future__ import annotations
 
 from .finding import Finding, Severity
 from .ruledocs import category_display
 
-#: Délimite le commentaire de l'outil pour que les exécutions suivantes le
-#: retrouvent et le modifient, au lieu d'en poster un nouveau à chaque push.
+# Stable marker used to find and update the existing summary comment.
 MARKER = "<!-- tf-predeploy-firewall:report -->"
 
 SEVERITY_EMOJI = {
@@ -21,12 +17,12 @@ SEVERITY_EMOJI = {
 
 
 def _by_file_then_line(finding: Finding) -> tuple[str, int, str, str]:
-    """Un ordre **total**, contrairement à celui de Go."""
+    """Sort findings deterministically by file, line, and remaining tie-breakers."""
     return (finding.file, finding.line, str(finding.category), finding.message)
 
 
 def render_markdown(findings: list[Finding], threshold: Severity | str, blocked: bool) -> str:
-    """Construit le corps complet du commentaire de PR pour un ensemble de découvertes."""
+    """Build the complete pull request summary for a set of findings."""
     sections: list[str] = [MARKER + "\n", "## TF Pre-Deploy Firewall\n\n"]
 
     active = [finding for finding in findings if not finding.waived]
@@ -36,9 +32,7 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
         sections.append("No risk patterns detected in the changed Terraform files. ✅\n")
         return "".join(sections)
 
-    # Clé totale, contrairement au sort.Slice de Go : deux découvertes sur le
-    # même fichier et la même ligne sont départagées par la catégorie puis le
-    # message, et non par une permutation arbitraire. Voir _by_file_then_line.
+    # Break file/line ties by category and message for deterministic output.
     active.sort(key=_by_file_then_line)
 
     if not active:
@@ -73,8 +67,7 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
 
 
 def _render_waivers(sections: list[str], waived: list[Finding]) -> None:
-    """Liste les découvertes qu'un administrateur a acceptées via le plan de contrôle (Starter et
-    plus, GET /v1/waivers)."""
+    """List findings accepted by administrators through hosted waivers."""
     if not waived:
         return
     waived = sorted(waived, key=_by_file_then_line)
@@ -97,15 +90,14 @@ def _render_waivers(sections: list[str], waived: list[Finding]) -> None:
 
 
 def resource_cell(f: Finding) -> str:
-    """Rend l'adresse de la ressource, liée à la documentation du fournisseur pour son type quand
-    elle est connue."""
+    """Render a resource address, linking its type to provider documentation when available."""
     if not f.doc_url:
         return "`" + f.resource + "`"
     return f"[`{f.resource}`]({f.doc_url})"
 
 
 def _render_suggestions(sections: list[str], sorted_findings: list[Finding]) -> None:
-    """Ajoute un bloc repliable « Suggested fixes » par découverte qui en a un."""
+    """Add a collapsible Suggested fixes block for each finding with a suggestion."""
     if not any(finding.suggestion for finding in sorted_findings):
         return
 

@@ -1,19 +1,7 @@
-"""Le format déclaratif des règles : ce qu'une règle cherche, comment la
-découverte est formulée, quel prédicat la confirme, et sa documentation longue.
+"""Declarative rule format, independent of parser and report types.
 
-Port de internal/ruledef/ruledef.go.
-
-N'importe rien du reste du scanner — ni parseur, ni types de rapport — pour que
-le format reste indépendant du moteur qui l'évalue. Tout ce qui lit du YAML lit
-un pack de règles.
-
-**Aucun langage d'expression, aucun appel de code.** Une règle nomme un prédicat
-pris dans un vocabulaire fixe fourni par le binaire. Le scanner tourne dans les
-pipelines CI d'autres gens ; « les clients peuvent écrire du code qui s'exécute
-ici » n'est pas un échange à faire.
-
-**Expressions régulières :** tout passe par `re.search`, jamais `re.match`, pour
-que les motifs non ancrés se comportent comme le `MatchString` de Go.
+Rules select predicates from a fixed vocabulary; they cannot execute code.
+Patterns use re.search rather than re.match to preserve unanchored matching.
 """
 
 from __future__ import annotations
@@ -48,16 +36,14 @@ VALID_FIX_ACTIONS = frozenset({"replace_attr_line"})
 
 
 class RulePackError(ValueError):
-    """Un pack qui n'a pas pu être analysé ou validé.
-
-    Bruyant par choix : un pack que le scanner ne lit qu'en partie est
-    indiscernable d'un dépôt propre.
+    """An invalid or unreadable rule pack. Reject partial loading to avoid reporting a misleading
+    clean scan.
     """
 
 
 @dataclass(slots=True)
 class Fix:
-    """Le remplacement en un clic proposé avec une découverte."""
+    """An exact replacement offered with a finding."""
 
     #: Names the compiled source-surgery primitive. The text has to reproduce
     #: the surrounding lines byte for byte, which is why this is a named
@@ -78,12 +64,7 @@ class Fix:
 
 @dataclass(slots=True)
 class Match:
-    """La condition déclarative.
-
-    Chaque champ posé doit être satisfait ; un Match vide ne correspond à rien,
-    ce que la validation rejette plutôt que de signaler silencieusement chaque
-    ressource du dépôt.
-    """
+    """Declarative conditions, all of which must match. Validation rejects an empty Match."""
 
     #: Selects what is walked:
     #:   attribute       — a resource's top-level attributes
@@ -114,11 +95,8 @@ class Match:
     value_contains: str = ""
     value_not_one_of: list[str] = field(default_factory=list)
 
-    #: Rejette d'emblée les valeurs publiques par construction — un ARN, une
-    #: URL, une clé publique SSH, un identifiant de ressource Azure. Vaut pour
-    #: la valeur ENTIÈRE, avant tout motif, parce qu'un motif non ancré trouve
-    #: sa fenêtre à l'intérieur de n'importe quelle chaîne assez longue et que
-    #: la confirmation ne juge ensuite que cette fenêtre.
+    # Reject whole values that are public by shape before unanchored patterns inspect
+    # substrings.
     value_not_public: bool = False
 
     #: Applies to scope: resource_name.
@@ -181,7 +159,7 @@ class Match:
 
 @dataclass(slots=True)
 class Rule:
-    """Un détecteur, ou les métadonnées d'un détecteur compilé."""
+    """A detector definition or metadata for a compiled detector."""
 
     id: str = ""
     category: str = ""
@@ -261,13 +239,7 @@ class Rule:
 
 @dataclass(slots=True)
 class CategoryDoc:
-    """L'explication longue d'une catégorie, rendue sur une page d'alerte de
-    scan de code et dans docs/rules.md — lue par quelqu'un qui n'a pas lancé le
-    scan et n'en a aucun contexte.
-
-    Une catégorie incapable de s'expliquer là est une catégorie qu'on désactive
-    en bloc plutôt que de l'affiner.
-    """
+    """A category's standalone explanation for code-scanning alerts and docs/rules.md."""
 
     category: str = ""
     title: str = ""
@@ -276,7 +248,7 @@ class CategoryDoc:
 
 
 class Pack:
-    """Un jeu complet de règles, tel que chargé depuis du YAML."""
+    """A complete ruleset loaded from YAML."""
 
     __slots__ = ("_by_cat", "_by_group", "_by_id", "_groups", "docs", "extends", "rules", "version")
 
@@ -319,20 +291,19 @@ class Pack:
         return self._by_id.get(rule_id)
 
     def group(self, name: str) -> list[Rule]:
-        """Les membres ordonnés d'un groupe nommé."""
+        """Return a named group's members in pack order."""
         return self._by_group.get(name, [])
 
     def group_names(self) -> list[str]:
-        """Chaque groupe, dans l'ordre de sa première apparition dans le pack."""
+        """Return group names in first-appearance order."""
         return list(self._groups)
 
     def ungrouped(self) -> list[Rule]:
-        """Les règles n'appartenant à aucun groupe, dans l'ordre du pack."""
+        """Return ungrouped rules in pack order."""
         return [r for r in self.rules if not r.group]
 
     def categories(self) -> list[str]:
-        """Chaque catégorie que le pack définit, dans l'ordre de première
-        apparition."""
+        """Return categories in first-appearance order."""
         out: list[str] = []
         seen: set[str] = set()
         for r in self.rules:
@@ -345,20 +316,12 @@ class Pack:
         return self._by_cat.get(category)
 
     def documented_categories(self) -> list[CategoryDoc]:
-        """Les catégories portant de la documentation, dans l'ordre du pack —
-        l'ordre dans lequel docs/rules.md est généré.
-        """
+        """Return documented categories in pack order, matching generated documentation order."""
         return list(self.docs)
 
     def require_ids(self, *ids: str) -> None:
-        """Vérifie que chaque identifiant que le binaire va chercher par son nom
-        est bien présent.
-
-        Les aides exportées de détection d'identifiants lisent leurs motifs dans
-        ce pack plutôt que d'en garder une seconde copie dans le code : un
-        identifiant renommé désactiverait donc silencieusement la détection de
-        secrets partout où ces aides servent — y compris dans les scanners
-        .tfvars et terragrunt.
+        """Require rule IDs referenced by compiled helpers so renames cannot silently disable
+        detection.
         """
         missing = [i for i in ids if i not in self._by_id]
         if missing:
@@ -369,13 +332,7 @@ class Pack:
     # --- validation -------------------------------------------------------
 
     def index(self) -> None:
-        """Valide chaque règle et construit les tables de recherche.
-
-        Séparé de `load` pour qu'un pack fusionné soit vérifié exactement par le
-        même code qu'un pack analysé : une fusion produisant quelque chose que
-        `load` aurait rejeté est un bug qu'il vaut mieux attraper là où il se
-        produit.
-        """
+        """Validate rules and build indexes. Both loaded and merged packs use the same checks."""
         self._by_id = {}
         self._by_group = {}
         self._by_cat = {}
@@ -491,11 +448,8 @@ def _rule_from_dict(d: dict[str, Any]) -> Rule:
 
 
 def load(data: bytes | str) -> Pack:
-    """Analyse et valide entièrement un pack de règles.
-
-    Chaque expression régulière est compilée et chaque énumération vérifiée au
-    chargement, pour qu'une faute de frappe fasse échouer le scan bruyamment au
-    lieu de produire une règle qui ne détecte rien en silence.
+    """Parse and validate a whole pack, compiling regexes and checking enum values so invalid rules
+    fail visibly.
     """
     try:
         raw = yaml.safe_load(data)

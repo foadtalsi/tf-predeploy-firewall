@@ -1,20 +1,7 @@
-"""Positions et plages dans la source.
+"""Source positions for findings, inline ignores, SARIF, and code suggestions.
 
-Chaque nœud que ce paquet produit porte le décalage en octets, la ligne et la
-colonne d'où il vient. Ce n'est pas de la comptabilité accessoire : toute la
-surface de sortie du scanner est positionnelle. Une découverte sans numéro de
-ligne ne peut devenir ni un commentaire de PR sur la bonne ligne, ni une région
-SARIF, ni un bloc `suggestion` en ligne, ni une correspondance
-`# tf-firewall-ignore:`. C'est la raison pour laquelle l'analyseur est écrit ici
-plutôt que délégué à une bibliothèque HCL qui rend des dictionnaires.
-
-Les décalages sont des décalages en **octets** dans la source UTF-8, comme ce
-qu'enregistre hashicorp/hcl, pour qu'une plage puisse redécouper les octets
-d'origine (voir `rules.iam_wildcard`, qui fait sa recherche sur le texte brut
-d'un attribut que l'évaluateur n'a pas su résoudre). Les colonnes sont comptées
-en points de code Unicode, là encore comme hcl, pour qu'une colonne se lise
-comme une colonne humaine et non comme un indice d'octet dans une ligne
-multi-octets.
+Offsets count UTF-8 bytes so ranges can slice the original source. Lines and
+columns are one-based; columns count Unicode code points rather than bytes.
 """
 
 from __future__ import annotations
@@ -24,18 +11,8 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True, slots=True, order=True)
 class Pos:
-    """Un point unique dans un fichier source.
-
-    `line` et `column` sont indexés à 1 et `byte` à 0, comme hcl.Pos.
-
-    Les valeurs par défaut des champs valent toutes **zéro**, ce qui n'est pas
-    une position valide, et c'est le but : un Pos construit par défaut signifie
-    « aucune position enregistrée », exactement ce que signifie le `hcl.Pos` à
-    valeur nulle de Go. `Resource.lifecycle_range` sur une ressource sans bloc
-    lifecycle rapporte la ligne 0 dans les deux implémentations, si bien qu'un
-    appelant testant `if r.lifecycle_range.start.line:` se comporte à
-    l'identique. Choisir la ligne 1 par défaut ferait prétendre à chaque plage
-    absente qu'elle pointe sur la première ligne du fichier.
+    """A source position: one-based line and column, zero-based byte offset. All-zero defaults mean
+    no position was recorded.
     """
 
     line: int = 0
@@ -56,7 +33,7 @@ INITIAL_POS = Pos(line=1, column=1, byte=0)
 
 @dataclass(frozen=True, slots=True)
 class Range:
-    """Une étendue semi-ouverte [début, fin) d'un fichier source."""
+    """A half-open source range [start, end)."""
 
     filename: str = ""
     #: A default-constructed Range is the "no position" zero value, matching
@@ -73,22 +50,14 @@ class Range:
         )
 
     def slice(self, source: bytes) -> bytes:
-        """Rend les octets que cette plage couvre, ou b"" si elle ne tient pas dans
-        `src`.
-
-        Être hors bornes signifie que l'appelant a associé une plage à une
-        source dont elle ne vient pas. Rendre du vide en fait une découverte
-        manquée plutôt qu'une exception à l'intérieur de la CI de quelqu'un
-        d'autre.
-        """
+        """Return the covered source bytes, or b"" if the range is outside this source."""
         start, end = self.start.byte, self.end.byte
         if start < 0 or end > len(source) or start >= end:
             return b""
         return source[start:end]
 
     def merge(self, other: Range) -> Range:
-        """La plus petite plage couvrant les deux. Sert à étendre une expression de
-        son premier jeton à son dernier."""
+        """Return the smallest range covering both inputs."""
         return Range(
             filename=self.filename or other.filename,
             start=min(self.start, other.start),

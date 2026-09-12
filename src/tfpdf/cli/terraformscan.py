@@ -1,4 +1,4 @@
-"""Quels fichiers un scan regarde, selon le mode demandé."""
+"""Select files according to the requested scan mode."""
 
 from __future__ import annotations
 
@@ -12,9 +12,9 @@ from ..report.finding import Finding
 
 @dataclass(slots=True, frozen=True)
 class Mode:
-    """Quel ensemble de fichiers cette exécution scanne. Les trois booléens
-    sont mutuellement exclusifs ; le CLI en rejette plus d'un avant de construire
-    ceci."""
+    """The scan's file selection mode. The CLI rejects mutually exclusive options before
+    construction.
+    """
 
     staged: bool = False
     uncommitted: bool = False
@@ -74,7 +74,7 @@ def changed_tfvars(repo_dir: str, mode: Mode) -> list[ChangedFile]:
 
 
 def scan_terragrunt(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
-    """Scanne les fichiers Terragrunt modifiés ; avertit et poursuit si un fichier échoue."""
+    """Scan changed Terragrunt files, warning and continuing if an individual file fails."""
     findings: list[Finding] = []
     for changed_file in changed_terragrunt(repo_dir, mode):
         try:
@@ -85,8 +85,7 @@ def scan_terragrunt(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> l
 
 
 def scan_tfvars(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
-    """Scanne les fichiers .tfvars et .tfvars.json modifiés, même contrat que
-    `scan_terragrunt`."""
+    """Scan changed .tfvars and .tfvars.json files, warning and continuing on individual failures."""
     findings: list[Finding] = []
     for changed_file in changed_tfvars(repo_dir, mode):
         try:

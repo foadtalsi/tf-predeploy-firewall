@@ -1,5 +1,4 @@
-"""Récupère le pack de règles étendu d'une organisation sous licence et le superpose au pack de
-base embarqué."""
+"""Fetch licensed schema packs and overlay them on embedded coverage."""
 
 from __future__ import annotations
 
@@ -30,17 +29,14 @@ _MAX_PACK_BYTES = 64 << 20
 
 
 class NoPackAvailableError(RuntimeError):
-    """Ni le réseau ni le cache n'ont pu fournir de pack étendu.
-
-    Ce n'est pas un échec du scan : l'appelant se rabat sur le pack de base
-    embarqué.
+    """Neither network nor cache provided an extended pack. The scan can continue with embedded
+    coverage.
     """
 
 
 @dataclass(slots=True)
 class RulePack:
-    """Un pack récupéré ou mis en cache, prêt à être passé à
-    `schema.load_with`."""
+    """A downloaded or cached pack ready for schema.load_with."""
 
     #: The provider the pack describes ("aws").
     provider: str
@@ -52,15 +48,14 @@ class RulePack:
     etag: str = ""
 
     def reader(self) -> io.BytesIO:
-        """Le corps du pack, sous forme de lecteur."""
+        """Open the pack body as a reader."""
         return io.BytesIO(self.data)
 
 
 def fetch_rule_pack(
     api_base: str, api_key: str, provider: str
 ) -> tuple[RulePack | None, Exception | None]:
-    """Récupère un pack, avec repli sur le cache. Retourne le pack et une éventuelle erreur
-    consultative."""
+    """Fetch a pack with cache fallback. Return the pack and any advisory error."""
     cache_dir: Path | None
     try:
         cache_dir = pack_cache_dir()
@@ -110,8 +105,7 @@ def fetch_rule_pack(
 def _download_rule_pack(
     api_base: str, api_key: str, provider: str, cached: RulePack | None
 ) -> RulePack | None:
-    """Rend None quand le serveur signale que la copie en cache est encore à
-    jour."""
+    """Return None when the server confirms the cached copy is current."""
     headers = {"Authorization": "Bearer " + api_key}
     if cached is not None and cached.etag:
         headers["If-None-Match"] = cached.etag
@@ -148,8 +142,7 @@ def _download_rule_pack(
 
 
 def _user_cache_dir() -> Path:
-    """Le répertoire de cache par utilisateur de la plateforme, correspondant à
-    l'`os.UserCacheDir` de Go."""
+    """Return the platform's per-user cache directory, matching Go os.UserCacheDir."""
     # Read into a local first. `sys.platform` compared inline is special-cased
     # by type checkers, which then declare every branch but this machine's
     # unreachable — and all three branches have to stay checked.
@@ -175,7 +168,7 @@ def _user_cache_dir() -> Path:
 
 
 def pack_cache_dir() -> Path:
-    """Où les packs sont mis en cache."""
+    """Return the schema-pack cache directory."""
     base = os.environ.get("TFPDF_CACHE_DIR")
     root = Path(base) if base else _user_cache_dir() / "tf-predeploy-firewall"
     dir_ = root / "rulepacks"
@@ -184,9 +177,7 @@ def pack_cache_dir() -> Path:
 
 
 def pack_file_name(provider: str, ext: str) -> str:
-    """Empêche le nom du fournisseur de s'échapper du répertoire de cache : il
-    vient de la configuration, et une valeur comme « ../../etc » ne doit pas
-    décider où l'on écrit."""
+    """Build a safe pack filename so a configured provider cannot escape the cache directory."""
     safe = "".join(
         ch if ("a" <= ch <= "z" or "0" <= ch <= "9" or ch in "-_") else "-"
         for ch in provider.lower()

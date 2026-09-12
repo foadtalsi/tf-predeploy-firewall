@@ -1,4 +1,4 @@
-"""Configuration du scanner. Priorité : fichier local < environnement."""
+"""Scanner configuration. Environment variables override the local file."""
 
 from __future__ import annotations
 
@@ -14,16 +14,14 @@ from ..report.finding import Category, Severity
 
 
 class ConfigError(ValueError):
-    """Le fichier de configuration n'a pas pu être lu, analysé ou compris.
-
-    Fatale : un scanner qui tourne sur une configuration mal lue applique
-    quelque chose que personne n'a demandé.
+    """A configuration file that could not be read or validated. Stop rather than scan with
+    unintended settings.
     """
 
 
 @dataclass(slots=True)
 class IgnorePathConfig:
-    """Exclusion par motif de chemin ; une liste de catégories vide les couvre toutes."""
+    """A path exclusion; an empty category list excludes all categories."""
 
     path: str = ""
     categories: list[Category | str] = field(default_factory=list)
@@ -31,32 +29,21 @@ class IgnorePathConfig:
 
 @dataclass(slots=True)
 class Config:
-    #: Du texte libre plutôt qu'une `Severity` : voir `Severity.at_least`.
+    # Free text for legacy threshold handling; see Severity.at_least.
     block_threshold: Severity | str = Severity.HIGH
     ignore_rules: list[Category | str] = field(default_factory=list)
     plan_blast_radius_threshold: int = 10
 
-    #: Supprime les découvertes sous tout un motif de fichier ou de répertoire
-    #: (`**` accepté), éventuellement restreint à certaines catégories — le
-    #: pendant à grande échelle du commentaire `# tf-firewall-ignore:` (une
-    #: ligne) et d'`ignore_rules` (une catégorie partout) : « ne scanne pas
-    #: legacy/** du tout », sans parsemer chaque fichier de cette arborescence.
+    # Exclude paths, optionally by category. Supports ** across directory levels.
     ignore_paths: list[IgnorePathConfig] = field(default_factory=list)
 
-    #: Identifiants d'utilisateurs ou de groupes demandés comme relecteurs dès
-    #: qu'une découverte de sévérité critique est présente. Ceci ne fait que
-    #: *demander* la relecture : BLOQUER réellement la fusion dessus exige que
-    #: la protection de branche du dépôt ait les relecteurs obligatoires
-    #: activés — un réglage ponctuel que cet outil n'a aucun accès API pour
-    #: configurer lui-même.
+    # Request reviewers for critical findings. Enforcing approval still requires repository
+    # branch protection.
     require_second_reviewer_users: list[str] = field(default_factory=list)
     require_second_reviewer_teams: list[str] = field(default_factory=list)
 
-    #: Poste en commentaire de revue en ligne chaque correctif que le scanner
-    #: peut exprimer comme un remplacement exact de lignes, pour qu'il puisse
-    #: être appliqué par le bouton en un clic de la forge. Vrai par défaut ;
-    #: mettre faux pour les dépôts qui préfèrent garder tout le rapport dans un
-    #: seul commentaire.
+    # Post exact fixes as inline suggestions by default; disable to keep only the summary
+    # report.
     suggestions: bool = True
 
     def ignore_path_rules(self) -> list[ignore.PathRule]:
@@ -73,7 +60,7 @@ def _as_str_list(v: Any) -> list[str]:
 
 
 def load_config(path: str) -> Config:
-    """Charge le YAML et les surcharges d'environnement. Un fichier absent conserve les défauts."""
+    """Load YAML and environment overrides, keeping defaults when the file is absent."""
     config = Config()
 
     data: bytes | None
@@ -101,7 +88,7 @@ def load_config(path: str) -> Config:
 
 
 def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
-    """N'écrase que les champs réellement présents dans le document."""
+    """Override only fields explicitly present in the YAML document."""
     if "block_threshold" in document:
         config.block_threshold = str(document["block_threshold"] or "")
     if "ignore_rules" in document:
@@ -149,7 +136,7 @@ def _apply_env(config: Config) -> None:
 
 
 def parse_go_bool(v: str, what: str) -> bool:
-    """Accepte les booléens true/false, 1/0, t/f et leurs variantes de casse prises en charge."""
+    """Parse true/false, 1/0, t/f, and their supported case variants."""
     if v in ("1", "t", "T", "true", "TRUE", "True"):
         return True
     if v in ("0", "f", "F", "false", "FALSE", "False"):
@@ -158,8 +145,7 @@ def parse_go_bool(v: str, what: str) -> bool:
 
 
 def warn_unknown_threshold(threshold: Severity | str) -> None:
-    """Avertit qu'un seuil inconnu conserve le comportement historique : toute sévérité le
-    franchit."""
+    """Warn that an unknown threshold retains legacy behavior: every severity exceeds it."""
     if str(threshold) in tuple(Severity):
         return
     print(
@@ -170,7 +156,7 @@ def warn_unknown_threshold(threshold: Severity | str) -> None:
 
 
 def load_custom_rules(path: str) -> customrules.Config | None:
-    """Lit la section `custom_rules:` du même fichier de configuration YAML."""
+    """Read custom_rules from the scanner's YAML configuration file."""
     try:
         data = Path(path).read_bytes()
     except FileNotFoundError:

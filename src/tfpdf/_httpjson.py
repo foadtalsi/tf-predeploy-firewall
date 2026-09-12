@@ -1,4 +1,4 @@
-"""Le peu de HTTP que fait le scanner, avec la bibliothèque standard."""
+"""Standard-library HTTP helpers for the scanner's optional network features."""
 
 from __future__ import annotations
 
@@ -16,24 +16,23 @@ DEFAULT_TIMEOUT = 30.0
 
 
 class HTTPError(RuntimeError):
-    """Une réponse hors 2xx, portant son corps."""
+    """An HTTP response outside the 2xx range, including its body."""
 
 
 class TransportError(HTTPError):
-    """La requête n'a jamais obtenu de réponse — DNS, connexion, TLS, délai."""
+    """A request that failed before receiving a response (DNS, connection, TLS, or timeout)."""
 
 
 @dataclass(slots=True, frozen=True)
 class RawResponse:
-    """Une réponse avec son statut intact, pour les appelants dont la logique *est* le code de
-    statut."""
+    """An HTTP response whose status code is left for the caller to interpret."""
 
     status: int
     body: bytes
     _headers: Message | None = None
 
     def header(self, name: str) -> str:
-        """Un en-tête de réponse, sans distinction de casse, ou « »."""
+        """Return a response header case-insensitively, or an empty string if absent."""
         if self._headers is None:
             return ""
         return self._headers.get(name, "")
@@ -47,7 +46,7 @@ def request_raw(
     timeout: float = DEFAULT_TIMEOUT,
     max_bytes: int | None = None,
 ) -> RawResponse:
-    """Exécute une requête et rend la réponse sans juger son statut."""
+    """Send a request and return its response without interpreting the status code."""
     request = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -62,7 +61,7 @@ def request_raw(
 
 
 def get_json(url: str, headers: dict[str, str], timeout: float = DEFAULT_TIMEOUT) -> Any:
-    """GET, puis décodage d'une réponse JSON."""
+    """Send a GET request and decode its JSON response."""
     request = urllib.request.Request(url, method="GET", headers=headers)
     return _read_json(request, url, "GET", timeout)
 
@@ -75,7 +74,7 @@ def send_json(
     timeout: float = DEFAULT_TIMEOUT,
     want_response: bool = False,
 ) -> Any:
-    """Envoie un corps JSON et, éventuellement, décode la réponse."""
+    """Send a JSON body and optionally decode the response."""
     body = json.dumps(payload).encode()
     request = urllib.request.Request(
         url,

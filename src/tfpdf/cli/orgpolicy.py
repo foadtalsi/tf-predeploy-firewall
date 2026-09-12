@@ -1,4 +1,4 @@
-"""Dérogations et compte rendu d'usage du scanner."""
+"""Apply hosted waivers and report scan usage."""
 
 from __future__ import annotations
 
@@ -16,8 +16,7 @@ def _warn(message: str) -> None:
 def apply_waivers(
     findings: list[Finding], license_key: str, api_base: str, repo_full_name: str = ""
 ) -> list[Finding]:
-    """Accepte les découvertes correspondant à une dérogation par catégorie, ressource et
-    fichier, sans dépendre du numéro de ligne."""
+    """Accept waiver matches by category, resource, and file, independently of line numbers."""
     if not repo_full_name:
         return findings
 
@@ -49,13 +48,10 @@ def report_usage(
     blocked: bool,
     repo_full_name: str = "",
 ) -> bool:
-    """Rapporte le scan. Retourne True si le quota est refusé ; une panne réseau avertit sans
-    bloquer."""
+    """Report the scan. Return True on quota refusal; warn without blocking on network failure."""
     if not repo_full_name:
-        # Le seul chemin qui laisse encore un scan non rapporté : ni CI, ni
-        # distant git exploitable, ni --repo-name. Il se dit à voix haute,
-        # parce qu'un scan silencieusement hors quota est un écart entre ce que
-        # l'organisation consomme et ce que son tableau de bord montre.
+        # Warn when no repository identity is available: this scan cannot appear in hosted usage
+        # or history.
         _warn(
             "TFPDF_LICENSE_KEY is set but this scan has no repository name — no "
             "GITHUB_REPOSITORY or CI_PROJECT_PATH, and no usable git remote. This scan "

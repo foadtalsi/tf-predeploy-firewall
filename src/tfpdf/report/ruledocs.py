@@ -1,5 +1,4 @@
-"""Résout l'étiquette lisible d'une catégorie et sa documentation longue depuis le pack de
-règles, et génère docs/rules.md."""
+"""Resolve category labels and help text from the rule pack and generate docs/rules.md."""
 
 from __future__ import annotations
 
@@ -20,14 +19,14 @@ DOCS_BASE_URL = "https://github.com/foadtalsi/tf-predeploy-firewall/blob/main/do
 
 @dataclass(slots=True, frozen=True)
 class RuleHelp:
-    """La documentation d'une catégorie, résolue depuis le pack."""
+    """A category's documentation resolved from the rule pack."""
 
     full_description: str
     markdown: str
 
 
 def lookup_rule_help(c: Category | str) -> RuleHelp | None:
-    """La documentation d'une catégorie, ou None."""
+    """Return category help, or None when unavailable."""
     try:
         pack = ruledef.builtin()
     except ruledef.RulePackError:
@@ -39,7 +38,7 @@ def lookup_rule_help(c: Category | str) -> RuleHelp | None:
 
 
 def category_title(c: Category | str) -> str | None:
-    """L'étiquette lisible d'une catégorie, depuis le pack."""
+    """Return the category's readable title from the rule pack."""
     try:
         pack = ruledef.builtin()
     except ruledef.RulePackError:
@@ -51,7 +50,7 @@ def category_title(c: Category | str) -> str | None:
 
 
 def category_display(c: Category | str) -> str:
-    """Étiquette une catégorie pour le commentaire de PR."""
+    """Format a category label for a pull request comment."""
     label = category_title(c)
     if label is not None:
         return label
@@ -62,8 +61,7 @@ def category_display(c: Category | str) -> str:
 
 
 def rule_help_uri(c: Category | str) -> str:
-    """Lien vers la section d'une catégorie dans la documentation publiée des
-    règles."""
+    """Link to the category's section in the published rule documentation."""
     return f"{DOCS_BASE_URL}#{c}"
 
 
@@ -95,7 +93,7 @@ _DOCS_EPILOGUE = (
 
 
 def render_rule_docs() -> str:
-    """Génère docs/rules.md depuis le pack de règles."""
+    """Generate docs/rules.md from the rule pack."""
     # Deferred because Go has one package here and Python has five modules:
     # sarif imports this one for its help text, so importing it back at module
     # scope would close the circle. The catalogue is the SARIF rule array, so

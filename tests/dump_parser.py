@@ -1,10 +1,4 @@
-"""Sérialise ce que produit tfpdf.parser, dans la forme exacte qu'émet
-core/cmd/parserdump depuis l'implémentation Go.
-
-Les deux sorties sont comparées octet pour octet par test_parser_parity.py.
-Garder la forme en un seul endroit fait qu'un champ ajouté au modèle est
-comparé, plutôt que d'échapper silencieusement à la vérification de parité.
-"""
+"""Serialize parser output in the historical Go parserdump format for byte-level parity checks."""
 
 from __future__ import annotations
 

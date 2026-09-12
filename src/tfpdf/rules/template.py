@@ -1,4 +1,4 @@
-"""Mise en forme des messages des règles déclaratives."""
+"""Format declarative rule messages."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ _GO_ESCAPES = {
 
 
 def expand(template: str, variables: dict[str, str]) -> str:
-    """Substitue les jetons connus et laisse tout le reste octet pour octet."""
+    """Replace known template tokens and leave all other text unchanged."""
     if not template:
         return ""
 
@@ -37,12 +37,12 @@ def expand(template: str, variables: dict[str, str]) -> str:
 
 
 def expand_all(tmpls: list[str], variables: dict[str, str]) -> list[str]:
-    """`expand` sur une liste, pour les corps de correctifs multi-lignes."""
+    """Expand a list of template lines, such as a multiline fix body."""
     return [expand(t, variables) for t in tmpls]
 
 
 def go_quote(s: str) -> str:
-    """Rend `s` comme le fait le `strconv.Quote` de Go."""
+    """Quote a string using Go strconv.Quote conventions."""
     out = ['"']
     for ch in s:
         esc = _GO_ESCAPES.get(ch)

@@ -1,5 +1,4 @@
-"""Consigne les découvertes déjà présentes dans un dépôt pour qu'elles ne bloquent pas la fusion,
-tout en bloquant les nouvelles."""
+"""Record existing findings so they remain visible without blocking new changes."""
 
 from __future__ import annotations
 
@@ -14,15 +13,11 @@ from .report.finding import Finding
 #: author never agreed to.
 FORMAT_VERSION = 2
 
-#: Les versions qu'on sait lire. La 1 n'a pas de `rule_name` dans ses entrées et
-#: est appariée de façon PERMISSIVE — voir `Baseline.apply`. Elle reste acceptée
-#: parce que la refuser ferait passer au rouge, du jour au lendemain, la CI de
-#: tout dépôt portant une référence existante, sur du code que personne n'a
-#: touché. Une montée de version qui punit ceux qui ont adopté l'outil tôt est
-#: une montée de version que personne n'applique.
+# Version 1 remains readable for compatibility but matches broadly without rule_name. Regenerate
+# it to use exact version 2 matching.
 READABLE_VERSIONS = frozenset({1, 2})
 
-#: Ce que la version 1 ne pouvait pas dire.
+# Fields introduced by baseline version 2.
 LEGACY_VERSION = 1
 
 _NOTE = (
@@ -34,19 +29,14 @@ _NOTE = (
 
 @dataclass(slots=True, frozen=True)
 class Entry:
-    """Une découverte acceptée."""
+    """An accepted finding."""
 
     category: str
     resource: str
     file: str
 
-    #: L'identifiant de la règle. Vide pour une entrée venue d'une référence en
-    #: version 1, qui ne le portait pas — et vide aussi, légitimement, pour la
-    #: seule découverte que le scanner produit sans règle (un fichier qu'il n'a
-    #: pas su analyser). Ces deux « vides » ne veulent pas dire la même chose,
-    #: et c'est la VERSION DU FICHIER qui les sépare, jamais le champ : une
-    #: entrée de version 2 sans nom de règle est une entrée exacte dont le nom
-    #: est vide, pas une entrée floue.
+    # Empty rule names are valid for parse-error findings. File version, not an empty name,
+    # determines whether matching is exact.
     rule_name: str = ""
 
     #: Recorded for the human reading the diff of this file — never matched on.
@@ -56,35 +46,30 @@ class Entry:
     line: int = 0
 
     def key(self) -> str:
-        """La clé exacte, celle de la version 2."""
+        """Return the exact version 2 key, including the rule name."""
         return f"{self.category}\x00{self.resource}\x00{self.file}\x00{self.rule_name}"
 
     def legacy_key(self) -> str:
-        """La clé de la version 1, sans nom de règle.
-
-        Ne peut pas entrer en collision avec `key()` : celle-ci porte toujours
-        un quatrième séparateur, même quand le nom de règle est vide.
+        """Return the version 1 key without a rule name. Its separator count distinguishes it from
+        version 2.
         """
         return f"{self.category}\x00{self.resource}\x00{self.file}"
 
 
 @dataclass(slots=True)
 class Baseline:
-    """Une référence chargée, prête à être confrontée aux découvertes."""
+    """A loaded baseline ready to match against findings."""
 
-    #: Entrées de version 2, appariées exactement (nom de règle compris).
+    # Version 2 entries match exactly, including rule name.
     by_key: dict[str, Entry] = field(default_factory=dict)
-    #: Entrées de version 1, appariées sans nom de règle.
+    # Version 1 entries match without rule name.
     by_legacy_key: dict[str, Entry] = field(default_factory=dict)
     used: set[str] = field(default_factory=set)
-    #: Vrai quand le fichier lu était en version 1. L'appelant s'en sert pour
-    #: dire à l'utilisateur ce qu'il perd, ce que ce module ne peut pas faire
-    #: lui-même — il n'imprime rien.
+    # Let the caller warn about broad legacy matching; this module does not print.
     legacy: bool = False
 
     def apply(self, findings: list[Finding]) -> list[Finding]:
-        """Marque les découvertes présentes dans la référence comme acceptées, sans les supprimer
-        du rapport."""
+        """Mark matching findings as accepted while keeping them in the report."""
         for finding in findings:
             entry = Entry(
                 category=str(finding.category),
@@ -105,21 +90,16 @@ class Baseline:
         return findings
 
     def stale(self) -> int:
-        """Combien d'entrées de la référence n'ont rien trouvé dans ce scan — découvertes depuis
-        corrigées, ou ressources supprimées."""
+        """Count baseline entries no longer found in this scan."""
         return self.size() - len(self.used)
 
     def size(self) -> int:
-        """Combien de découvertes la référence accepte."""
+        """Return the number of accepted findings in the baseline."""
         return len(self.by_key) + len(self.by_legacy_key)
 
 
 def load(path: str) -> Baseline | None:
-    """Lit un fichier de référence.
-
-    Un fichier absent n'est pas une erreur : cela veut dire « pas de
-    référence », l'état normal de la plupart des dépôts.
-    """
+    """Load a baseline. A missing file means no findings have been accepted yet."""
     if not path:
         return None
     try:
@@ -151,10 +131,8 @@ def load(path: str) -> Baseline | None:
             category=str(e.get("category", "")),
             resource=str(e.get("resource", "")),
             file=str(e.get("file", "")),
-            # Lu même en version 1 : rien n'interdit à quelqu'un d'avoir ajouté
-            # le champ à la main, et le garder rend le fichier lisible. Il ne
-            # change PAS la façon dont l'entrée est appariée — c'est la version
-            # du fichier qui en décide, et elle seule.
+            # Preserve manually added rule names in version 1, but keep matching semantics tied
+            # to file version.
             rule_name=str(e.get("rule_name", "")),
             message=str(e.get("message", "")),
             line=int(e.get("line", 0) or 0),
@@ -167,8 +145,9 @@ def load(path: str) -> Baseline | None:
 
 
 def write(path: str, findings: list[Finding], generated_at: str) -> None:
-    """Écrit les découvertes de référence de façon atomique, avec permissions restreintes et sans
-    messages pouvant contenir des secrets."""
+    """Write findings atomically with restricted permissions, omitting potentially sensitive
+    messages.
+    """
     seen: set[str] = set()
     entries: list[Entry] = []
 
@@ -198,10 +177,8 @@ def write(path: str, findings: list[Finding], generated_at: str) -> None:
                 "category": entry.category,
                 "resource": entry.resource,
                 "file": entry.file,
-                # Écrit même vide, contrairement à message et line : son absence
-                # est ce qui distinguait un fichier de version 1, et un lecteur
-                # qui ne le verrait pas sur une entrée de version 2 croirait à un
-                # fichier tronqué.
+                # Always write rule_name, even when empty, to distinguish complete version 2
+                # entries.
                 "rule_name": entry.rule_name,
                 **({"message": entry.message} if entry.message else {}),
                 **({"line": entry.line} if entry.line else {}),

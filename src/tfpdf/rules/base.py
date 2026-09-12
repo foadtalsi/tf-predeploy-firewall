@@ -1,4 +1,4 @@
-"""Les types que toutes les règles partagent."""
+"""Types shared by all rules."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ..schema import KnowledgeBase
 
 @dataclass(slots=True)
 class FileInput:
-    """Ce que chaque règle voit pour un fichier .tf modifié."""
+    """The contents and context each rule receives for a changed Terraform file."""
 
     path: str
 
@@ -32,7 +32,7 @@ class FileInput:
 
 
 class Rule(Protocol):
-    """Un détecteur de risque unique."""
+    """A single risk detector."""
 
     def check(
         self, file_input: FileInput, knowledge_base: KnowledgeBase | None
@@ -41,7 +41,7 @@ class Rule(Protocol):
 
 @dataclass(slots=True)
 class RunOptions:
-    """Comportement optionnel du moteur de scan."""
+    """Optional scan-engine settings."""
 
     #: Categories to suppress across all files.
     global_ignore: list[Category | str] = field(default_factory=list)
@@ -67,13 +67,11 @@ class RunOptions:
 
 
 class Options:
-    """Compatibilité des intégrations qui appellent default_rules(Options())."""
+    """Compatibility type for integrations calling default_rules(Options())."""
 
 
 class RuleSet(list["Rule"]):
-    """Exécute plusieurs règles comme une seule, pour qu'un appelant puisse
-    traiter « tout ce que le pack dit des identifiants » comme un détecteur
-    unique."""
+    """Run multiple rules through one detector interface, such as all credential rules in a pack."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         findings: list[Finding] = []

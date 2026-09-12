@@ -1,21 +1,10 @@
-"""Un analyseur HCL2 qui conserve la ligne et la colonne exactes de chaque
-élément.
+"""Parse HCL2 while preserving source positions for findings and review suggestions.
 
-Surface publique, calquée sur `hashicorp/hcl/v2` pour que les deux scanners se
-lisent côte à côte :
-
-    parse_config(src, filename) -> (File, Diagnostics)
-    File.body.attributes: dict[str, Attribute]
-    File.body.blocks: list[Block]
-    Attribute.expr.value(ctx) -> (Value, Diagnostics)
-    Attribute.expr.variables() -> list[Traversal]
-    EvalContext(variables={"var": object_val({...})})
-
-Écrit dans l'arbre plutôt que pris sur PyPI : les bibliothèques disponibles
-rendent des dictionnaires et perdent ligne et colonne. Or chaque sortie de ce
-scanner est positionnelle — commentaire de PR sur la bonne ligne, région SARIF,
-bloc `suggestion`, correspondance `# tf-firewall-ignore:`. Un analyseur qui perd
-les positions ne perd pas une fonctionnalité, il perd le produit.
+Public API: parse_config(source, filename) returns (File, Diagnostics).
+Inspect File.body.attributes and File.body.blocks; evaluate expressions with
+expr.value(EvalContext(...)) or inspect references with expr.variables().
+Unlike dictionary-only parsers, this package retains byte offsets, lines, and
+columns required by inline ignores, SARIF regions, and code-host suggestions.
 """
 
 from .ast import Attribute, Block, Body, Expression, File

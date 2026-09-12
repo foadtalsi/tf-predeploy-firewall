@@ -1,4 +1,4 @@
-"""Point d'entrée CLI. Codes de sortie : 0 succès, 1 blocage, 2 erreur de scan, 3 quota épuisé."""
+"""CLI entry point. Exit codes: 0 success, 1 blocked, 2 scan error."""
 
 from __future__ import annotations
 
@@ -32,9 +32,7 @@ except PackageNotFoundError:  # pragma: no cover
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Le CLI. Rend le code de sortie du processus au lieu d'appeler
-    `sys.exit`, pour que tout le scan soit testable dans le processus, ce que le
-    `main_test.go` de Go ne peut pas faire."""
+    """Run the CLI and return an exit code so callers can test it without exiting the process."""
     parser = build_parser()
     arguments = parser.parse_args(normalize_argv(list(sys.argv[1:] if argv is None else argv)))
 
@@ -73,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run() -> None:
-    """Point d'entrée du script de console."""
+    """Run the installed console script."""
     sys.exit(main())
 
 

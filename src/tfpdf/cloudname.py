@@ -1,4 +1,4 @@
-"""Le nom qu'une ressource portera réellement chez le fournisseur."""
+"""Resolve a resource's actual name at its cloud provider."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from .parser import Resource
 
 
-#: type de ressource -> attribut qui porte le nom réel chez le fournisseur.
+# Resource type -> attribute containing its actual cloud name.
 NAME_ATTRIBUTE_BY_TYPE: dict[str, str] = {
     "aws_s3_bucket": "bucket",
     "aws_db_instance": "identifier",
@@ -30,7 +30,7 @@ NAME_ATTRIBUTE_BY_TYPE: dict[str, str] = {
 
 
 def of(resource: Resource) -> str:
-    """Le nom réel de `resource`, ou "" si on ne peut pas l'affirmer."""
+    """Return the resource's actual cloud name, or an empty string when it cannot be determined."""
     if resource.kind is not Kind.RESOURCE:
         return ""
 

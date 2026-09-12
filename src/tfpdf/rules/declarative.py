@@ -1,7 +1,4 @@
-"""Évaluation des définitions déclaratives de règles.
-
-Port de internal/rules/declarative.go.
-"""
+"""Evaluate declarative rule definitions."""
 
 from __future__ import annotations
 
@@ -21,8 +18,7 @@ from .template import expand, expand_all, go_quote
 
 @dataclass(slots=True, frozen=True)
 class AttrLocation:
-    """Un endroit où une valeur peut se trouver : un attribut propre à une
-    ressource, ou un attribut à l'intérieur d'un de ses blocs imbriqués."""
+    """An attribute on a resource or within one of its nested blocks."""
 
     name: str
     attribute: Attribute
@@ -31,7 +27,7 @@ class AttrLocation:
 
 
 class DeclarativeRule:
-    """Évalue une ou plusieurs définitions de règles qui examinent le même genre d'emplacement."""
+    """Evaluate rule definitions that inspect the same kind of attribute location."""
 
     __slots__ = ("scope", "specs")
 
@@ -54,7 +50,7 @@ class DeclarativeRule:
         return findings
 
     def _locations(self, resource: Resource) -> list[AttrLocation]:
-        """Les attributs candidats pour la portée de cette règle."""
+        """Yield candidate attributes within this rule's scope."""
         matcher = self.specs[0].match
         assert matcher is not None  # guaranteed: a declarative rule always has one
         locations: list[AttrLocation] = []
@@ -77,8 +73,7 @@ class DeclarativeRule:
     def _check_location(
         self, file_input: FileInput, resource: Resource, location: AttrLocation
     ) -> Finding | None:
-        """Exécute les alternatives du groupe contre un attribut et rend la
-        première découverte produite."""
+        """Try ordered group alternatives against an attribute and return the first finding."""
         for spec in self.specs:
             matcher = spec.match
             if matcher is None or not matches_resource(matcher, resource):
@@ -152,7 +147,7 @@ class DeclarativeRule:
 def build_fix(
     spec: Rule, source: bytes, loc: AttrLocation, variables: dict[str, str]
 ) -> Fix | None:
-    """Rend un correctif déclaratif, ou None quand il ne peut pas être produit exactement."""
+    """Build an exact declarative fix, or return None when unsafe to construct."""
     if spec.fix is None:
         return None
     # The literal was reached through a variable or a local, so the line under
@@ -184,16 +179,14 @@ def base_vars(res: Resource) -> dict[str, str]:
 
 
 def matches_resource(m: Match, res: Resource) -> bool:
-    """Applique les filtres au niveau du bloc. Des filtres vides correspondent à
-    tout, pour qu'une règle n'énonce que ce qu'elle restreint réellement."""
+    """Apply block-level filters. Empty filters impose no restrictions."""
     if m.kinds and str(res.kind) not in m.kinds:
         return False
     return not (m.resource_types and res.type not in m.resource_types)
 
 
 def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool]:
-    """Applique chaque condition au niveau de la valeur, en rendant la mesure
-    produite par le prédicat pour que le message puisse la citer."""
+    """Apply attribute conditions and return any predicate measurement used in the message."""
     if m.literal is not None and m.literal != attribute.is_literal:
         return 0.0, False
     if m.min_length > 0 and byte_len(attribute.raw_value) < m.min_length:
@@ -208,10 +201,8 @@ def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool
     if m.attr_name_contains and m.attr_name_contains.lower() not in name.lower():
         return 0.0, False
 
-    # Avant les motifs, et non après : `value_matches` n'est pas ancré, donc il
-    # trouve sa fenêtre à l'intérieur d'un ARN aussi bien que dans un secret, et
-    # `confirm` ne regarde ensuite que la fenêtre. La valeur entière est la
-    # seule chose qui puisse dire « ceci est public ».
+    # Reject public whole values before an unanchored pattern selects a credential-shaped
+    # substring.
     if m.value_not_public and is_public_by_shape(attribute.raw_value):
         return 0.0, False
     if m.value_not_one_of and attribute.raw_value in m.value_not_one_of:

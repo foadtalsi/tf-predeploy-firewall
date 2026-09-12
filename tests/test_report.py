@@ -1,4 +1,4 @@
-"""Port de internal/report/report_test.go, cas pour cas."""
+"""Finding and report rendering tests."""
 
 from __future__ import annotations
 

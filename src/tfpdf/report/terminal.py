@@ -1,4 +1,4 @@
-"""Le rapport tel qu'on le lit dans un terminal."""
+"""Render findings for a terminal."""
 
 from __future__ import annotations
 
@@ -17,13 +17,10 @@ if TYPE_CHECKING:
     from .finding import Finding
 
 
-#: Applique une séquence ANSI à un texte, ou la laisse tomber. Nommé parce
-#: qu'il circule entre le rendu, l'en-tête et chaque groupe, et qu'un
-#: `Callable[[str, str], str]` répété quatre fois se lit moins bien qu'un nom.
+# Shared callable type for optional ANSI styling.
 Paint = Callable[[str, str], str]
 
-#: Du plus grave au moins grave. L'ordre d'affichage, et l'ordre dans lequel on
-#: veut que quelqu'un qui ne lit que le haut de l'écran voie les choses.
+# Display highest severity first.
 _ORDER = (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW)
 
 _COLOR = {
@@ -36,16 +33,12 @@ _RESET = "\033[0m"
 _DIM = "\033[2m"
 _BOLD = "\033[1m"
 
-#: En deçà, l'alignement en colonnes coûte plus qu'il ne rapporte.
+# Below this width, use a layout without aligned columns.
 _MIN_WIDTH = 60
 
 
 def wants_color(stream: object | None = None) -> bool:
-    """Dit si l'on doit émettre des séquences ANSI.
-
-    `NO_COLOR` l'emporte sur tout, quelle que soit sa valeur — c'est la
-    convention, et discuter de son contenu revient à ne pas la respecter.
-    """
+    """Decide whether to emit ANSI colors. The presence of NO_COLOR overrides all other settings."""
     if os.environ.get("NO_COLOR") is not None:
         return False
     stream = stream or sys.stdout
@@ -60,10 +53,8 @@ def render_terminal(
     color: bool | None = None,
     width: int | None = None,
 ) -> str:
-    """Le rapport, mis en forme pour un terminal.
-
-    `width` sert aux tests et à un appelant qui connaît mieux sa sortie que
-    `shutil.get_terminal_size`, laquelle rend 80 quand elle ne sait pas.
+    """Render the terminal report. An explicit width overrides terminal-size detection for callers
+    and tests.
     """
     if color is None:
         color = wants_color()
@@ -124,7 +115,7 @@ def _headline(
 
 
 def _group_by_rule(findings: Iterable[Finding]) -> list[list[Finding]]:
-    """Regroupe par règle, en gardant l'ordre de première apparition."""
+    """Group findings by rule in first-appearance order."""
     groups: dict[str, list[Finding]] = {}
     for finding in findings:
         groups.setdefault(finding.rule_name or str(finding.category), []).append(finding)
@@ -139,19 +130,13 @@ def _render_group(
 ) -> list[str]:
     first = group[0]
     count = f" ({len(group)})" if len(group) > 1 else ""
-    # Le nom de règle en plus de la catégorie : deux règles partagent souvent
-    # une catégorie — `missing_lifecycle` et `s3_force_destroy` toutes deux
-    # sous « Missing prevent_destroy » — et deux groupes au même titre se
-    # lisent comme une répétition. C'est aussi le nom qu'on écrit dans
-    # `ignore_rules` pour en faire taire un.
+    # Include rule IDs to distinguish detectors that share a category.
     title = category_display(first.category)
     if first.rule_name and first.rule_name != str(first.category):
         title += paint(_DIM, f" · {first.rule_name}")
     lines = [paint(_COLOR[severity], f"{severity}") + f"  {title}{count}"]
 
-    # L'explication une seule fois. C'est ce qui fait tenir un scan de dépôt
-    # entier sur un écran : la phrase est la même pour les neuf découvertes
-    # d'une règle, et la répéter neuf fois n'apprend rien de plus.
+    # Print the shared explanation once per rule, then list individual findings.
     for line in _wrap(_shared_message(group), width - 2):
         lines.append(paint(_DIM, "  " + line))
 
@@ -173,12 +158,12 @@ def _render_group(
 
 
 def _shared_message(group: list[Finding]) -> str:
-    """Le message du groupe, celui de la première découverte."""
+    """Use the first finding's message as the group's shared message."""
     return " ".join(group[0].message.split())
 
 
 def _what_differs(group: list[Finding]) -> list[str]:
-    """Ce qui distingue chaque message des autres du même groupe."""
+    """Extract the parts that differ between messages in a group."""
     if len(group) < 2:
         return [""]
 
@@ -206,7 +191,7 @@ def _what_differs(group: list[Finding]) -> list[str]:
 
 
 def _quoted_subjects(differing: list[str]) -> list[str] | None:
-    """Réduit chaque ligne au terme cité qui l'ouvre, quand toutes en ont un."""
+    """Reduce each message to its leading quoted subject when all messages have one."""
     subjects = []
     for text in differing:
         if not text.startswith('"'):
@@ -219,7 +204,7 @@ def _quoted_subjects(differing: list[str]) -> list[str] | None:
 
 
 def _inside_a_word(text: str, index: int) -> bool:
-    """Dit si couper `text` à `index` couperait un mot en deux."""
+    """Return whether cutting text at index would split a word."""
     if index <= 0 or index >= len(text):
         return False
     return _word_char(text[index - 1]) and _word_char(text[index])
@@ -236,7 +221,7 @@ def _wrap(text: str, width: int) -> list[str]:
 
 
 def _fit(message: str, room: int) -> str:
-    """Coupe à `room` caractères, sur une frontière de mot quand il y en a une."""
+    """Fit text within room characters, preferring a word boundary."""
     message = " ".join(message.split())
     if len(message) <= room:
         return message

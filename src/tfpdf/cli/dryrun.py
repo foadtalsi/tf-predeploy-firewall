@@ -1,8 +1,4 @@
-"""`--rules-dry-run` : que trouveraient mes règles personnalisées, aujourd'hui,
-sur tout le dépôt ?
-
-Port de cmd/tf-predeploy-firewall/dryrun.go.
-"""
+"""Preview custom rules against the whole repository with --rules-dry-run."""
 
 from __future__ import annotations
 
@@ -14,9 +10,9 @@ from .config import ConfigError, load_custom_rules
 
 
 def run_rules_dry_run(config_path: str, repo_dir: str) -> int:
-    """Répond à la question que se pose tout auteur de règle personnalisée et à laquelle le vrai
-    scan ne peut pas répondre sans risque — sans faire échouer la CI, sans poster de
-    commentaires et sans rapporter d'usage. Rend le code de sortie du processus."""
+    """Preview custom rules without blocking CI, posting comments, or reporting usage. Return an
+    exit code.
+    """
     try:
         custom_rules = load_custom_rules(config_path)
     except ConfigError as exc:

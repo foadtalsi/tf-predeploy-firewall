@@ -1,7 +1,4 @@
-"""Transformation de source .tf brute en le modèle Resource normalisé.
-
-Port de internal/parser/hcl.go.
-"""
+"""Convert raw Terraform source into normalized resources and attributes."""
 
 from __future__ import annotations
 
@@ -12,14 +9,14 @@ from .model import Attribute, Kind, NestedBlock, Resource
 
 
 def parse_file(filename: str, source: bytes) -> list[Resource]:
-    """Analyse un fichier .tf et rend les blocs qu'il déclare."""
+    """Parse a Terraform file and return its declared blocks."""
     return parse_file_with_context(filename, source, None)
 
 
 def parse_file_with_context(
     filename: str, source: bytes, context: EvalContext | None
 ) -> list[Resource]:
-    """`parse_file`, avec une portée pour résoudre les références."""
+    """Parse a Terraform file with an evaluation scope for references."""
     body = _parse_body(filename, source)
 
     resources: list[Resource] = []
@@ -118,9 +115,7 @@ def _attr_to_attribute(
 
 
 def first_traversal_name(expr: Expression) -> str:
-    """Rend la référence dont une expression lit sa valeur —
-    « var.db_password », « local.admin_pw » — pour usage dans un message de
-    découverte."""
+    """Return the input reference, such as var.db_password, for a finding's explanation."""
     for traversal in expr.variables():
         name = traversal.render(max_steps=2)
         if name:
@@ -129,9 +124,7 @@ def first_traversal_name(expr: Expression) -> str:
 
 
 def cty_value_to_string(v: Value) -> str:
-    """Rend une valeur littérale en texte brut, pour la comparaison de motifs : comparer des
-    valeurs d'attributs ForceNew d'une révision à l'autre, ou chercher « 0.0.0.0/0 » par
-    expression régulière."""
+    """Render literal values for pattern checks and comparisons between revisions."""
     if v.is_null() or v.is_unknown():
         return ""
     if v.type is hcl.STRING:

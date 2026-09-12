@@ -1,22 +1,8 @@
-"""Test différentiel : cet analyseur contre hashicorp/hcl lui-même.
+"""Compare normalized parser output with frozen historical hashicorp/hcl oracles.
 
-`tests/data/oracle_*.json` a été produit par `core/cmd/parserdump`, un petit
-programme Go qui fait tourner l'*original* internal/parser sur les mêmes
-fichiers et sérialise le résultat. Commiter sa sortie fait que la suite Python
-est vérifiée contre ce que hcl fait réellement, sans aucune chaîne d'outils Go
-au moment du test.
-
-C'est le test qui compte le plus de tout le port. Chaque règle en aval consomme
-le modèle Resource — un attribut dont la plage fait deux colonnes de trop, une
-valeur qui s'est résolue alors qu'elle n'aurait pas dû, un heredoc désindenté du
-mauvais nombre d'espaces — et une divergence ici devient une découverte fausse,
-ou une découverte manquante, dans la pull request de quelqu'un. Lire les deux
-analyseurs côte à côte n'attrape pas cela ; comparer 800 attributs si.
-
-Pour régénérer après avoir changé le corpus :
-
-    cd core && go run ./cmd/parserdump ../core-py/tests/data/corpus/*.tf \
-        > ../core-py/tests/data/oracle_corpus.json
+Committed fixtures let these tests run without Go. Preserve their provenance:
+changes to the corpus or expected values need independent verification, not
+regeneration from the Python implementation being tested.
 """
 
 from __future__ import annotations
@@ -38,9 +24,7 @@ CORPORA = [
 
 
 def _normalise(v: Any) -> Any:
-    """Go sérialise une tranche nulle en `null` et une tranche vide en `[]` ;
-    les deux veulent dire « pas d'étiquettes ». La différence est l'encodeur JSON
-    de Go, pas l'analyse."""
+    """Normalize null and empty label lists, which represent the same parsed structure."""
     return [] if v is None else v
 
 
@@ -80,9 +64,7 @@ def test_matches_hashicorp_hcl(corpus_dir: str, oracle_file: str) -> None:
 
 @pytest.mark.parametrize(("corpus_dir", "oracle_file"), CORPORA)
 def test_corpus_is_substantial(corpus_dir: str, oracle_file: str) -> None:
-    """Un test de parité sur un oracle vide passe et ne prouve rien. Ceci
-    épingle la taille du corpus, pour que supprimer une fixture soit un test qui
-    échoue plutôt qu'une garantie discrètement affaiblie."""
+    """Keep the corpus substantial so deleting fixtures cannot silently weaken parity coverage."""
     oracle = json.loads((DATA / oracle_file).read_text())
     resources = sum(len(f["resources"]) for f in oracle)
     attributes = sum(

@@ -1,5 +1,4 @@
-"""Les découvertes produites par le moteur de règles, et chaque forme sous laquelle elles sont
-rendues."""
+"""Findings and their output formats."""
 
 from .codequality import SEVERITY_TO_CODE_QUALITY, render_code_quality
 from .finding import Category, Finding, Fix, Severity

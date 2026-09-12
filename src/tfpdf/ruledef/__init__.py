@@ -1,4 +1,4 @@
-"""Le format déclaratif des règles. Port de internal/ruledef."""
+"""Declarative rule definitions and validation."""
 
 from .builtin import builtin, builtin_yaml
 from .merge import MergeReport, merge

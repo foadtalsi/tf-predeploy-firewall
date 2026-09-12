@@ -1,7 +1,4 @@
-"""Superposition d'un pack de règles sur un autre.
-
-Port de internal/ruledef/merge.go.
-"""
+"""Overlay one rule pack on another."""
 
 from __future__ import annotations
 
@@ -14,13 +11,7 @@ _MAX_LISTED = 5
 
 @dataclass(slots=True)
 class MergeReport:
-    """Ce que la superposition d'un pack sur un autre a réellement fait.
-
-    Existe pour être affiché. Un pack qui surcharge une règle que l'auteur ne
-    voulait pas surcharger, ou qui en ajoute une dont il a mal tapé
-    l'identifiant au point d'en créer une nouvelle, se comporte parfaitement et
-    silencieusement — le scan exécute simplement des règles différentes de ce
-    qu'il croit. Les décomptes sont bon marché à lire sur stderr et rendent cela
+    """Counts of added and replaced rules, displayed so unintended overrides or misspelled IDs are
     visible.
     """
 
@@ -47,18 +38,8 @@ def _join(ids: list[str]) -> str:
 
 
 def merge(base: Pack | None, overlay: Pack | None) -> tuple[Pack, MergeReport]:
-    """Superpose `overlay` sur `base` et rend le pack combiné.
-
-    Les règles sont appariées par identifiant. Une règle de la surcouche dont
-    l'identifiant existe dans la base la remplace *à la position de la base*, si
-    bien que surcharger une règle ne peut pas réordonner les autres — et l'ordre
-    porte du sens ici, puisque les membres d'un groupe sont des alternatives
-    ordonnées. Une règle de surcouche portant un identifiant neuf est ajoutée à
-    la fin.
-
-    Aucune des deux entrées n'est modifiée : le pack intégré est un singleton à
-    l'échelle du processus, et une fusion qui le muterait laisserait tous les
-    appelants suivants regarder la surcouche de quelqu'un d'autre.
+    """Overlay rules by ID without mutating either input. Replacements retain their original
+    position; new IDs append, preserving ordered group alternatives.
     """
     if base is None or overlay is None:
         raise RulePackError("both packs are required")

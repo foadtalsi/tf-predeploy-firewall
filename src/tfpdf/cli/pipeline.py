@@ -1,4 +1,4 @@
-"""Déroulement du scan, de la sélection des règles à la publication des résultats."""
+"""Run the scan from rule selection through result publication."""
 
 from __future__ import annotations
 
@@ -40,25 +40,24 @@ def _die(message: str) -> int:
 
 
 def _wants_markdown_on_stdout(choice: str) -> bool:
-    """En mode auto, conserve le Markdown pour les redirections et le texte pour un terminal."""
+    """In auto mode, use Markdown for redirected output and text for a terminal."""
     if choice == "markdown":
         return True
     if choice == "text":
         return False
-    # NO_COLOR n'entre pas ici : il dit de ne pas colorer, pas de changer de
-    # format. Les mélanger ferait basculer la sortie entière sur une variable
-    # qui ne parle que de couleur.
+    # NO_COLOR controls ANSI colors, not the output format.
     return not sys.stdout.isatty()
 
 
 def blocked_by(findings: list[Finding], threshold: Severity | str) -> bool:
-    """Bloque si une découverte non acceptée atteint le seuil."""
+    """Block when an unaccepted finding reaches the configured threshold."""
     return any(finding.severity.at_least(threshold) for finding in findings if not finding.waived)
 
 
 def load_ruleset(path: str) -> list[Rule]:
-    """Charge les règles intégrées ou un pack externe. Celui-ci les remplace, sauf avec extends:
-    builtin."""
+    """Load built-in or external rules. External rules replace built-ins unless extends: builtin is
+    set.
+    """
     if not path:
         return rules.default_rules()
 
@@ -98,8 +97,9 @@ def load_ruleset(path: str) -> list[Rule]:
 def load_knowledge_base(
     license_key: str, api_base: str, providers: list[str]
 ) -> schema.KnowledgeBase:
-    """Superpose les packs payants aux packs intégrés. Un échec conserve la couverture disponible
-    et émet un avertissement."""
+    """Overlay paid schema packs on embedded packs, warning and retaining available coverage on
+    failure.
+    """
     if not license_key or not providers:
         return schema.load()
 
@@ -136,7 +136,7 @@ def load_knowledge_base(
 
 
 def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
-    """Collecte, accepte les risques connus, décide du blocage puis publie."""
+    """Collect findings, apply accepted risks, decide whether to block, and publish results."""
     findings = _collect_findings(args, config)
     if args.write_baseline:
         return _write_baseline(args.write_baseline, findings)
@@ -149,7 +149,12 @@ def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -
     if args.license_key and report_usage(
         args.license_key, args.license_api_base, findings, blocked, args.repo_name
     ):
-        return 3
+        # A quota refusal prevents recording, but reports and comments still publish. Findings
+        # alone determine the verdict.
+        _warn(
+            "this scan was not recorded against your plan — the report below is "
+            "complete, and the exit code depends only on the findings"
+        )
 
     if args.autofix:
         from .autofix import propose
@@ -161,7 +166,7 @@ def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -
 
 
 def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Finding]:
-    """Analyse les sources et le plan avant toute acceptation de risques."""
+    """Scan source and optional plan input before applying accepted risks."""
     mode = terraformscan.Mode(
         staged=bool(arguments.staged),
         uncommitted=bool(arguments.uncommitted),
@@ -226,9 +231,7 @@ def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Fin
     )
     findings = list(result.findings)
 
-    # Dit à voix haute, et pas seulement absent du rapport : un scan qui se tait
-    # sur un fournisseur doit dire lequel et pourquoi, sinon « aucune découverte »
-    # se lit comme « rien à signaler ».
+    # Explain missing schema coverage so silence is not mistaken for a clean result.
     for note in result.notes:
         _warn(note)
 
@@ -255,7 +258,7 @@ def _merge_plan_findings(
     changed_attrs: dict[str, set[ChangedAttrKey]],
     knowledge_base: schema.KnowledgeBase,
 ) -> list[Finding]:
-    """Confirme les remplacements avec le plan et évite les doublons statiques."""
+    """Confirm replacements with the plan and remove duplicate static findings."""
     # A --plan-json that names a file we can't read or parse is fatal, not a
     # degraded scan: the operator asked for phase 2 explicitly, and silently
     # running phase 1 instead would report a clean plan nobody looked at.
@@ -283,7 +286,7 @@ def _merge_plan_findings(
 
 
 def _write_baseline(path: str, findings: list[Finding]) -> int:
-    """Enregistre les résultats bruts, sans y figer les dérogations distantes."""
+    """Save raw findings without persisting remote waivers in the baseline."""
     try:
         baseline.write(
             path,
@@ -300,7 +303,7 @@ def _write_baseline(path: str, findings: list[Finding]) -> int:
 
 
 def _apply_baseline(path: str, findings: list[Finding]) -> list[Finding]:
-    """Applique les acceptations locales et signale celles devenues obsolètes."""
+    """Apply local acceptances and report stale baseline entries."""
     # A baseline that exists but can't be read is fatal rather than ignored:
     # silently enforcing on a repo that expected a baseline would block every PR
     # in it.
@@ -318,10 +321,7 @@ def _apply_baseline(path: str, findings: list[Finding]) -> list[Finding]:
             )
         _warn(message)
         if accepted_baseline.legacy:
-            # Dit une fois, en clair, avec la conséquence plutôt que le numéro
-            # de version. « format version 1 » n'apprend rien à personne ; « une
-            # découverte que vous n'avez jamais acceptée peut être silencieuse »
-            # se comprend sans lire le code.
+            # Explain broad version 1 matching once and recommend regenerating the baseline.
             _warn(
                 f"baseline {path} is in the older format, which did not record "
                 "which rule each accepted finding came from. Several rules share a "
@@ -340,10 +340,8 @@ def _publish_reports(
     blocked: bool,
     post_comment: bool,
 ) -> None:
-    """Affiche le verdict et publie les formats demandés."""
-    # Deux rendus du même rapport, et un seul part dans la PR. `body` est le
-    # Markdown, inchangé et comparé octet pour octet au scanner Go ; ce qui
-    # s'imprime dépend de qui lit.
+    """Display the verdict and publish the requested report formats."""
+    # The PR always receives Markdown; stdout selects Markdown or terminal text.
     body = report.render_markdown(findings, config.block_threshold, blocked)
     if _wants_markdown_on_stdout(arguments.format):
         print(body)

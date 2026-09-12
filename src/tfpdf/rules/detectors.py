@@ -1,7 +1,4 @@
-"""Détecteurs compilés, regroupés par responsabilité dans les modules voisins.
-
-Les imports historiques restent disponibles ici.
-"""
+"""Compatibility imports for detectors implemented in neighboring modules."""
 
 from .iam import IAMWildcardRule
 from .lifecycle import MissingLifecycleRule

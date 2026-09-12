@@ -1,13 +1,5 @@
-"""Chaque découverte dit de quelle règle elle vient.
-
-`Finding.rule_name` est renseigné à la main sur une vingtaine de sites de
-construction, ce qui est la façon lisible de le faire et aussi celle qu'on peut
-oublier. Ce fichier est la contrepartie : il balaye le paquet source à la
-recherche d'un site qui n'aurait pas de nom, puis vérifie que les noms
-correspondent bien au registre qui fait foi — le pack de règles.
-
-Sans lui, une règle ajoutée demain produirait des découvertes anonymes, et le
-code qui trie sur `rule_name` les ignorerait en silence.
+"""Verify that finding construction names the rule and that IDs agree with the built-in registry.
+Static checks complement scans over the fixture corpus.
 """
 
 from __future__ import annotations
@@ -26,10 +18,7 @@ from tfpdf.schema import load as load_schema
 
 SRC = pathlib.Path(__file__).parent.parent / "src" / "tfpdf"
 
-#: Les règles qui vivent hors du pack : elles scannent des fichiers qui ne sont
-#: pas du .tf (terragrunt.hcl, .tfvars) et n'ont donc pas de type de ressource
-#: auquel une entrée de pack pourrait s'accrocher. Énumérées ici plutôt que
-#: devinées, pour qu'un nom inventé au hasard ressorte comme un échec.
+# Explicit rule IDs for non-Terraform files, where no resource-type pack entry applies.
 NAMES_OUTSIDE_THE_PACK = frozenset(
     {
         "terragrunt_credential_name",
@@ -53,7 +42,7 @@ def _pack_rule_ids() -> set[str]:
 
 
 def _finding_sites() -> list[tuple[str, int, ast.Call]]:
-    """Tout appel `Finding(...)` du paquet, avec l'endroit où il se trouve."""
+    """Yield Finding constructor calls with source locations."""
     sites = []
     for path in sorted(SRC.rglob("*.py")):
         tree = ast.parse(path.read_text())
@@ -68,12 +57,8 @@ def _finding_sites() -> list[tuple[str, int, ast.Call]]:
 
 
 def test_every_place_that_builds_a_finding_names_its_rule() -> None:
-    """Le balayage.
-
-    Une exception : le moteur construit une découverte pour un fichier qu'il
-    n'a pas su analyser, qui ne vient d'aucune règle. Elle est nommée
-    explicitement dans la liste ci-dessous plutôt que tolérée par une
-    condition, pour qu'un second site anonyme ne se glisse pas dessous.
+    """Require rule names at construction sites, with an explicit exception for parser-error
+    findings.
     """
     allowed_to_be_anonymous = {("src/tfpdf/rules/engine.py", "could not parse file")}
 
@@ -87,34 +72,30 @@ def test_every_place_that_builds_a_finding_names_its_rule() -> None:
             continue
         anonymous.append(f"{path}:{lineno}")
 
-    assert not anonymous, "des découvertes sans nom de règle : " + ", ".join(anonymous)
+    assert not anonymous, "findings without rule names: " + ", ".join(anonymous)
 
 
 def test_every_literal_rule_name_is_one_the_registry_knows() -> None:
-    """Une faute de frappe dans un nom écrit à la main est indétectable à
-    l'exécution : la découverte sort avec un nom que rien ne rapproche du pack,
-    et le code qui filtre dessus ne trouve simplement jamais rien."""
+    """Reject misspelled literal rule names that would break registry-based filtering."""
     known = _pack_rule_ids() | NAMES_OUTSIDE_THE_PACK
     unknown = []
     for path, lineno, call in _finding_sites():
         keyword = next((k for k in call.keywords if k.arg == "rule_name"), None)
         if keyword is None or not isinstance(keyword.value, ast.Constant):
-            continue  # spec.id / "custom:" + id, vérifiés par les tests suivants
+            continue  # spec.id and custom:<id> are checked by the following tests.
         if keyword.value.value not in known:
             unknown.append(f"{path}:{lineno} -> {keyword.value.value!r}")
 
-    assert not unknown, "noms de règle inconnus du registre : " + ", ".join(unknown)
+    assert not unknown, "rule names missing from the registry: " + ", ".join(unknown)
 
 
 def test_the_names_outside_the_pack_do_not_shadow_a_pack_rule() -> None:
-    """La liste d'exceptions ne doit pas devenir une porte dérobée pour
-    redéfinir un identifiant du pack sous un autre code."""
+    """Extra rule names must not shadow built-in IDs."""
     assert not (NAMES_OUTSIDE_THE_PACK & _pack_rule_ids())
 
 
 def test_a_declarative_rule_carries_its_pack_id() -> None:
-    """Le cas qui motive tout : deux règles différentes, même catégorie, même
-    ressource. `category` ne les sépare pas ; `rule_name` oui."""
+    """Distinguish rules sharing the same category and resource through rule_name."""
     source = b"""resource "aws_s3_bucket" "backups" {
   bucket        = "prod-backups"
   force_destroy = true
@@ -125,15 +106,13 @@ def test_a_declarative_rule_carries_its_pack_id() -> None:
 
     assert "s3_force_destroy" in names
     assert "missing_lifecycle" in names
-    # Elles se ressemblaient sur tout le reste.
+    # The findings otherwise share the same identity fields.
     assert len({f.category for f in findings}) == 1
     assert len({f.resource for f in findings}) == 1
 
 
 def test_no_finding_from_a_real_scan_comes_out_anonymous(kb: KnowledgeBase) -> None:
-    """Le balayage statique ne voit pas les découvertes construites par une
-    fabrique partagée. Celui-ci les voit toutes, mais seulement pour le code
-    que le corpus atteint réellement — les deux sont nécessaires."""
+    """Exercise dynamic finding factories that static constructor inspection cannot fully cover."""
     corpus = pathlib.Path(__file__).parent / "data" / "corpus_fixtures"
     changed = [
         ChangedFile(path=f.name, head_content=f.read_bytes()) for f in sorted(corpus.glob("*.tf"))
@@ -141,10 +120,10 @@ def test_no_finding_from_a_real_scan_comes_out_anonymous(kb: KnowledgeBase) -> N
     assert changed, "le corpus doit contenir des fichiers"
 
     findings = run(changed, kb, default_rules()).findings
-    assert findings, "le corpus doit produire des découvertes"
+    assert findings, "the corpus must produce findings"
 
     anonymous = [f"{f.file}:{f.line} {f.category}" for f in findings if not f.rule_name]
-    assert not anonymous, "découvertes anonymes : " + ", ".join(anonymous)
+    assert not anonymous, "anonymous findings: " + ", ".join(anonymous)
 
 
 def _scan(source: bytes) -> list[Finding]:

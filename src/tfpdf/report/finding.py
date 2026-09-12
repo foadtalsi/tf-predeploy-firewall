@@ -1,7 +1,4 @@
-"""Les découvertes produites par le moteur de règles.
-
-Port de internal/report/finding.go.
-"""
+"""Findings produced by the rule engine."""
 
 from __future__ import annotations
 
@@ -10,7 +7,7 @@ from enum import StrEnum
 
 
 class Severity(StrEnum):
-    """Niveaux de sévérité, du plus faible au plus fort."""
+    """Severity levels from lowest to highest."""
 
     LOW = "low"
     MEDIUM = "medium"
@@ -18,8 +15,9 @@ class Severity(StrEnum):
     CRITICAL = "critical"
 
     def at_least(self, other: Severity | str) -> bool:
-        """Compare les sévérités. Un seuil inconnu vaut le rang minimal ; le CLI émet alors un
-        avertissement."""
+        """Compare severity ranks. Unknown thresholds use the minimum rank and trigger a CLI
+        warning.
+        """
         return _SEVERITY_RANK[self] >= _SEVERITY_RANK.get(other, 0)  # type: ignore[arg-type]
 
 
@@ -32,7 +30,7 @@ _SEVERITY_RANK = {
 
 
 class Category(StrEnum):
-    """Identifie quelle règle de détection a produit une découverte."""
+    """A finding's detection category."""
 
     UNKNOWN_ATTRIBUTE = "unknown_attribute"
     UNPINNED_VERSION = "unpinned_version"
@@ -63,8 +61,9 @@ class Category(StrEnum):
 
 @dataclass(slots=True)
 class Fix:
-    """Remplacement exact de lignes à la tête de la PR, numérotées dès 1 et bornes incluses. Les
-    corrections incertaines restent des suggestions textuelles."""
+    """An exact replacement of inclusive, one-based PR head lines. Uncertain fixes remain
+    plain-text advice.
+    """
 
     #: Inclusive, 1-based, referring to the file as it exists at the PR head.
     start_line: int
@@ -83,14 +82,13 @@ class Fix:
     note: str = ""
 
     def text(self) -> str:
-        """Les lignes de remplacement telles qu'elles apparaîtraient dans le
-        fichier."""
+        """Return replacement lines as they would appear in the file."""
         return "\n".join(self.lines)
 
 
 @dataclass(slots=True)
 class Finding:
-    """Un risque unique détecté dans un diff Terraform."""
+    """A single risk detected in Terraform changes."""
 
     file: str
     line: int
@@ -106,45 +104,12 @@ class Finding:
     resource: str
     message: str
 
-    #: Which rule produced this finding — the `id` of its entry in the rule
-    #: pack, `"custom:<id>"` for a custom rule.
-    #:
-    #: `category` does not answer this question. It is one-to-many by design:
-    #: suppression is per-category, so several rules that a team would want to
-    #: silence together deliberately share one. An `aws_s3_bucket` with
-    #: `force_destroy = true` and no `prevent_destroy` carries two findings
-    #: that agree on category *and* resource and come from different rules.
-    #:
-    #: Sérialisé dans un seul format : le fichier de référence, depuis sa
-    #: version 2, qui l'apparie. C'est ce qui empêche une entrée acceptée pour
-    #: « prevent_destroy manquant » de faire taire aussi le « force_destroy »
-    #: de la même ressource.
-    #:
-    #: Nulle part ailleurs. SARIF garde la catégorie comme ruleId et le
-    #: commentaire de PR ne l'imprime pas — deux formats épinglés octet pour
-    #: octet contre le scanner Go, que ce champ n'a aucune raison de faire
-    #: dériver.
-    #:
-    #: Empty is allowed and means "nothing asked": a finding built by hand in a
-    #: test, or one that no pack entry describes. Code that branches on it must
-    #: therefore compare against a name, never assume it is non-empty.
+    # Rule ID, or custom:<id>, distinct from the shared category. Baseline v2 uses it for exact
+    # matching; SARIF retains category-based ruleId. Empty is valid for findings with no rule.
     rule_name: str = ""
 
-    #: Le nom que cette ressource porte réellement chez le fournisseur —
-    #: `"prod-backups"`, là où `resource` porte `"aws_s3_bucket.backups"`.
-    #:
-    #: Les deux existent parce qu'ils répondent à deux questions. `resource`
-    #: situe la découverte pour la personne qui relit la PR : c'est l'adresse
-    #: qu'elle verra dans un plan. `cloud_name` est ce qu'il faut donner à une
-    #: API pour parler de l'objet, et aucune API ne connaît l'adresse
-    #: Terraform.
-    #:
-    #: Vide dès qu'on ne peut pas l'affirmer : type dont on ne sait pas quel
-    #: attribut le nomme, attribut absent, ou nom construit à l'exécution. Un
-    #: appelant doit traiter le vide comme « je ne sais pas » et ne rien
-    #: conclure — surtout pas interroger le cloud avec, parce que le « cet
-    #: objet n'existe pas » qui reviendrait est indiscernable d'une vraie
-    #: absence. Voir `tfpdf.cloudname`.
+    # Actual cloud name, such as prod-backups, distinct from the Terraform address. Empty means
+    # unknown; never query AWS with it or infer absence.
     cloud_name: str = ""
 
     #: An optional, mechanically-generated HCL snippet showing how to fix the

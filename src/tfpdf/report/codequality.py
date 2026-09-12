@@ -21,8 +21,9 @@ SEVERITY_TO_CODE_QUALITY = {
 
 
 def render_code_quality(findings: list[Finding]) -> bytes:
-    """Produit le rapport GitLab. L'empreinte inclut le message mais exclut la ligne pour rester
-    stable après déplacement."""
+    """Render GitLab Code Quality findings. Fingerprints include the message but omit line numbers
+    to survive moved code.
+    """
     issues: list[dict[str, Any]] = []
     for finding in findings:
         if finding.waived:

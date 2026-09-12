@@ -1,12 +1,4 @@
-"""Tests de l'arithmétique de blocs de diff partagée par tous les
-hébergeurs de code.
-
-`internal/forge` n'a pas de fichier de test à lui dans l'arbre Go — il est
-exercé à travers `githubpr` et `gitlabmr`. Ceux-ci l'épinglent directement,
-parce que c'est la pièce qui décide si un correctif en un clic apparaît tout
-court : un commentaire sur une ligne que le diff ne contient pas est rejeté par
-tous les hébergeurs, et l'échec est silencieux vu de l'extérieur.
-"""
+"""Test shared diff-line arithmetic used to anchor inline suggestions on code hosts."""
 
 from __future__ import annotations
 
@@ -30,8 +22,7 @@ PATCH = """@@ -1,4 +1,5 @@
 
 
 def test_patch_line_numbers_covers_added_and_context_lines() -> None:
-    """Les lignes de contexte comptent : une découverte sur un en-tête de
-    ressource inchangé est ancrée à l'une d'elles."""
+    """Unchanged context lines can anchor findings on resource headers."""
     lines = patch_line_numbers(PATCH)
     # First hunk starts at new line 1 and covers 5 lines (3 context + 2 added;
     # the deleted line does not advance the counter).
@@ -41,10 +32,7 @@ def test_patch_line_numbers_covers_added_and_context_lines() -> None:
 
 
 def test_patch_line_numbers_excludes_deleted_lines() -> None:
-    """Une ligne supprimée n'a pas de position dans le nouveau fichier, et le
-    compteur ne doit pas avancer dessus — sinon chaque ligne après la première
-    suppression est décalée d'un cran et chaque commentaire en ligne atterrit sur
-    la mauvaise instruction."""
+    """Deleted lines must not advance updated-file line numbers."""
     lines = patch_line_numbers(PATCH)
     # The hunk header says +1,5 — exactly five lines exist in the new file.
     assert 6 not in lines
@@ -63,9 +51,7 @@ def test_patch_line_numbers_ignores_the_no_newline_marker() -> None:
 
 
 def test_patch_line_numbers_does_not_invent_a_trailing_line() -> None:
-    """Le saut de ligne final produirait sinon une ligne fantôme au-delà de la
-    fin du dernier bloc, et un commentaire là est rejeté par tous les
-    hébergeurs."""
+    """A trailing newline must not create a commentable phantom line."""
     assert patch_line_numbers("@@ -1,1 +1,1 @@\n+only\n") == {1}
 
 
@@ -89,9 +75,7 @@ def test_hunk_new_start(header: str, want: int | None) -> None:
 
 
 def test_lines_in_diff_requires_the_whole_range() -> None:
-    """Un correctif multiligne qui n'est qu'à moitié dans le diff ne peut pas
-    être posté — l'hébergeur rejette tout le commentaire, il doit donc être
-    filtré ici."""
+    """Require the whole replacement range to be inside the diff."""
     diff_lines = {"main.tf": {10, 11, 12}}
 
     assert lines_in_diff(diff_lines, InlineComment(path="main.tf", line=11))
@@ -101,9 +85,7 @@ def test_lines_in_diff_requires_the_whole_range() -> None:
 
 
 def test_lines_in_diff_on_an_unchanged_file() -> None:
-    """Un correctif pour du code que la PR n'a jamais touché ne peut pas être
-    montré en ligne. Le scanner rapporte combien il y en avait plutôt que de les
-    jeter en silence."""
+    """Report unsupported suggestion locations rather than trying to annotate unchanged files."""
     assert not lines_in_diff({"main.tf": {1}}, InlineComment(path="other.tf", line=1))
 
 

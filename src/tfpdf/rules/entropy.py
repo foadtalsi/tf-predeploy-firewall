@@ -1,5 +1,4 @@
-"""Détection des chaînes à forte entropie : le repli pour les secrets qui ne correspondent à
-aucun format connu."""
+"""Detect high-entropy strings that do not match known credential formats."""
 
 from __future__ import annotations
 
@@ -55,12 +54,12 @@ _WHITESPACE = (" ", "\t", "\n")
 
 
 def is_public_by_shape(value: str) -> bool:
-    """Dit si une valeur est publique par construction, quelle que soit son entropie."""
+    """Recognize values that are public by structure, regardless of entropy."""
     return value.lower().startswith(BENIGN_PREFIXES)
 
 
 def shannon_entropy(s: str) -> float:
-    """L'entropie par caractère de `s`, en bits."""
+    """Return Shannon entropy in bits per character."""
     if not s:
         return 0.0
     data = s.encode("utf-8")
@@ -78,15 +77,11 @@ def shannon_entropy(s: str) -> float:
 
 
 def looks_like_secret(value: str) -> tuple[float, bool]:
-    """Dit si une valeur littérale de chaîne a la signature statistique d'un secret généré par
-    machine, avec l'entropie mesurée pour le message de la découverte."""
+    """Check whether a literal resembles a generated secret and return its measured entropy."""
     if byte_len(value) < ENTROPY_MIN_LENGTH:
         return 0.0, False
-    # Propre à l'entropie, et NON à `is_public_by_shape` : mesurer le hasard
-    # d'un blob de prose ne veut rien dire, mais une clé AWS posée au milieu
-    # d'un script `user_data` — donc au milieu d'espaces — est exactement ce
-    # qu'il faut trouver. Confondre les deux a coûté deux découvertes du corpus
-    # doré, dont une clé PEM.
+    # Whitespace excludes prose only from entropy checks. Known credentials embedded in scripts
+    # must still be detected.
     if any(c in value for c in _WHITESPACE):
         return 0.0, False
     if is_public_by_shape(value):
@@ -99,5 +94,5 @@ def looks_like_secret(value: str) -> tuple[float, bool]:
 
 
 def byte_len(s: str) -> int:
-    """La longueur en octets UTF-8, c'est-à-dire ce que rend le `len(string)` de Go."""
+    """Return UTF-8 byte length, matching Go's len(string)."""
     return len(s.encode("utf-8"))

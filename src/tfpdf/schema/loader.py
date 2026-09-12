@@ -1,6 +1,6 @@
-"""Charge les packs de règles : la surface d'arguments valides de chaque type de ressource, ses
-arguments ForceNew, s'il est porteur d'état — sans plan, sans état
-et sans identifiants."""
+"""Load valid attributes, ForceNew fields, and stateful-resource metadata without Terraform
+execution or credentials.
+"""
 
 from __future__ import annotations
 
@@ -26,13 +26,12 @@ REGISTRY_NAMESPACE = {
 
 
 class PackError(ValueError):
-    """Un pack qui n'a pas pu être lu."""
+    """An unreadable schema pack."""
 
 
 @dataclass(slots=True)
 class ForceNewSpec:
-    """Quels arguments — de premier niveau ou de bloc imbriqué — déclenchent une
-    destruction-recréation pour un type de ressource."""
+    """Top-level and nested attributes that trigger resource replacement."""
 
     top_level: list[str] = field(default_factory=list)
     #: Block path -> ForceNew argument names inside it.
@@ -41,8 +40,7 @@ class ForceNewSpec:
 
 @dataclass(slots=True)
 class ResourceSchema:
-    """Les arguments valides d'un type de ressource, au premier niveau comme à
-    l'intérieur des blocs imbriqués."""
+    """Valid top-level and nested attributes for a resource type."""
 
     #: Valid top-level argument names, including nested block names and
     #: Terraform's own meta-arguments.
@@ -54,7 +52,7 @@ class ResourceSchema:
 
 @dataclass(slots=True)
 class _PackResource:
-    """L'entrée d'un type de ressource telle qu'elle apparaît sur disque."""
+    """A resource entry in the on-disk pack format."""
 
     top_level: list[str] = field(default_factory=list)
     nested_blocks: dict[str, list[str]] = field(default_factory=dict)
@@ -64,8 +62,7 @@ class _PackResource:
 
 
 class _LoadedPack:
-    """Un pack analysé : ses métadonnées, plus des entrées de ressources encore
-    non décodées."""
+    """Pack metadata and resource entries awaiting decoding."""
 
     __slots__ = ("_decoded", "format_version", "id", "provider", "provider_version", "resources")
 
@@ -108,7 +105,7 @@ def _decode_resource(raw: Any) -> _PackResource:
 
 @dataclass(slots=True, frozen=True)
 class ProviderCoverage:
-    """La part d'un fournisseur dans une couverture."""
+    """Coverage information for one provider."""
 
     name: str
     version: str
@@ -116,8 +113,7 @@ class ProviderCoverage:
 
 @dataclass(slots=True)
 class Coverage:
-    """Ce que les packs chargés savent — pour l'en-tête du scan, et pour les
-    questions de support de la forme « pourquoi n'a-t-il pas attrapé ça ? »."""
+    """Loaded schema coverage displayed in scan summaries and used to explain detection limits."""
 
     #: The loaded pack IDs, sorted.
     packs: list[str] = field(default_factory=list)
@@ -133,8 +129,7 @@ class Coverage:
     extended: bool = False
 
     def version_of(self, provider: str) -> str:
-        """La version du fournisseur que les packs décrivent, ou « » si aucun ne la
-        couvre."""
+        """Return the provider version described by loaded packs, or an empty string if absent."""
         for provider_coverage in self.providers:
             if provider_coverage.name == provider:
                 return provider_coverage.version
@@ -142,7 +137,7 @@ class Coverage:
 
 
 class KnowledgeBase:
-    """Les packs chargés, éventuellement pour plusieurs fournisseurs à la fois."""
+    """Loaded schema packs for one or more providers."""
 
     __slots__ = ("_embedded", "_packs")
 
@@ -165,14 +160,14 @@ class KnowledgeBase:
         return None
 
     def resource_schema(self, r_type: str) -> ResourceSchema | None:
-        """La surface d'arguments valides d'un type de ressource."""
+        """Return a resource type's valid attribute schema."""
         resource = self._lookup(r_type)
         if resource is None or not resource.top_level:
             return None
         return ResourceSchema(top_level=resource.top_level, nested_blocks=resource.nested_blocks)
 
     def force_new(self, r_type: str) -> ForceNewSpec | None:
-        """Les arguments ForceNew d'un type de ressource."""
+        """Return a resource type's ForceNew attributes."""
         resource = self._lookup(r_type)
         if resource is None or (not resource.force_new_top_level and not resource.force_new_nested):
             return None
@@ -181,8 +176,7 @@ class KnowledgeBase:
         )
 
     def is_critical(self, r_type: str) -> bool:
-        """Dit si détruire ce type de ressource perd des données, et donc s'il est
-        censé porter lifecycle { prevent_destroy = true }."""
+        """Check whether the resource type is stateful and should have prevent_destroy protection."""
         resource = self._lookup(r_type)
         return resource is not None and resource.critical
 
@@ -209,10 +203,8 @@ class KnowledgeBase:
     # --- documentation links ---------------------------------------------
 
     def _pack_for(self, r_type: str) -> _LoadedPack | None:
-        """Le pack d'où un type de ressource a été résolu, pour qu'un lien de
-        documentation porte la version de fournisseur que ce pack décrit
-        réellement — un pack étendu superposé et le pack de base embarqué
-        pouvant être construits depuis des versions différentes.
+        """Find the pack supplying a resource type so documentation links use its actual provider
+        version.
         """
         for pack in reversed(self._packs):
             if pack.resource(r_type) is not None:
@@ -220,8 +212,7 @@ class KnowledgeBase:
         return None
 
     def doc_url(self, r_type: str, data_source: bool = False) -> str:
-        """La page de documentation du Terraform Registry pour un type de ressource, ou « » quand
-        aucun pack chargé ne le couvre."""
+        """Return the resource type's Terraform Registry page, or an empty string when uncovered."""
         pack = self._pack_for(r_type)
         if pack is None:
             return ""
@@ -242,7 +233,7 @@ class KnowledgeBase:
 
 
 def parse_pack(fp: IO[bytes] | bytes) -> _LoadedPack:
-    """Lit un pack compressé en gzip."""
+    """Read a gzip-compressed schema pack."""
     raw = fp if isinstance(fp, bytes) else fp.read()
     try:
         decompressed = gzip.decompress(raw)
@@ -265,8 +256,7 @@ def parse_pack(fp: IO[bytes] | bytes) -> _LoadedPack:
 
 
 def load() -> KnowledgeBase:
-    """La base de connaissances construite à partir des seuls packs de base embarqués — l'offre
-    gratuite, et le repli chaque fois qu'aucun pack étendu n'est disponible."""
+    """Load embedded schema coverage, also used when no extended pack is available."""
     packs: list[_LoadedPack] = []
     data_dir = resources.files(__package__).joinpath("data")
     names = sorted(pack.name for pack in data_dir.iterdir() if pack.name.endswith(".json.gz"))
@@ -284,8 +274,7 @@ def load() -> KnowledgeBase:
 
 
 def load_with(*extra: IO[bytes] | bytes) -> tuple[KnowledgeBase, list[Exception]]:
-    """Superpose les packs dans l'ordre donné. Retourne la couverture disponible et les erreurs
-    de chargement."""
+    """Overlay packs in order and return available coverage with any loading errors."""
     errs: list[Exception] = []
     knowledge_base = load()
     for resource in extra:

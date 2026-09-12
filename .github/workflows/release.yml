@@ -1,30 +1,7 @@
-# Publie une version quand une étiquette de version est poussée.
-#
-# Ce workflow existe à cause d'un échec précis : `v0` avait été étiquetée en
-# juillet et n'avait jamais bougé, pendant que trois semaines de travail —
-# dont un correctif de faux positifs qui bloquait des PR sur du Terraform
-# valide — s'accumulaient sur main. Chaque workflow épinglé sur `@v0`
-# continuait d'exécuter la version de juillet. Le travail était fait et livré
-# à personne.
-#
-# Les utilisateurs d'Actions épinglent une étiquette majeure mouvante (`@v1`),
-# comme le fait actions/checkout. Cette étiquette doit être redirigée à chaque
-# publication, sinon la même dérive revient — c'est ce workflow qui le fait,
-# plutôt que la mémoire de quelqu'un.
-#
-# Pour publier :
-#   1. Placer les changements sous un titre `## [vX.Y.Z] — DATE` du CHANGELOG
-#   2. git tag vX.Y.Z && git push origin vX.Y.Z
-#
-# Tout le reste est automatique : les tests tournent sur l'arbre étiqueté,
-# le wheel est vérifié, l'alias majeur se déplace, et les notes de version
-# viennent de la section du changelog.
-#
-# Rien ne part sur PyPI. Le scanner se distribue par ce dépôt : la GitHub
-# Action construit son image depuis le Dockerfile au ref épinglé, le hook
-# pre-commit construit son venv depuis pyproject.toml, et une installation
-# manuelle se fait depuis l'URL git (voir la release GitHub, qui porte le
-# wheel).
+# Publish version tags after testing their contents. Release notes come from the matching
+# CHANGELOG section; wheel and sdist assets are attached to GitHub, not PyPI. After publishing,
+# update the moving major tag used by Actions. To release, add a dated version section to
+# CHANGELOG.md, then push its vX.Y.Z tag.
 
 name: Release
 
@@ -34,13 +11,11 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Étiquette existante à (re)publier, p. ex. v1.0.0"
+        description: "Existing tag to publish or republish, e.g. v1.0.0"
         required: true
 
 jobs:
-  # L'étiquette est ce que les gens exécutent : elle est donc vérifiée pour
-  # elle-même, plutôt qu'en supposant que main était vert quand elle a été
-  # posée.
+  # Test the tagged tree rather than relying on an earlier main-branch run.
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -59,19 +34,11 @@ jobs:
       - run: mypy
       - run: pytest -q
 
-      # L'Action est une action Docker : si cette image ne se construit pas,
-      # l'action est cassée pour tout le monde et rien d'autre ne l'attraperait.
+      # Verify the Docker image used by the published Action.
       - name: Build the action image
         run: docker build -t tf-predeploy-firewall:${{ github.sha }} .
 
-      # Une version dont le scanner ne saurait pas charger son propre pack de
-      # règles embarqué échouerait à chaque scan. Bon marché à vérifier,
-      # catastrophique à manquer.
-      #
-      # Ce test est plus important en Python qu'il ne l'était en Go : le pack
-      # est chargé par `importlib.resources`, donc l'oublier dans la
-      # configuration du wheel produit une image qui se construit, démarre, et
-      # échoue au premier fichier scanné.
+      # Verify that the installed scanner can load its embedded schema packs.
       - name: Smoke-test the built image
         run: |
           mkdir -p /tmp/smoke && cd /tmp/smoke && git init -q .
@@ -91,22 +58,18 @@ jobs:
             --config /dev/null > /tmp/out.txt 2>/tmp/err.txt || true
           cat /tmp/err.txt /tmp/out.txt
 
-          # Des arguments valides que l'ancien schéma curé signalait à tort
-          # doivent rester propres...
+          # Known valid arguments must not be reported as unknown.
           for arg in hibernation launch_template; do
             if grep -q "\"$arg\"" /tmp/out.txt; then
-              echo "RÉGRESSION : '$arg' est un argument valide mais a été signalé"; exit 1
+              echo "REGRESSION: '$arg' is valid but was reported"; exit 1
             fi
           done
-          # ...et un argument réellement inventé doit toujours être attrapé.
+          # An invented argument must still be detected.
           grep -q "totally_made_up_argument" /tmp/out.txt \
-            || { echo "RÉGRESSION : argument halluciné non détecté"; exit 1; }
-          echo "smoke test passé"
+            || { echo "REGRESSION: unknown argument was not detected"; exit 1; }
+          echo "smoke test passed"
 
-  # Le wheel n'est publié nulle part, mais il est ce que reçoivent le hook
-  # pre-commit et quiconque installe depuis l'URL git — les deux le
-  # construisent depuis ce même pyproject.toml. Un wheel cassé casse donc ces
-  # deux chemins en silence, et ce job est le seul endroit qui le verrait.
+  # Validate the wheel used by Git installs and pre-commit environments.
   package:
     needs: verify
     runs-on: ubuntu-latest
@@ -122,22 +85,17 @@ jobs:
       - run: pip install build
       - run: python -m build
 
-      # `python -m build` produit un wheel depuis un sdist qu'il vient de
-      # construire, mais ne vérifie pas que le wheel contient ce qu'il faut.
-      # Les packs de règles sont des fichiers de données lus par
-      # `importlib.resources` : absents du wheel, l'installation réussit et
-      # chaque scan échoue.
+      # Building a wheel does not prove it contains schema data; inspect packaged resources
+      # explicitly.
       - name: The wheel carries its rule packs
         run: |
           python -m zipfile -l dist/*.whl > /tmp/contents.txt
           for f in pack_aws_base.json.gz pack_azurerm_base.json.gz default.yml; do
-            grep -q "$f" /tmp/contents.txt || { echo "$f absent du wheel"; exit 1; }
+            grep -q "$f" /tmp/contents.txt || { echo "$f missing from wheel"; exit 1; }
           done
-          echo "packs et configuration présents"
+          echo "packs and configuration present"
 
-      # Installé depuis le wheel construit, dans un environnement neuf, et non
-      # depuis l'arbre source : c'est la seule façon de vérifier ce que les
-      # gens reçoivent réellement.
+      # Install the built wheel into a fresh environment to test what users receive.
       - name: The wheel installs and runs
         run: |
           python -m venv /tmp/fresh
@@ -161,8 +119,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "major=${TAG%%.*}" >> "$GITHUB_OUTPUT"
 
-      # Extrait la section de ce changelog. Des notes générées depuis les
-      # sujets de commit disent ce qui a changé ; celles-ci disent pourquoi.
+      # Extract this release's notes from its versioned changelog section.
       - name: Extract release notes
         run: |
           awk -v tag="${{ steps.v.outputs.tag }}" '
@@ -171,7 +128,7 @@ jobs:
             grab { print }
           ' CHANGELOG.md > /tmp/notes.md
           if [ ! -s /tmp/notes.md ]; then
-            echo "Aucune section CHANGELOG pour ${{ steps.v.outputs.tag }}" >&2
+            echo "No CHANGELOG section for ${{ steps.v.outputs.tag }}" >&2
             exit 1
           fi
           cat /tmp/notes.md
@@ -180,31 +137,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      # Le wheel et le sdist sont attachés à la release GitHub, et c'est le
-      # seul endroit d'où on peut les télécharger : rien n'est publié sur un
-      # index de paquets.
-      #
-      # Ce qui a disparu avec le Go, et qu'il faut dire : il n'y a plus de
-      # binaires précompilés. Go les croisait pour cinq plateformes
-      # gratuitement ; Python n'a pas d'équivalent sans PyInstaller, qui est un
-      # projet en soi. L'usage local passe donc par une installation depuis
-      # l'URL git, par le wheel attaché ici, ou par le hook pre-commit qui
-      # construit son propre venv (voir .pre-commit-hooks.yaml).
+      # Attach wheel and sdist to the GitHub release. Users install from Git, these assets, or
+      # pre-commit; there are no precompiled scanner binaries or PyPI uploads.
       - name: Build the distributions
         run: |
           pip install build
           python -m build
           (cd dist && sha256sum * > checksums.txt && cat checksums.txt)
 
-      # Tout l'intérêt de ce workflow. Sans cela l'étiquette majeure dérive de
-      # nouveau derrière main et les gens exécutent en silence une vieille
-      # version.
+      # Move the major tag so Action users receive this release.
       - name: Move the major alias tag
         run: |
           MAJOR="${{ steps.v.outputs.major }}"
           git tag -f "$MAJOR" "${{ steps.v.outputs.tag }}"
           git push -f origin "refs/tags/$MAJOR"
-          echo "$MAJOR pointe désormais sur ${{ steps.v.outputs.tag }}"
+          echo "$MAJOR now points to ${{ steps.v.outputs.tag }}"
 
       - name: Publish the GitHub release
         env:

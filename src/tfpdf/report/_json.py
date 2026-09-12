@@ -1,4 +1,4 @@
-"""Une sérialisation qui correspond octet pour octet au `json.MarshalIndent(v, "", " ")` de Go."""
+"""JSON serialization compatible with Go's encoding/json output."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ _GO_FLOAT_EXP_THRESHOLD = 1e21
 
 
 def _go_numbers(v: Any) -> Any:
-    """Réécrit les flottants entiers en entiers, comme Go écrit un float64."""
+    """Convert integer-valued floats to integers for Go-compatible rendering."""
     if isinstance(v, bool):
         return v  # bool is an int subclass; it must stay true/false
     if isinstance(v, float):
@@ -44,7 +44,7 @@ def _go_numbers(v: Any) -> Any:
 
 
 def marshal_indent(v: Any) -> bytes:
-    """Sérialise comme le ferait `json.MarshalIndent(v, "", "  ")` de Go."""
+    """Serialize with Go json.MarshalIndent conventions and two-space indentation."""
     out = json.dumps(_go_numbers(v), indent=2, ensure_ascii=False)
     for raw, escaped in _GO_ESCAPES:
         out = out.replace(raw, escaped)
@@ -52,7 +52,7 @@ def marshal_indent(v: Any) -> bytes:
 
 
 def marshal(v: Any) -> bytes:
-    """Sérialise comme le ferait `json.Marshal` de Go : compact, sans espaces."""
+    """Serialize compact JSON using Go json.Marshal conventions."""
     out = json.dumps(_go_numbers(v), separators=(",", ":"), ensure_ascii=False)
     for raw, escaped in _GO_ESCAPES:
         out = out.replace(raw, escaped)

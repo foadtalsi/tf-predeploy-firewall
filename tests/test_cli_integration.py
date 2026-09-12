@@ -1,13 +1,5 @@
-"""Port de cmd/tf-predeploy-firewall/integration_test.go, cas pour cas.
-
-En boîte noire, comme l'original Go : il pilote le vrai script console sur un
-vrai dépôt git, si bien qu'une régression dans la façon dont le CLI assemble les
-pièces fait échouer un test au lieu de n'apparaître que dans une exécution
-manuelle.
-
-La version Go recompile le binaire à chaque exécution ; ici le point d'entrée
-est déjà installé dans l'environnement virtuel, donc le sous-processus est celui
-qu'obtient un utilisateur.
+"""Exercise the installed CLI against real temporary Git repositories to test how scan components
+work together.
 """
 
 from __future__ import annotations
@@ -49,8 +41,7 @@ def _git(dir_: Path, *args: str) -> None:
 
 
 def _init_git_repo_with_commits(dir_: Path, base_tf: str, head_tf: str) -> Path:
-    """Un dépôt git temporaire avec un commit de base et un commit de tête
-    contenant les variantes de main.tf données."""
+    """Create base and head commits with the supplied Terraform contents and return the repository."""
     _git(dir_, "init", "-q", "-b", "main")
     _git(dir_, "config", "user.email", "test@example.com")
     _git(dir_, "config", "user.name", "test")
@@ -83,8 +74,7 @@ def test_static_scan_finds_and_blocks(tmp_path: Path) -> None:
 
 
 def test_no_findings_exits_zero(tmp_path: Path) -> None:
-    """enable_dns_hostnames est un attribut aws_vpc connu et non ForceNew — une
-    mise à jour sur place propre qui ne déclenche aucune règle statique."""
+    """enable_dns_hostnames is a known, in-place-updatable aws_vpc attribute."""
     repo = _init_git_repo_with_commits(
         tmp_path,
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
@@ -151,14 +141,7 @@ def test_missing_plan_json_file_exits_with_error(tmp_path: Path) -> None:
 
 
 def test_the_action_yml_boolean_syntax_is_accepted(tmp_path: Path) -> None:
-    """`action.yml` passe `--full-repo-scan=${{ inputs.full-repo-scan }}`, ce
-    qui vaut `--full-repo-scan=false` à chaque exécution qui n'y adhère pas.
-
-    Le paquet flag de Go accepte une valeur accolée à un booléen ; le
-    `store_true` d'argparse non. Sans la forme à valeur optionnelle dans
-    `build_parser`, l'Action publiée échouerait sur son propre défaut — ceci
-    épingle donc l'écriture exacte que l'Action émet, dans les deux états.
-    """
+    """Accept the exact --full-repo-scan=true/false syntax emitted by action.yml."""
     repo = _init_git_repo_with_commits(
         tmp_path,
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
@@ -175,9 +158,7 @@ def test_the_action_yml_boolean_syntax_is_accepted(tmp_path: Path) -> None:
 
 
 def test_single_dash_long_flags_are_accepted(tmp_path: Path) -> None:
-    """Le paquet flag de Go traite `-repo-dir` et `--repo-dir` comme le même
-    drapeau, et les deux écritures figurent dans des README et des workflows
-    écrits à la main."""
+    """Preserve Go-style single-dash long options used by existing workflows."""
     repo = _init_git_repo_with_commits(
         tmp_path,
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
@@ -208,8 +189,7 @@ def test_version_and_print_rules_short_circuit() -> None:
 
 
 def test_write_baseline_records_and_exits_zero(tmp_path: Path) -> None:
-    """Adopter le scanner sur un dépôt qui a déjà des découvertes ne doit pas
-    faire échouer l'exécution qui les enregistre."""
+    """Recording existing findings for adoption must exit successfully."""
     repo = _init_git_repo_with_commits(
         tmp_path,
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
@@ -249,10 +229,7 @@ def test_write_baseline_records_and_exits_zero(tmp_path: Path) -> None:
 
 
 def test_staged_mode_never_tries_to_post_a_comment(tmp_path: Path) -> None:
-    """Un hook pre-commit tourne dans le shell d'un développeur, où
-    GITHUB_TOKEN est souvent exporté. Laisser le défaut de --post-comment en
-    place ferait tenter au hook de poster sur la première PR que le jeton peut
-    atteindre."""
+    """A local hook must not post comments merely because the developer exports GITHUB_TOKEN."""
     repo = _init_git_repo_with_commits(
         tmp_path,
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
@@ -277,14 +254,8 @@ def test_staged_mode_never_tries_to_post_a_comment(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("threshold", ["hgih", "HIGH"])
 def test_an_unrecognised_threshold_is_said_out_loud(tmp_path: Path, threshold: str) -> None:
-    """Go classe un seuil inconnu à 0, si bien qu'une faute de frappe
-    transforme silencieusement le scanner en « bloquer sur la moindre
-    découverte ». La comparaison est laissée exactement telle que Go la fait —
-    une découverte de faible sévérité bloque toujours — mais le CLI dit
-    désormais pourquoi.
-
-    « HIGH » est là aussi : les valeurs sont en minuscules, donc la
-    capitalisation évidente est l'une des fautes de frappe que ceci attrape.
+    """Preserve legacy blocking for unknown thresholds while warning about typos, including
+    uppercase HIGH.
     """
     repo = _init_git_repo_with_commits(
         tmp_path,

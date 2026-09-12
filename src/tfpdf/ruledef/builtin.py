@@ -1,10 +1,5 @@
-"""Le pack de règles livré avec cette build.
-
-Il vit dans `ruledef` plutôt que dans `rules` pour qu'un module qui n'a besoin
-que de *lire* le pack — `report`, quand il rend la documentation d'une catégorie
-— n'ait pas à importer le moteur qui l'évalue. En Python ce découpage est
-porteur plutôt qu'esthétique : `rules` importe `report` pour ses types de
-découvertes, donc un `report` qui atteindrait `rules` en retour serait un cycle.
+"""Load the built-in rule pack independently of the engine. Keeping it in ruledef avoids a circular
+import between rules and report.
 """
 
 from __future__ import annotations
@@ -18,11 +13,7 @@ from .toyaml import to_yaml
 
 @lru_cache(maxsize=1)
 def builtin() -> Pack:
-    """Le pack de règles compilé dans le binaire.
-
-    Construit une fois et partagé : le pack est immuable après validation, et
-    chaque fichier scanné recompilerait sinon les mêmes expressions régulières.
-    """
+    """Build and validate the shared built-in pack once, avoiding repeated regex compilation."""
     try:
         return _rules.build()
     except RulePackError as exc:
@@ -30,12 +21,7 @@ def builtin() -> Pack:
 
 
 def builtin_yaml() -> bytes:
-    """Le pack embarqué rendu en YAML, pour l'outillage qui veut l'afficher ou
-    le copier — `--print-rules`, et quiconque démarre son propre pack depuis
-    celui intégré plutôt que depuis un fichier vide.
-
-    Sérialisé à la demande, parce que le pack est du Python depuis que les
-    règles y sont écrites. Un client ne peut pas fournir du Python en retour :
-    ce qu'il édite et renvoie est du YAML, relu par `load`.
+    """Render the built-in pack as editable YAML for --print-rules. User-provided packs are always
+    loaded as data, never imported as Python.
     """
     return to_yaml(builtin())

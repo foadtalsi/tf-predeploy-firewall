@@ -1,19 +1,8 @@
-"""Les traversées — la forme de référence `var.db_password` / `local.admin_pw`.
+"""References such as var.db_password and local.admin_pw.
 
-Une traversée est un nom racine suivi d'étapes d'attribut et d'index. Deux
-choses en dépendent dans le scanner :
-
-  * **La résolution de portée.** `parser.build_scope` collecte les `locals` et
-    les valeurs par défaut de `variable` dans un contexte d'évaluation, et une
-    traversée est ce qui en relit une valeur. C'est la machinerie derrière la
-    détection d'un mot de passe situé à une indirection de distance, dans la
-    valeur par défaut d'une variable.
-
-  * **Le `resolved_from` d'une découverte.** Quand une valeur a été atteinte via
-    une référence, la découverte le dit : « se résout en une chaîne littérale en
-    dur (via var.db_password) ». Sans cela, un rapport pointant sur une ligne
-    qui lit `password = var.db_password` ressemble à un faux positif pour
-    quiconque ouvre la PR.
+Traversals resolve variable defaults and locals through an evaluation context.
+They also supply resolved_from in findings so readers can locate the literal
+behind an indirect reference.
 """
 
 from __future__ import annotations
@@ -51,9 +40,7 @@ Step = TraverseRoot | TraverseAttr | TraverseIndex
 
 
 class Traversal(list[Step]):
-    """Une référence, sous forme de liste d'étapes. La première est toujours un
-    TraverseRoot pour une traversée absolue — la seule sorte que le scanner
-    construit."""
+    """A reference as traversal steps, starting with TraverseRoot for absolute references."""
 
     @property
     def root_name(self) -> str:
@@ -71,12 +58,8 @@ class Traversal(list[Step]):
         return out
 
     def render(self, max_steps: int = 2) -> str:
-        """Rend en texte source — « var.db_password », « local.settings ».
-
-        S'arrête après `max_steps` étapes, parce que la partie utile d'une
-        référence, pour un humain qui lit une découverte, est sa tête.
-        `var.config.db.password` se rend en `var.config` : le lecteur a besoin
-        de savoir quelle variable ouvrir, pas qu'on lui répète tout le chemin.
+        """Render up to max_steps reference steps to identify the variable or local behind a
+        finding.
         """
         parts: list[str] = []
         for step_index, step in enumerate(self):
@@ -94,13 +77,8 @@ class Traversal(list[Step]):
         return "".join(parts)
 
     def traverse(self, context: EvalContext | None) -> tuple[Value, Diagnostics]:
-        """Résout contre une portée, ou échoue proprement.
-
-        L'échec est le cas ordinaire : sans contexte, ou pour une référence vers
-        quoi que ce soit que la portée ne détient pas — un attribut de
-        ressource, une variable sans valeur par défaut, une valeur venue d'un
-        .tfvars — ceci rend une erreur et l'appelant saute l'attribut. Deviner
-        ici est par où entre un faux positif.
+        """Resolve a reference in scope, returning diagnostics when unavailable. Missing defaults,
+        resource attributes, and plan-time values must not be guessed.
         """
         if not self:
             return DYNAMIC_VAL, error("Invalid traversal", "Empty reference.")
@@ -164,14 +142,8 @@ def _index(collection: Value, step: TraverseIndex) -> Value | None:
 
 
 class EvalContext:
-    """Une portée pour résoudre des traversées.
-
-    À l'image de hcl.EvalContext, moins la table de fonctions. Cette omission
-    est délibérée et porteuse : le scanner ne fournit jamais de fonctions, donc
-    `jsonencode({...})` reste inévaluable — ce qui est précisément pourquoi
-    `rules.iam_wildcard` lit la plage de source brute plutôt que la valeur.
-    Ajoutez ici une table de fonctions et cette règle change silencieusement de
-    comportement.
+    """A scope for resolving references. There is deliberately no function table; rules inspect
+    unevaluated calls through their source ranges.
     """
 
     __slots__ = ("parent", "variables")

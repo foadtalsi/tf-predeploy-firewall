@@ -1,4 +1,4 @@
-"""La base de connaissances des fournisseurs. Port de internal/schema."""
+"""Provider schema knowledge base."""
 
 from .loader import (
     PACK_FORMAT_VERSION,

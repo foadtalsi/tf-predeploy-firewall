@@ -1,17 +1,8 @@
-"""Test différentiel de tout le CLI contre le binaire Go, de bout en bout.
+"""Compare the Python CLI with a historical Go scanner end to end.
 
-Sauté à moins que le binaire Go ne soit disponible — il est compilé depuis
-l'arbre voisin `core/`, qui n'existera plus une fois le port terminé. C'est le
-propos : ceci est un instrument de portage, et il doit disparaître avec la chose
-qu'il compare.
-
-    cd core && go build -ldflags "-X main.version=$(python -c         'import importlib.metadata as m; print(m.version("tf-predeploy-firewall"))')         " -o /tmp/tfpdf-go ./cmd/tf-predeploy-firewall
-    TFPDF_GO_BINARY=/tmp/tfpdf-go python -m pytest tests/test_cli_parity.py
-
-Chaque test unitaire de cette suite vérifie une fonction. Celui-ci vérifie le
-*produit* : l'analyse des drapeaux, le chargement de la configuration, le diff
-git, la base de connaissances, le moteur, les passes de suppression et les
-quatre sorties rendues, sur une seule ligne de commande.
+Set TFPDF_GO_BINARY to a version-stamped oracle binary; see CONTRIBUTING.md
+and .github/workflows/ci.yml for the pinned build command. Without a binary,
+these tests skip. The former neighboring Go checkout is optional.
 """
 
 from __future__ import annotations
@@ -74,10 +65,7 @@ def _git(dir_: Path, *args: str) -> None:
 
 @pytest.fixture
 def repo(tmp_path: Path) -> Path:
-    """Un dépôt à deux commits dont la tête exerce chaque famille de règles
-    statiques : le détecteur d'identifiants, les quatre catégories de
-    configuration non sûre, l'absence de prevent_destroy, un attribut inconnu,
-    un module non épinglé et un secret dans un .tfvars."""
+    """Build a two-commit repository exercising each static rule family and variable-file checks."""
     _git(tmp_path, "init", "-q", "-b", "main")
     _git(tmp_path, "config", "user.email", "t@e.com")
     _git(tmp_path, "config", "user.name", "t")
@@ -96,8 +84,7 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _clean_env() -> dict[str, str]:
-    """Aucune variable d'intégration continue ambiante : l'un ou l'autre
-    scanner essaierait sinon de poster."""
+    """Remove ambient CI variables so neither scanner tries to publish comments."""
     return {
         k: v
         for k, v in os.environ.items()
@@ -142,17 +129,8 @@ def both(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.mark.parametrize("artefact", ["sarif.json", "cq.json", "err"])
 def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) -> None:
-    """SARIF, le rapport GitLab Code Quality et la ligne de couverture sur
-    stderr.
-
-    Octet pour octet, parce que des machines sont configurées contre eux. Le
-    SARIF fait ~39 Ko et porte la documentation Markdown complète de chaque
-    règle : un seul caractère de dérive dans l'échappement, l'ordre des clés ou
-    l'indentation échoue ici.
-
-    La version estampillée dans le pilote SARIF doit correspondre, ce qui est la
-    raison pour laquelle la commande de compilation du docstring de module passe
-    `-ldflags -X main.version`.
+    """Compare SARIF, Code Quality, and coverage output byte for byte. Match the oracle's stamped
+    version to the installed Python package.
     """
     go = (both / f"go.{artefact}").read_bytes()
     py = (both / f"py.{artefact}").read_bytes()
@@ -176,22 +154,8 @@ def _rows(path: Path) -> list[tuple[str, ...]]:
 
 
 def test_the_pr_comment_reports_exactly_the_same_findings(both: Path) -> None:
-    """Comparé comme un multiensemble de lignes plutôt qu'octet pour octet, et
-    la raison est un défaut du côté Go.
-
-    Go trie la table sur `(fichier, ligne)` avec `sort.Slice`, qui n'est pas
-    stable. Deux découvertes sur une même ligne — une ressource porteuse d'état
-    avec un mot de passe en dur reçoit à la fois `missing_lifecycle` et
-    `tutorial_pattern` sur son en-tête — sortent dans l'ordre que produit
-    pdqsort. C'est reproductible pour une entrée donnée et arbitraire par
-    ailleurs, et une montée de version de Go pourrait réordonner un commentaire
-    de PR sans aucun changement de règle derrière.
-
-    Le côté Python trie sur `(fichier, ligne, catégorie, message)`, un ordre
-    total, si bien que sa sortie est spécifiée plutôt qu'héritée. Les deux
-    s'accordent donc sur chaque ligne et peuvent diverger sur l'ordre des lignes
-    qui partagent un fichier et une ligne — ce que ceci vérifie précisément,
-    plutôt que de le masquer.
+    """Compare report lines as a multiset: historical Go sorting leaves equal file/line ties
+    unstable, while Python uses a total sort order.
     """
     go, py = _rows(both / "go.md"), _rows(both / "py.md")
 
@@ -206,8 +170,7 @@ def test_the_pr_comment_reports_exactly_the_same_findings(both: Path) -> None:
 
 
 def test_the_python_report_is_stable_across_runs(repo: Path, tmp_path: Path) -> None:
-    """Une clé de tri totale ne vaut la peine que si elle épingle réellement la
-    sortie."""
+    """Pin deterministic report ordering across repeated scans."""
     digests = set()
     for i in range(3):
         _run(_PY_ENTRY, repo, tmp_path, f"run{i}", "--base-ref", "HEAD~1", "--head-ref", "HEAD")
@@ -218,12 +181,7 @@ def test_the_python_report_is_stable_across_runs(repo: Path, tmp_path: Path) -> 
 def test_full_repo_scan_agrees_over_the_go_fixture_corpus(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """La même comparaison sur ~70 découvertes au lieu de 10.
-
-    Scanne l'arbre Go lui-même, dont les testdata/fixtures sont le corpus sur
-    lequel les fichiers témoins sont épinglés — une surface bien plus large
-    qu'un seul dépôt synthétique.
-    """
+    """Compare the larger historical Go fixture corpus when its checkout is available."""
     core = Path(__file__).resolve().parents[2] / "core"
     if not (core / ".git").exists() or shutil.which("git") is None:
         pytest.skip("the sibling core/ git tree is not available")

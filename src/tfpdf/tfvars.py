@@ -1,5 +1,4 @@
-"""Scanne les fichiers .tfvars à la recherche des mêmes identifiants en dur que les règles de
-motif attrapent dans les blocs de ressources."""
+"""Check Terraform variable files for hardcoded credentials."""
 
 from __future__ import annotations
 
@@ -25,14 +24,12 @@ _REMEDY = (
 
 
 def is_tfvars_path(path: str) -> bool:
-    """Dit si un chemin est un fichier de valeurs de variables Terraform :
-    terraform.tfvars, n'importe quoi.auto.tfvars, et leurs formes .json."""
+    """Recognize Terraform variable files, including .auto.tfvars and JSON forms."""
     return path.endswith((".tfvars", ".tfvars.json"))
 
 
 def scan_file(path: str, source: bytes) -> list[Finding]:
-    """Scanne un fichier .tfvars (ou .tfvars.json) à la recherche d'identifiants en dur et de
-    blocs CIDR grand ouverts."""
+    """Check .tfvars and .tfvars.json files for credentials and unrestricted CIDRs."""
     if path.endswith(".json"):
         return _scan_json(path, source)
     return _scan_hcl(path, source)
@@ -53,7 +50,7 @@ def _scan_hcl(path: str, source: bytes) -> list[Finding]:
 
 
 def _scan_value(path: str, name: str, attribute: hcl.Attribute, line: int) -> list[Finding]:
-    """Évalue la valeur d'une variable et la juge."""
+    """Evaluate a variable and check its value."""
     v, diags = attribute.expr.value(None)
     if diags.has_errors() or v.is_null() or not v.is_wholly_known():
         return []
@@ -61,8 +58,7 @@ def _scan_value(path: str, name: str, attribute: hcl.Attribute, line: int) -> li
 
 
 def _judge(path: str, name: str, v: Value, line: int) -> list[Finding]:
-    """Juge une valeur, en descendant dans les objets et les tuples pour qu'un
-    identifiant niché dans un map de réglages soit trouvé lui aussi."""
+    """Inspect values recursively through objects and tuples to detect nested credentials."""
     t = v.type
 
     if t.is_object_type() or t.is_map_type():
@@ -141,8 +137,7 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
 
 
 def _scan_json(path: str, source: bytes) -> list[Finding]:
-    """La forme .tfvars.json, que l'automatisation a tendance à générer et que
-    l'analyseur HCL ne sait pas lire."""
+    """Scan the JSON variable-file format, which the HCL parser does not read."""
     try:
         document = json.loads(source)
     except json.JSONDecodeError as exc:
@@ -157,7 +152,7 @@ def _scan_json(path: str, source: bytes) -> list[Finding]:
 
 
 def _judge_json(path: str, name: str, v: object) -> list[Finding]:
-    """Reflète `_judge` pour du JSON décodé."""
+    """Apply the same recursive checks as _judge to decoded JSON."""
     if isinstance(v, str):
         return _judge_string(path, name, v, 1)
     if isinstance(v, dict):

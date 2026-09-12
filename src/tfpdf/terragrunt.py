@@ -1,4 +1,4 @@
-"""Scan des fichiers terragrunt.hcl."""
+"""Scan Terragrunt configuration files."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ from .rules import is_credential_attr_name, is_open_cidr, match_credential_value
 
 
 def scan_file(path: str, source: bytes) -> list[Finding]:
-    """Scanne le map `inputs` et le map `remote_state.config` d'un fichier terragrunt.hcl, à la
-    recherche d'identifiants en dur et de CIDR grand ouverts."""
+    """Check inputs and remote_state.config for hardcoded credentials and unrestricted CIDRs."""
     file, diags = hcl.parse_config(source, path)
     if diags.has_errors():
         raise HCLParseError(diags)
@@ -34,9 +33,9 @@ def scan_file(path: str, source: bytes) -> list[Finding]:
 
 
 def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
-    """Parcourt une expression de construction d'objet clé par clé, en descendant dans les maps
-    imbriqués, et signale toute feuille de type chaîne qui ressemble à un identifiant en dur
-    ou à un bloc CIDR grand ouvert."""
+    """Walk object expressions recursively and check string leaves for credentials or unrestricted
+    CIDRs.
+    """
     pairs = expr_map(expr)
     if pairs is None:
         return []  # not a map/object literal — nothing further to inspect here
@@ -110,8 +109,7 @@ def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
 
 
 def _string_key(key_expr: Expression) -> str:
-    """Le texte littéral d'une clé de map entre guillemets, ou « » pour une clé
-    calculée."""
+    """Return a quoted map key's literal text, or an empty string for a computed key."""
     v, diags = key_expr.value(None)
     if diags.has_errors() or v.is_null() or v.type is not hcl.STRING:
         return ""

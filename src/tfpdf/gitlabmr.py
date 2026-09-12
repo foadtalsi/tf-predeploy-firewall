@@ -1,4 +1,4 @@
-"""Publication des résultats de scan sur une merge request GitLab."""
+"""Publish scan results to a GitLab merge request."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ _MAX_PAGES = 10
 
 
 class GitLabConfigError(RuntimeError):
-    """L'environnement ne décrit aucune merge request où publier."""
+    """The environment does not identify a merge request to comment on."""
 
 
 @dataclass(slots=True)
@@ -26,7 +26,7 @@ class DiffRefs:
 
 @dataclass(slots=True)
 class Client:
-    """Dialogue avec une merge request."""
+    """A client for a GitLab merge request."""
 
     #: GitLab's v4 API root, e.g. https://gitlab.com/api/v4 — CI provides it
     #: as CI_API_V4_URL, which also makes self-hosted instances work
@@ -52,8 +52,7 @@ class Client:
     # --- summary note -----------------------------------------------------
 
     def upsert_comment(self, body: str, marker: str) -> None:
-        """Trouve la note existante contenant `marker` et remplace son corps, ou
-        crée une nouvelle note."""
+        """Replace the note containing marker, or create a new one."""
         note_id = self._find_note(marker)
         if note_id:
             send_json("PUT", self._mr_path(f"/notes/{note_id}"), self._headers(), {"body": body})
@@ -77,7 +76,7 @@ class Client:
     def post_suggestions(
         self, summary: str, comments: list[InlineComment], head_sha: str
     ) -> SuggestionOutcome:
-        """Rattache les commentaires en discussions en ligne."""
+        """Post comments as inline merge request discussions."""
         out = SuggestionOutcome()
         if not comments:
             return out
@@ -163,8 +162,7 @@ class Client:
         return out
 
     def _existing_note_bodies(self) -> str:
-        """Concatène toutes les notes de la MR — notes de discussion comprises —
-        pour la recherche de marqueurs."""
+        """Concatenate merge request notes, including discussions, for marker checks."""
         parts: list[str] = []
         for page in range(1, _MAX_PAGES + 1):
             notes = (
@@ -179,11 +177,7 @@ class Client:
 
 
 def from_env() -> Client:
-    """Construit un client depuis les variables prédéfinies de GitLab CI.
-
-    Le jeton est cherché sous TFPDF_GITLAB_TOKEN d'abord, pour qu'il puisse
-    être une variable CI/CD limitée à cet outil, puis sous GITLAB_TOKEN.
-    """
+    """Build a client from GitLab CI variables, preferring TFPDF_GITLAB_TOKEN over GITLAB_TOKEN."""
     token = os.environ.get("TFPDF_GITLAB_TOKEN") or os.environ.get("GITLAB_TOKEN", "")
     client = Client(
         api_base=os.environ.get("CI_API_V4_URL", ""),

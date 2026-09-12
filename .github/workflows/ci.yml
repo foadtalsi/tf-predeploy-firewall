@@ -9,9 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
-      # Le paquet déclare supporter 3.11 à 3.13 dans ses classifiers, et un
-      # classifier n'est pas une preuve. Le scanner tourne dans la CI d'autres
-      # gens, sur l'interpréteur qu'ils ont : les trois sont testés.
+      # Test every supported Python version declared in package metadata.
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
@@ -30,8 +28,7 @@ jobs:
       - name: Ruff
         run: ruff check src tests
 
-      # `ruff check` ne dit rien du formatage : sans cette étape, la mise en
-      # forme dérive sans que rien ne l'arrête.
+      # Linting and formatting are separate checks.
       - name: Ruff format
         run: ruff format --check src tests
 
@@ -41,13 +38,8 @@ jobs:
       - name: Test
         run: pytest -q
 
-  # Six tests comparent la sortie du CLI Python à celle du binaire Go, et se
-  # skippent sans TFPDF_GO_BINARY. Ce job existe pour qu'ils tournent
-  # réellement pendant la durée du port.
-  #
-  # Il disparaît à la bascule, en même temps que l'arbre Go. C'est un
-  # échafaudage, pas une étape permanente — et le dire ici évite qu'on se
-  # demande dans six mois pourquoi la CI cherche un dépôt qui n'existe plus.
+  # Compare against the historical Go implementation. The binary is pinned below; no neighboring
+  # Go source tree is required for the main parity cases.
   go-parity:
     runs-on: ubuntu-latest
     steps:
@@ -65,25 +57,8 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
-      # -ldflags est porteur, pas décoratif. Sans lui le binaire se déclare
-      # en version "dev" (main.go:93), et le pilote SARIF porte cette chaîne :
-      # la comparaison octet pour octet échoue alors sur la version, pas sur
-      # une découverte. C'est exactement l'erreur que j'ai faite en écrivant ce
-      # workflow, et elle ressemble à s'y méprendre à un défaut de parité.
-      # Épinglé sur une révision, pas sur @v1, et la raison est un échec réel :
-      # ce travail a d'abord tourné contre @v1 et la parité est tombée, Python
-      # trouvant neuf découvertes là où Go en trouvait cinq.
-      #
-      # Ce n'était pas une divergence de portage. `v1` et `v1.1.0` pointent
-      # tous deux dix commits derrière la branche main du scanner Go —
-      # l'analyse des .tfvars, les sources de module non épinglées, le
-      # correctif de faux positifs sur les chemins longs et le pack de règles
-      # déclaratif n'ont jamais été publiés. L'oracle était plus vieux que ce
-      # qu'il devait valider.
-      #
-      # cf0bdd3 est la révision Go d'où ce port a été fait, et c'est un
-      # ancêtre de main dans ce dépôt : elle reste accessible tant que
-      # l'historique existe, ce qu'une étiquette mobile ne garantit pas.
+      # Build the Go revision used as the compatibility oracle. Match the Python package version
+      # so SARIF comparisons do not fail on version metadata alone.
       - name: Build the Go scanner
         run: |
           version=$(python -c 'import importlib.metadata as m; print(m.version("tf-predeploy-firewall"))')
@@ -94,25 +69,16 @@ jobs:
       - name: Parity tests
         run: pytest -q tests/test_cli_parity.py
 
-      # Le job ci-dessus passerait tout aussi vert si les tests s'étaient tous
-      # skippés faute de binaire. La coche verte serait alors un mensonge :
-      # elle dirait « la parité est vérifiée » alors que rien ne l'a été.
-      #
-      # Un skip reste attendu ici : le test qui scanne l'arbre Go voisin se
-      # saute quand `core/.git` est absent, ce qui est le cas sur un runner.
-      # Cinq des six tournent, et ce sont ceux qui comparent les sorties.
+      # Fail if the oracle binary is missing. The optional old-checkout corpus test may still
+      # skip.
       - name: Fail if the parity tests skipped
         run: |
           if pytest -q -rs tests/test_cli_parity.py 2>&1 | grep -q "TFPDF_GO_BINARY"; then
-            echo "Les tests de parité se sont skippés — la CI passe sans les avoir exécutés."
+            echo "Parity tests skipped because the Go oracle was unavailable."
             exit 1
           fi
 
-  # L'extracteur ForceNew vit dans ce dépôt, il est donc testé avec lui. Il ne
-  # tourne qu'une fois par semaine, dans refresh-rule-packs.yml — sans ce job,
-  # une régression y resterait invisible jusqu'au lundi suivant, et se
-  # manifesterait comme un pack silencieusement appauvri plutôt que comme une
-  # erreur.
+  # Test ForceNew extraction independently of provider-pack refresh jobs.
   forcenew-extractor:
     runs-on: ubuntu-latest
     steps:
@@ -121,8 +87,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.23"
-          # Cache désactivé : l'extracteur n'a aucune dépendance hors stdlib et
-          # n'a donc pas de go.sum. setup-go échoue s'il en cherche un absent.
+          # The extractor uses only the standard library and has no go.sum to cache.
           cache: false
 
       - name: Vet and test the extractor
@@ -142,8 +107,6 @@ jobs:
       - name: Build Docker image
         run: docker build -t tf-predeploy-firewall:${{ github.sha }} .
 
-      # Construire l'image ne dit pas qu'elle démarre. Le point d'entrée est
-      # un module Python résolu à l'exécution : une dépendance oubliée dans
-      # pyproject.toml passe le build et échoue au premier scan d'un client.
+      # Verify the image starts, not just that it builds.
       - name: The image actually runs
         run: docker run --rm tf-predeploy-firewall:${{ github.sha }} --version

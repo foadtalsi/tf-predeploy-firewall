@@ -1,5 +1,4 @@
-"""Le plan de contrôle optionnel : décompte d'usage, dérogations, et
-livraison des packs de règles étendus."""
+"""Optional hosted usage tracking, waivers, and extended schema packs."""
 
 from .client import (
     DEFAULT_API_BASE,

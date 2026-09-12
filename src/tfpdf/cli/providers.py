@@ -1,5 +1,4 @@
-"""À quel fournisseur appartient un fichier scanné, et quels packs étendus valent la peine d'être
-récupérés pour lui."""
+"""Detect providers used by scanned files and select available extended schema packs."""
 
 from __future__ import annotations
 
@@ -52,18 +51,16 @@ _PROVIDER_PREFIX = re.compile(rb'^\s*(?:resource|data)\s+"([a-z][a-z0-9]*)_', re
 
 
 def resolve_providers(flag_value: str, files: list[ChangedFile]) -> list[str]:
-    """Résout --providers : liste explicite, ou fournisseurs détectés disposant d'un pack en mode
-    auto."""
+    """Resolve --providers from an explicit list or detected providers with available packs."""
     if flag_value != "auto":
         return [provider.strip() for provider in flag_value.split(",") if provider.strip()]
     return [provider for provider in detect_providers(files) if provider in FETCHABLE_PROVIDERS]
 
 
 def detect_providers(files: list[ChangedFile]) -> list[str]:
-    """Chaque préfixe de fournisseur apparaissant dans les fichiers scannés,
-    filtré par rien — la réponse brute à « de quoi ce dépôt est-il fait », que
-    `resolve_providers` restreint à ce qui est récupérable et que
-    `warn_uncovered_providers` compare à ce qui a réellement été chargé."""
+    """Return all provider prefixes in scanned files, before filtering by available schema
+    coverage.
+    """
     seen: set[str] = set()
     for changed_file in files:
         for match in _PROVIDER_PREFIX.finditer(changed_file.head_content):
@@ -72,8 +69,7 @@ def detect_providers(files: list[ChangedFile]) -> list[str]:
 
 
 def warn_uncovered_providers(files: list[ChangedFile], cov: Coverage) -> None:
-    """Avertit des fournisseurs sans schéma chargé ; leurs valeurs restent analysées par les
-    règles indépendantes du schéma."""
+    """Warn about providers without schemas. Schema-independent value checks still run."""
     covered = {provider.name for provider in cov.providers}
     uncovered = [
         provider

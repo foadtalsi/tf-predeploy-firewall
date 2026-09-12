@@ -1,15 +1,7 @@
-"""Sérialise un pack en YAML, dans le format que `load` relit.
+"""Serialize rules to editable YAML for --print-rules.
 
-Sert un seul usage : `--print-rules` donne au lecteur le point de départ d'un
-pack personnalisé. Ce point de départ doit être du YAML et pas du Python,
-parce que c'est le seul format qu'un pack fourni par un client peut prendre —
-`load` n'importe jamais de code.
-
-Ce que la sortie n'a pas, et qui existait quand ce pack était lui-même un
-fichier YAML : les ancres et les alias. Ils sont développés à l'analyse, donc
-ce qui sort ici est la forme complète, chaque règle portant ses conditions en
-toutes lettres. C'est plus long et c'est mieux comme point de départ — il n'y
-a rien à déréférencer pour comprendre ce qu'une règle regarde.
+The output expands every rule's conditions without YAML aliases. Loading it
+uses the same data-only path as any other external pack.
 """
 
 from __future__ import annotations
@@ -20,9 +12,7 @@ import yaml
 
 from .ruledef import CategoryDoc, Fix, Match, Pack, Rule
 
-# L'ordre des clés en sortie. Les dictionnaires Python gardent leur ordre
-# d'insertion, donc dresser la liste ici suffit à rendre la sortie stable d'une
-# exécution à l'autre — et stable veut dire diffable entre deux versions.
+# Explicit key order keeps exported YAML stable across runs.
 _RULE_KEYS = (
     "id",
     "category",
@@ -59,12 +49,7 @@ _FIX_KEYS = ("action", "lines", "note", "skip_when_resolved")
 
 
 class _Dumper(yaml.SafeDumper):
-    """Force le style bloc sur les chaînes multi-lignes.
-
-    Sans cela, PyYAML rend un message de plusieurs lignes en une seule ligne
-    pleine de `\\n` échappés, ce qui est illisible précisément là où le texte
-    est destiné à être lu et modifié.
-    """
+    """Render multiline strings in YAML block style for readability."""
 
 
 def _represent_str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
@@ -77,12 +62,7 @@ _Dumper.add_representer(str, _represent_str)
 
 
 def _fields(obj: Match | Fix | Rule, keys: tuple[str, ...], default: Any) -> dict[str, Any]:
-    """Ne garde que ce qui diffère du défaut.
-
-    Émettre les champs vides doublerait la taille de la sortie et suggérerait
-    qu'ils comptent : un `attr_name_contains: ''` recopié dans un pack
-    personnalisé ressemble à une condition, alors qu'il n'en est pas une.
-    """
+    """Keep only nondefault fields so empty settings do not imply extra conditions."""
     out: dict[str, Any] = {}
     for key in keys:
         value = getattr(obj, key)
@@ -110,7 +90,7 @@ def _doc_to_dict(doc: CategoryDoc) -> dict[str, Any]:
 
 
 def to_yaml(pack: Pack) -> bytes:
-    """Rend le pack en YAML. Ce que `load` relit donne le même pack."""
+    """Render YAML that load can reconstruct as an equivalent pack."""
     document: dict[str, Any] = {"version": pack.version}
     if pack.extends:
         document["extends"] = pack.extends

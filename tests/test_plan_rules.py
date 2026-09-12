@@ -1,6 +1,4 @@
-"""Port de internal/rules/rule_plan_test.go, rule_plan_edgecases_test.go et
-rule_plan_cost_impact_test.go, cas pour cas.
-"""
+"""Plan replacement, drift, and blast-radius checks."""
 
 from __future__ import annotations
 
@@ -88,10 +86,9 @@ def test_blast_radius_rule_disabled(
 def test_drift_rule_flags_untouched_sensitive_attr(
     kb: schema.KnowledgeBase, sample_plan: planjson.PlanFile
 ) -> None:
-    """aws_security_group.web est une pure mise à jour qui change « name » ; la
-    liste ForceNew curée a « name » au premier niveau pour ce type. Aucun
-    changed_attrs fourni veut dire que le diff .tf de la PR n'y a jamais touché
-    => dérive."""
+    """A plan update to a sensitive attribute absent from changed_attrs represents unexplained
+    drift.
+    """
     findings = DriftRule().check("plan.json", sample_plan.resource_changes, {}, kb)
     assert any(
         f.resource == "aws_security_group.web" and f.category is Category.UNEXPECTED_DRIFT
@@ -102,8 +99,7 @@ def test_drift_rule_flags_untouched_sensitive_attr(
 def test_drift_rule_suppressed_when_pr_explains_change(
     kb: schema.KnowledgeBase, sample_plan: planjson.PlanFile
 ) -> None:
-    """Le même plan, mais cette fois le diff de la PR A touché « name » — un
-    changement intentionnel, pas une dérive."""
+    """An attribute explicitly changed by the pull request is intentional rather than drift."""
     changed: dict[str, set[ChangedAttrKey]] = {"aws_security_group.web": {"name"}}
     findings = DriftRule().check("plan.json", sample_plan.resource_changes, changed, kb)
     assert not [f for f in findings if f.resource == "aws_security_group.web"]
@@ -112,9 +108,7 @@ def test_drift_rule_suppressed_when_pr_explains_change(
 def test_drift_rule_matches_module_address_against_bare_changed_attrs(
     kb: schema.KnowledgeBase, edge_case_plan: planjson.PlanFile
 ) -> None:
-    """changed_attrs utilise la clé « type.nom » nue que produit l'analyseur
-    HCL — sans préfixe de module — parce que le diff .tf de cette PR A touché
-    availability_zone."""
+    """Match module-qualified plan addresses against normalized type.name changed-attribute keys."""
     changed: dict[str, set[ChangedAttrKey]] = {"aws_db_instance.primary": {"availability_zone"}}
     findings = DriftRule().check("plan.json", edge_case_plan.resource_changes, changed, kb)
     assert not [f for f in findings if f.resource == "module.db.aws_db_instance.primary"]
@@ -145,9 +139,7 @@ def test_drift_rule_skips_data_sources(
 
 
 def test_confirmed_replace_rule_skips_data_sources(kb: schema.KnowledgeBase) -> None:
-    """Une source de données ne peut en pratique jamais apparaître avec des
-    actions delete ou replace, mais la règle filtre par mode indépendamment des
-    actions, en défense en profondeur."""
+    """Exclude data-source reads regardless of their reported actions."""
     changes = [
         planjson.ResourceChange(
             address="data.aws_db_instance.lookup",
@@ -226,10 +218,7 @@ def test_deduplicate_force_new_against_plan_no_op_without_confirmed_replace() ->
 def test_drift_compares_numbers_the_way_go_decodes_them(
     kb: schema.KnowledgeBase,
 ) -> None:
-    """Go décode chaque nombre JSON en float64, si bien qu'un plan dont le
-    before vaut `5` et l'after `5.0` ne montre aucun changement. Python garde
-    l'un en entier et l'autre en flottant, et comparer le `str()` de chacun
-    rapporterait une dérive sur un attribut auquel rien n'a touché."""
+    """Treat JSON 5 and 5.0 as equal, matching Go decoding rather than Python string rendering."""
     changes = [
         planjson.ResourceChange(
             address="aws_db_instance.x",

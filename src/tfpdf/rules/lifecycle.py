@@ -1,4 +1,4 @@
-"""Protections contre la destruction des ressources persistantes."""
+"""Check destruction protections on stateful resources."""
 
 from __future__ import annotations
 
@@ -11,9 +11,7 @@ from .fix import as_fix, insert_into_block, replace_attr_line
 
 
 class MissingLifecycleRule:
-    """Signale les ressources critiques à état — bases de données, volumes, … —
-    qui ne déclarent pas lifecycle { prevent_destroy = true }, et restent donc
-    exposées à une suppression accidentelle par un apply négligent."""
+    """Flag critical stateful resources missing lifecycle { prevent_destroy = true }."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if knowledge_base is None:

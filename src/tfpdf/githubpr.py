@@ -1,4 +1,4 @@
-"""Publication du rapport de scan sur une pull request GitHub."""
+"""Publish scan reports to GitHub pull requests."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ ReviewOutcome = SuggestionOutcome
 
 @dataclass(slots=True)
 class Client:
-    """Dialogue avec une pull request."""
+    """A client for a GitHub pull request."""
 
     token: str
     owner: str
@@ -42,8 +42,7 @@ class Client:
     # --- summary comment --------------------------------------------------
 
     def upsert_comment(self, body: str, marker: str) -> None:
-        """Trouve sur la PR un commentaire existant contenant `marker` et remplace
-        son corps, ou en crée un nouveau s'il n'y en a aucun."""
+        """Replace the PR comment containing marker, or create one if absent."""
         existing_id = self._find_existing_comment(marker)
         if existing_id:
             url = f"{self._base()}/repos/{self.owner}/{self.repo}/issues/comments/{existing_id}"
@@ -66,8 +65,7 @@ class Client:
     # --- reviewers --------------------------------------------------------
 
     def request_reviewers(self, users: list[str], teams: list[str]) -> None:
-        """Demande une relecture aux utilisateurs et groupes donnés — sert à imposer une seconde
-        relecture humaine quand une découverte critique est présente."""
+        """Request user and team reviewers for findings that require a second human review."""
         if not users and not teams:
             return
         url = (
@@ -85,7 +83,7 @@ class Client:
     def post_suggestions(
         self, summary: str, comments: list[InlineComment], commit_sha: str
     ) -> SuggestionOutcome:
-        """Rattache les commentaires à la PR en une seule revue."""
+        """Submit inline comments together in a single pull request review."""
         out = SuggestionOutcome()
         if not comments:
             return out
@@ -134,8 +132,7 @@ class Client:
         return out
 
     def _commentable_lines(self) -> dict[str, set[int]]:
-        """Associe à chaque fichier modifié les numéros de lignes, dans le fichier d'après
-        changement, sur lesquels GitHub acceptera un commentaire de revue."""
+        """Map changed files to updated-file line numbers where GitHub allows review comments."""
         out: dict[str, set[int]] = {}
         for page in range(1, _MAX_PAGES + 1):
             url = (
@@ -152,9 +149,7 @@ class Client:
         return out
 
     def _existing_review_comments(self) -> str:
-        """Tous les corps de commentaires de revue en ligne déjà présents sur la
-        PR, concaténés — les appelants n'y cherchent jamais que des marqueurs
-        par sous-chaîne, les garder séparés n'apporterait rien."""
+        """Concatenate existing review comment bodies for substring marker checks."""
         parts: list[str] = []
         for page in range(1, _MAX_PAGES + 1):
             url = (

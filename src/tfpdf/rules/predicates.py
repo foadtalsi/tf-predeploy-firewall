@@ -1,4 +1,4 @@
-"""Le vocabulaire de prédicats qu'un fichier de règles peut invoquer."""
+"""The fixed predicate vocabulary available to declarative rules."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ from .entropy import looks_like_secret, shannon_entropy
 
 
 def looks_like_base64_secret(match: str) -> bool:
-    """Dit si une suite base64 de 40 caractères est plausiblement une sortie aléatoire plutôt
-    qu'un chemin ou un identifiant."""
+    """Check whether a 40-character base64 string plausibly represents random secret material
+    rather than a path or identifier.
+    """
     has_upper = has_lower = has_digit = False
     for r in match:
         if "A" <= r <= "Z":
@@ -50,6 +51,5 @@ VALUE_PREDICATES: dict[str, Callable[[str], tuple[float, bool]]] = {
 
 
 def known_predicates() -> tuple[list[str], list[str]]:
-    """Chaque nom qu'un fichier de règles peut employer, pour la passe de validation qui tourne
-    au chargement."""
+    """Return predicate names accepted during rule-pack validation."""
     return sorted(CONFIRM_PREDICATES), sorted(VALUE_PREDICATES)

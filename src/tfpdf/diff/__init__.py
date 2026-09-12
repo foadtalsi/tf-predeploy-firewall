@@ -1,5 +1,4 @@
-"""Récupération des fichiers .tf modifiés dans une PR et, là où c'est nécessaire, de leur contenu
-d'avant changement — depuis un checkout git local."""
+"""Read changed Terraform files and their previous contents from a local Git checkout."""
 
 from .git import (
     ChangedFile,

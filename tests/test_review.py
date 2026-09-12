@@ -1,4 +1,4 @@
-"""Port de internal/report/review_test.go, cas pour cas."""
+"""Inline suggestion rendering and identity tests."""
 
 from __future__ import annotations
 
@@ -39,9 +39,7 @@ def _fix_finding() -> Finding:
 
 
 def test_review_comment_body_wraps_the_fix_in_a_suggestion_block() -> None:
-    """Le bloc de suggestion est toute la fonctionnalité : GitHub ne rend le
-    bouton « Commit suggestion » que pour un bloc ouvert exactement par
-    ```suggestion."""
+    """GitHub requires the exact suggestion fence to offer Commit suggestion."""
     body = review_comment_body(_fix_finding())
 
     assert "```suggestion\n" in body, body
@@ -60,9 +58,7 @@ def test_review_comment_body_includes_the_note_when_the_fix_is_not_self_sufficie
 
 
 def test_fix_marker_ignores_line_number_but_not_content() -> None:
-    """Le marqueur est la façon dont une nouvelle exécution reconnaît ses
-    propres suggestions. Le baser sur le numéro de ligne reposterait tout après
-    la moindre édition au-dessus."""
+    """Suggestion identity ignores moved line numbers but includes replacement contents."""
     a = _fix_finding()
 
     moved = _fix_finding()
@@ -91,17 +87,15 @@ def test_has_fix_marker_matches_an_already_posted_comment() -> None:
 
 
 def test_fix_marker_is_an_html_comment() -> None:
-    """Le marqueur doit être invisible dans le commentaire rendu, sinon chaque
-    suggestion porte une ligne de bruit."""
+    """Keep internal markers invisible in rendered comments."""
     m = fix_marker(_fix_finding())
     assert m.startswith("<!--") and m.endswith("-->"), m
 
 
 def test_gitlab_suggestion_body_fence_carries_the_range_offset() -> None:
-    """Le bloc de GitLab est relatif à la ligne sur laquelle il est ancré : un
-    correctif qui remplace les lignes 12 à 15, ancré en 12, doit dire
-    `suggestion:-0+3`. Se tromper de décalage remplace les mauvaises lignes — en
-    un clic."""
+    """GitLab ranges are relative to the anchor: replacing lines 12 through 15 from line 12
+    requires suggestion:-0+3.
+    """
     f = _fix_finding()  # start_line 12, end_line 12: single line
     assert "```suggestion:-0+0\n" in gitlab_suggestion_body(f)
 

@@ -1,5 +1,4 @@
-"""Ancienne API de blocage, conservée pour compatibilité. Le CLI utilise blocked_by, qui respecte
-les dérogations."""
+"""Legacy blocking API. The CLI uses blocked_by, which respects accepted findings."""
 
 from __future__ import annotations
 
@@ -9,5 +8,5 @@ from .report.finding import Finding, Severity
 
 
 def should_block_ignoring_waivers(findings: Iterable[Finding], threshold: Severity) -> bool:
-    """Compare les sévérités au seuil, y compris celles des découvertes acceptées."""
+    """Compare all findings against a threshold, including accepted findings."""
     return any(finding.severity.at_least(threshold) for finding in findings)

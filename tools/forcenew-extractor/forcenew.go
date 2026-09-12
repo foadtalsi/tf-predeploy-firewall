@@ -1,6 +1,5 @@
-// Extraction ForceNew depuis les sources AWS. Les schémas SDK et Framework
-// sont parcourus séparément ; une expression non résolue reste une lacune
-// de couverture plutôt que de produire une détection supposée.
+// Extract AWS ForceNew metadata from SDK and Framework schemas separately. Unresolved
+// expressions remain coverage gaps rather than guessed detections.
 package main
 
 import (

@@ -1,11 +1,5 @@
-"""Un serveur HTTP local pour les tests des clients de forge — le substitut
-du `httptest.NewServer` de Go.
-
-Les clients de forge sont la seule partie du scanner qui parle à un réseau, et
-ce qui mérite d'être testé chez eux est la requête qu'ils construisent : quelle
-URL, quelle méthode, quel corps JSON. Simuler `urllib` testerait que la
-simulation a été appelée. Un vrai serveur sur un port de loopback teste ce qui
-part réellement sur le fil, ce que GitHub et GitLab refusent ou acceptent.
+"""Loopback HTTP server for client tests. Real requests exercise URL, method, headers, and JSON
+encoding without contacting external services.
 """
 
 from __future__ import annotations
@@ -21,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 @dataclass(slots=True)
 class Request:
-    """Une requête reçue, décodée."""
+    """A decoded incoming request."""
 
     method: str
     path: str
@@ -32,13 +26,8 @@ class Request:
 
 @dataclass(slots=True)
 class Response:
-    """Ce que le handler veut renvoyer.
-
-    `body` est encodé en JSON. `raw` envoie des octets tels quels à la place —
-    un pack de règles est un blob gzip, et l'envelopper en JSON testerait
-    l'enveloppe. `headers` porte ceux que le client relit, ce qui pour la
-    récupération de pack est l'ETag sur lequel repose tout le schéma de
-    revalidation.
+    """A stub response: body is JSON, raw sends bytes directly, and headers support contracts such
+    as ETag revalidation.
     """
 
     status: int = 200
@@ -48,10 +37,8 @@ class Response:
 
 
 class StubServer:
-    """Sert `handler(request) -> Response` jusqu'à fermeture.
-
-    À utiliser comme gestionnaire de contexte ; `url` est la base vers laquelle
-    pointer un client, et `requests` est chaque requête reçue, dans l'ordre.
+    """Serve handler(request) until the context exits. url is the base URL; requests records
+    incoming requests in order.
     """
 
     def __init__(self, handler: Callable[[Request], Response]) -> None:

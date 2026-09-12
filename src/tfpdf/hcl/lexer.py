@@ -1,19 +1,7 @@
-"""Le lexeur HCL2 : scanne de la source UTF-8 en un flux plat de jetons, chacun
-portant son décalage en octets, sa ligne et sa colonne.
+"""Tokenize HCL2 while retaining UTF-8 byte offsets and source positions.
 
-Trois aspects de HCL demandent plus qu'un scanneur de mots-clés :
-
-- **Templates entre guillemets.** `"prefix-${var.env}"` se décompose en
-  guillemet, littéral, interpolation et guillemet — pas un jeton opaque, sans
-  quoi `${...}` serait inévaluable et la résolution de portée impossible.
-- **Heredocs.** `<<-EOF` retire une indentation commune dont la quantité est
-  fixée par le terminateur, donc résolue seulement une fois celui-ci trouvé.
-- **Sauts de ligne significatifs.** Ce sont des jetons, sauf entre crochets où
-  une expression peut se poursuivre — d'où le suivi de profondeur de crochets.
-
-L'état est une **pile de modes**, parce que les templates s'imbriquent :
-`"${join(",", ["${a}"])}"` est légal. L'analyseur consomme donc une liste plate,
-sans retour vers le lexeur.
+A mode stack handles nested templates and interpolations. Newlines remain
+significant outside brackets; indented heredocs remove common body indentation.
 """
 
 from __future__ import annotations
@@ -108,13 +96,8 @@ class _Frame:
 
 
 class Lexer:
-    """Produit le flux complet de jetons d'un fichier source.
-
-    Travaille sur du `str` pour la gestion des caractères tout en suivant les
-    décalages en octets contre l'encodage UTF-8, pour qu'une plage puisse
-    redécouper les octets d'origine. Scanner des octets à la place ferait de
-    chaque caractère multi-octets un cas particulier dans les scanneurs
-    d'identifiants et de templates.
+    """Tokenize Unicode text while tracking UTF-8 byte offsets so ranges can slice the original
+    source bytes.
     """
 
     def __init__(self, source: bytes | str, filename: str = "", start: Pos | None = None) -> None:
@@ -318,12 +301,8 @@ class Lexer:
         return self._tok(T.INVALID, bad, start)
 
     def _close_brace(self, start: Pos) -> Token:
-        """Un `}` ferme soit un objet ou un bloc, soit une interpolation.
-
-        Seule la trame INTERP la plus intérieure n'ayant aucune accolade
-        ouverte à elle peut être terminée — sinon `"${ {a = 1} }"` se
-        terminerait à l'accolade fermante de l'objet intérieur et le reste de la
-        chaîne serait lexé comme du code.
+        """Close a block, object, or interpolation. Only an interpolation frame with no open inner
+        braces can end here.
         """
         frame = self._frame
         if frame.mode is _Mode.INTERP:
@@ -451,26 +430,8 @@ class Lexer:
         return self._tok(T.OHEREDOC, marker, start, raw="-" if indented else "")
 
     def _lookahead_dedent(self, marker: str) -> int:
-        """Détermine ce que `<<-` retire, sans déplacer le curseur.
-
-        La règle de HCL est la plus petite indentation parmi les lignes du
-        **corps**. L'indentation du terminateur est exclue — il ne fait pas
-        partie du template — et cette exclusion est toute la subtilité. Dans
-
-            policy = <<-POLICY
-              {
-                "Statement": [...]
-              }
-            POLICY
-
-        l'indentation minimale du corps est 2 et celle du terminateur 0 ;
-        inclure le terminateur ne retirerait rien et laisserait chaque ligne
-        décalée. Ce texte est ce contre quoi `rules.iam_wildcard` fait sa
-        recherche par expression régulière, donc la différence est une
-        découverte qui se déclenche ou non.
-
-        Calculé à l'avance, parce que le premier jeton littéral est émis bien
-        avant que le terminateur ne soit atteint.
+        """Find the minimum heredoc body indentation without moving the cursor. Exclude the
+        terminator; its indentation must not affect the resulting literal text.
         """
         indents: list[int] = []
         for raw_line in self.text[self.i :].split("\n"):
@@ -551,7 +512,6 @@ class Lexer:
 
 
 def tokenize(source: bytes | str, filename: str = "") -> tuple[list[Token], Diagnostics]:
-    """Découpe tout un fichier en jetons. L'analyseur appelle ceci puis
-    travaille sur la liste."""
+    """Tokenize a complete source file for the parser."""
     lexer = Lexer(source, filename)
     return lexer.tokens(), lexer.diags

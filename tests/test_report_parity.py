@@ -1,21 +1,5 @@
-"""Test différentiel : chaque sortie rendue comparée octet pour octet à celle
-de l'implémentation Go.
-
-`internal/report` n'a aucun test couvrant SARIF ou Code Quality, et ceux qu'il a
-vérifient des sous-chaînes — `strings.Contains(out, "Merge blocked")`. C'est
-assez pour attraper un moteur de rendu qui a cessé de fonctionner et pas assez
-pour en attraper un qui a dérivé. Ces sorties sont consommées par des machines
-configurées contre la version Go : GitHub Code Scanning ingère le SARIF, le
-widget de MR de GitLab analyse le rapport Code Quality, et une nouvelle
-exécution reconnaît ses propres commentaires passés par une empreinte du
-correctif rendu.
-
-Les oracles de `data/oracles/` ont été produits par le paquet Go lui-même sur un
-jeu de découvertes délibérément retors — les caractères que l'encodeur JSON de
-Go échappe et que celui de Python n'échappe pas (`<`, `>`, `&`), du non-ASCII
-que Python échappe et que Go n'échappe pas, une découverte sous dérogation, une
-URL de documentation, un correctif multiligne avec une note, et une catégorie de
-règle personnalisée sans entrée dans le pack.
+"""Compare reports against frozen Go-generated oracles, including escaping, Unicode, waivers,
+documentation links, and fix markers.
 """
 
 from __future__ import annotations
@@ -46,7 +30,7 @@ DATA = Path(__file__).parent / "data"
 
 
 def _oracle_findings() -> list[Finding]:
-    """Le même jeu que `zz_tmp_oracle_test.go` rend du côté Go."""
+    """Recreate the finding inputs used to generate the historical Go oracles."""
     return [
         Finding(
             file="rds.tf",
@@ -103,8 +87,7 @@ def _oracle_findings() -> list[Finding]:
 
 @pytest.fixture
 def stamped_version() -> Iterator[None]:
-    """L'oracle a été rendu avec la version de pilote que l'exécution Go a
-    estampillée."""
+    """Match the driver version embedded in the oracle."""
     before = sarif.TOOL_VERSION
     sarif.set_tool_version("1.4.2")
     yield
@@ -113,13 +96,7 @@ def stamped_version() -> Iterator[None]:
 
 @pytest.mark.usefixtures("stamped_version")
 def test_sarif_matches_the_go_implementation() -> None:
-    """34 Ko de JSON, y compris la documentation Markdown complète de chaque
-    règle.
-
-    Un seul caractère de différence dans l'échappement, l'ordre des clés ou
-    l'indentation fait échouer ceci — ce qui est le propos, puisque rien d'autre
-    ne vérifie le SARIF.
-    """
+    """Compare the complete SARIF document, including help text and JSON formatting."""
     want = (ORACLES / "oracle_sarif.json").read_bytes()
     expected = json.loads(want)
     driver = expected["runs"][0]["tool"]["driver"]
@@ -133,12 +110,7 @@ def test_code_quality_matches_the_go_implementation() -> None:
 
 
 def test_code_quality_escapes_html_the_way_go_does() -> None:
-    """Épinglé séparément parce que c'est la seule différence qui survivrait à
-    un test d'aller-retour JSON : `json.loads` sur l'une ou l'autre sortie donne
-    le même objet, donc seule une comparaison d'octets l'attrape. GitLab indexe
-    l'historique de ses problèmes sur l'empreinte, pas sur les octets, mais un
-    scanner dont la sortie change de forme le jour où il change de langage est un
-    scanner que personne ne peut comparer."""
+    """Compare bytes because JSON round trips would hide different HTML escaping."""
     out = render_code_quality(_oracle_findings()).decode()
     assert "\\u0026" in out and "\\u003c" in out and "\\u003e" in out
     assert "—" in out, "non-ASCII stays raw UTF-8, as Go emits it"
@@ -150,13 +122,8 @@ def test_markdown_matches_the_go_implementation() -> None:
 
 
 def test_review_bodies_match_the_go_implementation() -> None:
-    """Les deux grammaires de bloc, et le marqueur de correctif que chacune
-    porte.
-
-    Le marqueur est un SHA-256 du correctif rendu : ceci épingle donc aussi
-    l'entrée du hachage — un marqueur qui différerait ferait reposter à la
-    version Python chaque suggestion que la version Go avait déjà laissée sur une
-    PR ouverte.
+    """Pin both suggestion syntaxes and their hashed markers to prevent duplicate posts after
+    upgrades.
     """
     parts: list[str] = []
     for f in _oracle_findings():
@@ -174,26 +141,9 @@ def test_review_bodies_match_the_go_implementation() -> None:
 def test_rule_docs_match_the_committed_go_generated_file(
     pytestconfig: pytest.Config,
 ) -> None:
-    """docs/rules.md est généré, et chaque `helpUri` SARIF pointe dedans.
-
-    Une catégorie sans section là-bas est un lien mort dans le tableau de bord de
-    sécurité de qui a ingéré le SARIF : l'arbre Go régénère donc et compare le
-    fichier dans `TestRuleDocs_FileMatchesThePack`. `data/rules.md` est ce
-    fichier, tel quel : ceci vérifie que le moteur de rendu Python produit les
-    mêmes 604 lignes depuis le même pack.
-
-    `--update-docs` réécrit la copie propre à ce paquet, ce qui est le port du
-    drapeau `-update` de Go. Il ne touche pas à `data/rules.md` — c'est l'oracle,
-    et un test qui pourrait réécrire ce contre quoi il compare ne vérifierait
-    rien.
-
-    Une divergence, voulue, et la seule : le commentaire de provenance en tête.
-    Go dit que le fichier vient de `internal/ruledef/rules.yaml` et se régénère
-    par `go test`. Ni l'un ni l'autre n'existe ici — les règles sont écrites en
-    Python et le fichier se régénère par `pytest --update-docs`. Une doc qui
-    enverrait le lecteur lancer une commande disparue serait fausse, alors que
-    cette divergence-ci est vérifiée juste en dessous. Tout ce qui suit ces deux
-    lignes reste comparé octet pour octet.
+    """Compare generated rule documentation with historical fixtures, excluding deliberate changes
+    such as removed categories and the generator header. --update-docs writes only
+    docs/rules.md.
     """
     got = render_rule_docs()
 
@@ -208,9 +158,7 @@ def test_rule_docs_match_the_committed_go_generated_file(
     got_preamble, got_body = got.split("-->", 1)
     want_preamble, want_body = want.split("-->", 1)
 
-    # La divergence est nommée, pas seulement tolérée : ces assertions échouent
-    # si le préambule Python repart vers du Go, et si l'oracle cesse d'être
-    # celui qu'on croit.
+    # Assert both generator headers so intentional provenance differences stay explicit.
     assert "tfpdf/ruledef/rules.py" in got_preamble
     assert "pytest --update-docs" in got_preamble
     assert "internal/ruledef/rules.yaml" in want_preamble

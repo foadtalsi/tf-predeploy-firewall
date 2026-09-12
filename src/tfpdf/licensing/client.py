@@ -1,4 +1,4 @@
-"""Client du service cloud, utilisé uniquement quand une clé de licence est fournie."""
+"""Hosted-service client used only when a license key is supplied."""
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ DEFAULT_TIMEOUT = 10.0
 
 
 class LicensingError(RuntimeError):
-    """Le plan de contrôle a refusé, ou n'a pas pu répondre."""
+    """A hosted-service refusal or failed request."""
 
 
 @dataclass(slots=True, frozen=True)
 class FindingSummary:
-    """Le sous-ensemble d'une découverte envoyé au plan de contrôle, pour que les pages Rapports,
-    Tendances et Journal d'audit du tableau de bord puissent montrer ce qui a réellement été
-    trouvé, et pas seulement un compteur."""
+    """Finding fields reported to the hosted service for dashboard reports, trends, and audit
+    history.
+    """
 
     category: str = ""
     severity: str = ""
@@ -36,8 +36,7 @@ class FindingSummary:
 
 @dataclass(slots=True)
 class ScanResult:
-    """Ce que le CLI rapporte d'un scan terminé, utilisé à la fois pour le
-    décompte d'usage et pour les décisions d'application de quota."""
+    """Completed scan data used for usage tracking and quota decisions."""
 
     repo_full_name: str = ""
     finding_count: int = 0
@@ -58,8 +57,7 @@ class Client:
     # --- usage ------------------------------------------------------------
 
     def record_scan(self, result: ScanResult) -> tuple[bool, str]:
-        """Retourne (autorisé, raison). Les erreurs réseau ou serveur sont levées ; l'appelant
-        décide si elles bloquent."""
+        """Return (allowed, reason). Raise network and server errors for the caller to handle."""
         payload = {
             "repo_full_name": result.repo_full_name,
             "finding_count": result.finding_count,
@@ -108,11 +106,7 @@ class Client:
     # --- waivers ----------------------------------------------------------
 
     def get_waivers(self, repo_full_name: str) -> list[Waiver]:
-        """Récupère toutes les dérogations actives — non expirées — configurées
-        pour le dépôt.
-
-        Rend une liste vide, et non une erreur, quand il n'y en a aucune.
-        """
+        """Fetch active, unexpired repository waivers. Return an empty list when none exist."""
         url = self.api_base + "/v1/waivers?repo=" + quote(repo_full_name, safe="")
         response = request_raw("GET", url, self._headers(), timeout=self.timeout)
         if response.status == 401:
@@ -129,13 +123,12 @@ class Client:
     # --- rule packs -------------------------------------------------------
 
     def fetch_rule_pack(self, provider: str) -> tuple[RulePack | None, Exception | None]:
-        """Le pack de règles étendu d'un fournisseur.
-
-        Voir `rulepacks.fetch_rule_pack` : l'erreur rendue est consultative.
+        """Fetch a provider's extended schema pack; see rulepacks.fetch_rule_pack for advisory
+        errors.
         """
         return fetch_rule_pack(self.api_base, self.api_key, provider)
 
 
 def new_client(api_key: str, api_base: str = "") -> Client:
-    """Construit un client, en donnant à l'API sa base par défaut."""
+    """Build a client using the default API base URL when none is supplied."""
     return Client(api_key=api_key, api_base=api_base or DEFAULT_API_BASE)

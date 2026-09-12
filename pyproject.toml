@@ -56,22 +56,11 @@ Documentation = "https://github.com/foadtalsi/tf-predeploy-firewall#readme"
 
 [project.scripts]
 tf-predeploy-firewall = "tfpdf.cli.main:run"
-# Un seul point d'entrée, et c'est délibéré. `tfpdf-genpack` était ici : le
-# générateur des packs de règles, livré par `pip install` du scanner gratuit,
-# donc l'outil qui fabrique la donnée payante posé sur le PATH de qui ne paie
-# pas. Il vit maintenant dans le dépôt du plan de contrôle.
+# Install only the scanner command. Pack-generation tooling lives in the separate cloud project.
 
 [tool.hatch.build.targets.wheel]
-# Everything under src/tfpdf ships, data files included: the rule packs
-# (schema/data/*.json.gz), the curated tables and config/default.yml are not
-# optional extras, they are what the scanner detects with. A wheel without them
-# installs cleanly and finds nothing.
-#
-# `py.typed` en fait partie, et il est vide à dessein : c'est un drapeau, pas
-# un fichier de données. Sans lui, mypy refuse de regarder ce paquet chez un
-# consommateur — « module is installed, but missing library stubs » — alors que
-# tout y est annoté et que mypy passe dessus ici. Le plan de contrôle l'importe
-# désormais pour sa démonstration publique, et c'est ce qui l'a révélé.
+# Ship embedded schema data and py.typed with the Python package. The marker exposes annotations
+# to downstream type checkers.
 packages = ["src/tfpdf"]
 
 [tool.pytest.ini_options]

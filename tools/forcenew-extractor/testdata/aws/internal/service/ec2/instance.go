@@ -1,8 +1,7 @@
 package ec2
 
-// Aucun ForceNew nulle part : la ressource doit apparaître comme vue et
-// résolue, mais ne rien contribuer à l'index. Une ressource sans ForceNew et
-// une ressource que l'extracteur n'a pas su lire ne doivent pas se ressembler.
+// A resolved resource with no ForceNew fields must be counted separately from an unreadable
+// resource.
 
 // @SDKResource("aws_instance", name="Instance")
 func ResourceInstance() *schema.Resource {

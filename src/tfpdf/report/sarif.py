@@ -1,4 +1,4 @@
-"""Sortie SARIF 2.1.0, pour envoi vers GitHub Code Scanning."""
+"""Render SARIF 2.1.0 for GitHub Code Scanning."""
 
 from __future__ import annotations
 
@@ -20,9 +20,7 @@ class SarifMessage:
 
 @dataclass(slots=True, frozen=True)
 class SarifHelp:
-    """L'explication longue d'une règle. GitHub Code Scanning rend du Markdown
-    sur la page d'alerte et retombe sur le texte brut ailleurs, donc les deux
-    sont remplis depuis la même source."""
+    """A rule's long-form help in Markdown and plain text, derived from the same source."""
 
     text: str
     markdown: str = ""
@@ -194,8 +192,7 @@ SARIF_RULES: list[SarifRule] = [
 
 
 def described_rules() -> list[SarifRule]:
-    """`SARIF_RULES`, chaque entrée voyant son texte d'aide, sa description complète et son lien
-    de documentation remplis depuis le pack de règles."""
+    """Add pack-provided help, descriptions, and documentation links to SARIF_RULES."""
     out: list[SarifRule] = []
     for r in SARIF_RULES:
         h = lookup_rule_help(r.id)
@@ -229,15 +226,13 @@ TOOL_VERSION = "dev"
 
 
 def set_tool_version(v: str) -> None:
-    """Estampille la version que cette build rapporte comme version du pilote
-    SARIF."""
+    """Set the scanner version reported by the SARIF driver."""
     global TOOL_VERSION
     TOOL_VERSION = v
 
 
 def render_sarif(findings: list[Finding]) -> bytes:
-    """Sérialise les découvertes en un document JSON SARIF 2.1.0 propre à être
-    envoyé vers GitHub Code Scanning via actions/upload-sarif."""
+    """Serialize findings as SARIF 2.1.0 for upload through actions/upload-sarif."""
     results: list[dict[str, Any]] = []
     for finding in findings:
         result: dict[str, Any] = {

@@ -1,5 +1,4 @@
-"""Port de internal/githubpr/comment_test.go et review_test.go, cas pour
-cas."""
+"""GitHub summary and inline-review client tests."""
 
 from __future__ import annotations
 
@@ -99,9 +98,7 @@ def _review_handler(
     patches: dict[str, str] | None = None,
     existing_bodies: list[str] | None = None,
 ) -> tuple[Any, dict[str, Any]]:
-    """Remplace les trois points d'entrée que touche post_suggestions. Rend le
-    handler et un dictionnaire qui capture le corps de la revue quand une revue
-    est postée."""
+    """Stub the three review endpoints and capture the submitted review body."""
     patches = patches if patches is not None else {}
     existing_bodies = existing_bodies or []
     captured: dict[str, Any] = {}
@@ -137,9 +134,7 @@ def test_patch_line_numbers_counts_added_and_context_but_not_deleted() -> None:
 
 
 def test_post_suggestions_comments_on_a_context_line() -> None:
-    """Les lignes de contexte ne sont pas un agrément : une ressource sans
-    prevent_destroy est signalée sur sa ligne d'en-tête inchangée, qui
-    n'apparaît que comme contexte."""
+    """Lifecycle findings may anchor to unchanged resource-header context lines."""
     handler, captured = _review_handler({"main.tf": TWO_HUNK_PATCH})
 
     with StubServer(handler) as srv:
@@ -161,9 +156,7 @@ def test_post_suggestions_comments_on_a_context_line() -> None:
 
 
 def test_post_suggestions_drops_comments_outside_the_diff() -> None:
-    """GitHub rejette la revue entière si un seul commentaire se trouve hors du
-    diff : le filtrage doit donc avoir lieu avant tout envoi, pas après un
-    422."""
+    """Filter unsupported lines before posting; one invalid comment can reject the whole review."""
     handler, captured = _review_handler({"main.tf": TWO_HUNK_PATCH})
 
     with StubServer(handler) as srv:
@@ -182,9 +175,7 @@ def test_post_suggestions_drops_comments_outside_the_diff() -> None:
 
 
 def test_post_suggestions_skips_suggestions_already_on_the_pr() -> None:
-    """Une revue ne peut pas être éditée comme un ensemble, à la façon dont le
-    commentaire de synthèse est mis à jour : sans ceci, chaque push empile une
-    copie de plus."""
+    """Skip existing suggestions so repeated pushes do not duplicate reviews."""
     handler, captured = _review_handler(
         {"main.tf": TWO_HUNK_PATCH}, ["some earlier comment\n<!-- m1 -->\n"]
     )
@@ -201,8 +192,7 @@ def test_post_suggestions_skips_suggestions_already_on_the_pr() -> None:
 
 
 def test_post_suggestions_deduplicates_within_one_review() -> None:
-    """Deux règles peuvent tomber sur la même ligne avec la même conclusion ;
-    l'auteur doit voir cela une fois."""
+    """Deduplicate identical comments within a single review."""
     handler, _ = _review_handler({"main.tf": TWO_HUNK_PATCH})
     same = ReviewComment(path="main.tf", line=3, body="fix", marker="<!-- m1 -->")
 
@@ -239,8 +229,7 @@ def test_post_suggestions_multi_line_range_sends_start_line() -> None:
 
 
 def test_post_suggestions_rejects_a_range_that_leaves_the_diff() -> None:
-    """Une plage partiellement couverte est une plage que GitHub
-    rejetterait."""
+    """Reject replacement ranges only partly covered by the diff."""
     handler, _ = _review_handler({"main.tf": TWO_HUNK_PATCH})
 
     with StubServer(handler) as srv:
@@ -258,9 +247,7 @@ def test_post_suggestions_rejects_a_range_that_leaves_the_diff() -> None:
 
 
 def test_post_suggestions_propagates_api_failure() -> None:
-    """L'appelant journalise et passe à la suite plutôt que de faire échouer le
-    scan, mais il ne peut le faire que si le message dit ce que GitHub a
-    réellement refusé."""
+    """Preserve actionable API errors for the caller's nonfatal warning."""
 
     def handler(r: Request) -> Response:
         if r.method == "GET" and r.path.endswith("/files"):
@@ -276,9 +263,7 @@ def test_post_suggestions_propagates_api_failure() -> None:
 
 
 def test_post_suggestions_empty_diff_posts_nothing_and_succeeds() -> None:
-    """Un diff vide veut dire qu'aucune ligne n'est commentable, donc la revue
-    n'est jamais tentée — le scanner ne doit pas faire échouer une PR qui n'a
-    simplement rien changé qu'il puisse annoter."""
+    """An empty diff has no commentable lines and requires no review request."""
     handler, captured = _review_handler({})
 
     with StubServer(handler) as srv:

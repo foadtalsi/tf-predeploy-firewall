@@ -1,22 +1,8 @@
-"""Le modèle de valeurs — port fidèle et délibérément partiel de go-cty.
+"""A deliberately limited cty-style value model for static analysis.
 
-Surface utilisée, tout le reste étant absent exprès plutôt qu'oublié :
-
-    v.type == STRING / BOOL / NUMBER      tests de nature littérale
-    v.type.is_list/set/tuple/map/object   tests de nature de collection
-    v.is_null(), v.is_wholly_known()      les deux gardes que chaque règle pose
-    v.as_string(), v.true(), v.as_number_string()
-    v.as_value_map(), v.as_value_slice(), v.element_iterator()
-    object_val(mapping)                   remise d'une portée à l'évaluateur
-
-**Inconnu n'est pas None.** cty distingue « valeur nulle » de « valeur non
-connaissable statiquement ». Les fondre ferait ressembler chaque `var.x`
-irrésoluble à un nul explicite, et les règles qui jugent les valeurs *écrites*
-se déclencheraient sur des valeurs que personne n'a écrites. D'où `UNKNOWN`
-comme sentinelle et `is_wholly_known()` qui descend dans les collections.
-
-**Les nombres sont exacts** — `Decimal`, pas `float`, pour qu'un littéral `10`
-ne s'affiche pas `10.0` et ne change pas le texte que les règles comparent.
+UNKNOWN differs from explicit null (None). is_wholly_known() checks nested
+collections so rules never treat a partial value as complete. Numbers use
+Decimal to preserve exact values and stable rendering.
 """
 
 from __future__ import annotations
@@ -42,11 +28,8 @@ class Kind(Enum):
 
 @dataclass(frozen=True, slots=True)
 class Type:
-    """Le type d'une valeur.
-
-    Les types d'éléments ne sont pas suivis : aucune règle du scanner ne les
-    inspecte, et les porter demanderait d'implémenter l'unification de types de
-    cty pour aucun lecteur.
+    """A value's type. Collection element types are not tracked because scanner rules do not
+    inspect them.
     """
 
     kind: Kind
@@ -88,8 +71,7 @@ DYNAMIC = Type(Kind.DYNAMIC)
 
 
 class _Unknown:
-    """Sentinelle pour une valeur qui existe mais ne peut pas être déterminée
-    statiquement."""
+    """Sentinel for a value that exists but cannot be determined statically."""
 
     _instance: _Unknown | None = None
 
@@ -107,12 +89,8 @@ _UNKNOWN_MARKER = _Unknown()
 
 @dataclass(frozen=True, slots=True)
 class Value:
-    """Une valeur immuable, dans le style de cty.
-
-    `raw` contient : un `str` pour STRING, un `Decimal` pour NUMBER, un `bool`
-    pour BOOL, un `tuple[Value, ...]` pour les natures de séquence, un
-    `dict[str, Value]` pour les natures de correspondance, `None` pour un nul,
-    et `_UNKNOWN_MARKER` pour un inconnu.
+    """A cty-style value. raw holds str, Decimal, bool, a tuple of Values, a dict of Values, None
+    for null, or _UNKNOWN_MARKER.
     """
 
     type: Type
@@ -127,13 +105,7 @@ class Value:
         return self.raw is _UNKNOWN_MARKER
 
     def is_wholly_known(self) -> bool:
-        """Faux si cette valeur, ou quoi que ce soit d'imbriqué dedans, est
-        inconnu.
-
-        Une liste contenant un élément irrésoluble n'est pas utilisable comme
-        littéral, donc l'ensemble doit se déclarer inconnu — sinon une règle
-        jugerait une valeur partielle comme si elle était complète.
-        """
+        """Return False if this value or any nested element is unknown."""
         if self.is_unknown():
             return False
         if self.is_null():
@@ -162,17 +134,8 @@ class Value:
         return self.raw
 
     def as_number_string(self) -> str:
-        """Rend un nombre comme le fait le `big.Float.String()` de Go, ce que le
-        scanner Go écrit dans `Attribute.RawValue`.
-
-        C'est-à-dire `Text('g', 10)` : notation décimale simple pour les ordres
-        de grandeur ordinaires, pas de `.0` final sur un entier, et notation
-        scientifique au-delà de 10 chiffres significatifs. Cette dernière clause
-        est inatteignable pour les valeurs que Terraform porte réellement —
-        ports, tailles, décomptes, jours de rétention — mais elle est
-        implémentée plutôt qu'écartée par hypothèse, parce qu'une divergence
-        silencieuse dans une règle de comparaison de valeurs est le genre de bug
-        qui se manifeste comme une découverte manquante des mois plus tard.
+        """Render a number using Go big.Float.String() conventions: ten significant digits and no
+        trailing .0 for integers.
         """
         return format_number(self.as_decimal())
 
@@ -187,14 +150,8 @@ class Value:
         return dict(self.raw)
 
     def element_iterator(self) -> Iterator[tuple[Value, Value]]:
-        """Produit des paires (clé, élément), à l'image de l'ElementIterator de
-        cty.
-
-        Les clés de séquence sont leur indice entier sous forme de valeur
-        NUMBER ; les clés de correspondance sont des valeurs STRING. Les clés de
-        correspondance sont produites triées, comme le fait cty, pour que tout
-        ce qui est construit en itérant une valeur soit déterministe : les tests
-        sur fichiers de référence en dépendent.
+        """Yield (key, value) pairs deterministically. Sequence keys are NUMBER values; mapping
+        keys are sorted STRING values.
         """
         if isinstance(self.raw, tuple):
             for i, element_value in enumerate(self.raw):
@@ -218,8 +175,7 @@ class Value:
 
 
 def format_number(d: Decimal) -> str:
-    """Sémantique de `big.Float.String()` / `Text('g', 10)` de Go, pour un
-    Decimal."""
+    """Format a Decimal using Go big.Float's Text('g', 10) conventions."""
     if d == d.to_integral_value() and abs(d) < Decimal(10) ** 10:
         # Integers render bare: 3306, not 3306.0 and not 3.306e+03.
         return str(int(d))
@@ -295,9 +251,9 @@ EMPTY_STRING = string_val("")
 
 
 def to_string(v: Value) -> tuple[str, bool]:
-    """Convertit en chaîne comme le fait l'interpolation de template de HCL :
-    les chaînes passent telles quelles, les nombres et booléens prennent leur
-    écriture canonique, tout le reste échoue. Rend (texte, ok)."""
+    """Convert strings, numbers, and booleans as HCL template interpolation does. Return (text,
+    success); reject other types.
+    """
     if v.is_null() or v.is_unknown():
         return "", False
     if v.type is STRING:
@@ -310,12 +266,7 @@ def to_string(v: Value) -> tuple[str, bool]:
 
 
 def from_python(obj_value: Any) -> Value:
-    """Élève un objet Python issu d'un décodage JSON en une Value.
-
-    Utilisé par le chemin .tfvars.json et par le lecteur de plan JSON, pour que
-    les deux puissent remettre leurs valeurs au même code de jugement que le
-    chemin HCL.
-    """
+    """Convert decoded JSON into a Value shared by variable-file and plan checks."""
     if obj_value is None:
         return NULL_VAL
     if isinstance(obj_value, bool):

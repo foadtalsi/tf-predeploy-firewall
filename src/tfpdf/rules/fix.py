@@ -1,5 +1,4 @@
-"""Construit des remplacements exacts de lignes. Retourne None lorsque le code ne permet pas une
-édition fiable."""
+"""Build exact line replacements, returning None when the source cannot be edited reliably."""
 
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ _NON_IDENT_CHAR = re.compile(r"[^a-zA-Z0-9_]")
 
 @dataclass(slots=True, frozen=True)
 class LineEdit:
-    """Un remplacement résolu : quelles lignes, et ce qu'elles deviennent."""
+    """A resolved replacement range and its new contents."""
 
     start: int
     end: int
@@ -23,7 +22,7 @@ class LineEdit:
 
 
 def line_text(source: bytes, n: int) -> str | None:
-    """La ligne `n` (indexée à 1) de `src`, sans sa fin de ligne."""
+    """Return one-based line n without its line ending."""
     if not source or n < 1:
         return None
     lines = source.decode("utf-8", errors="replace").split("\n")
@@ -33,19 +32,17 @@ def line_text(source: bytes, n: int) -> str | None:
 
 
 def indent_of(s: str) -> str:
-    """L'espacement de tête de `s`, pour qu'une ligne générée s'aligne sur le
-    code qui l'entoure. Les tabulations sont conservées comme tabulations."""
+    """Return leading whitespace, preserving tabs for generated lines."""
     return s[: len(s) - len(s.lstrip(" \t"))]
 
 
 def opens_block(line: str) -> bool:
-    """Vérifie qu'une ligne ouvre un bloc dont le corps commence sur la ligne suivante."""
+    """Check whether a line opens a block whose body starts on the next line."""
     return line.rstrip(" \t").endswith("{")
 
 
 def declares_attr(line: str, name: str) -> bool:
-    """Dit si `line` est la déclaration de l'attribut `name` — `name = …`, éventuellement
-    indentée."""
+    """Check whether a line declares the named attribute, allowing indentation."""
     rest = line.lstrip(" \t")
     if not rest.startswith(name):
         return False
@@ -53,7 +50,7 @@ def declares_attr(line: str, name: str) -> bool:
 
 
 def insert_into_block(source: bytes, header: Range, *add: str) -> LineEdit | None:
-    """Conserve l'en-tête exact du bloc et insère les lignes en les indentant d'un niveau."""
+    """Preserve the block header and insert lines indented one level into its body."""
     line_no = header.start.line
     text = line_text(source, line_no)
     if text is None or not opens_block(text):
@@ -64,8 +61,7 @@ def insert_into_block(source: bytes, header: Range, *add: str) -> LineEdit | Non
 
 
 def replace_attr_line(source: bytes, r: Range, attr_name: str, new_text: str) -> LineEdit | None:
-    """Construit un correctif qui écrase une affectation d'attribut sur une
-    ligne par `new_text`, en conservant l'indentation d'origine."""
+    """Replace a single-line attribute assignment while retaining its indentation."""
     if r.start.line != r.end.line:
         return None  # a multi-line value; not ours to rewrite
     text = line_text(source, r.start.line)
@@ -78,17 +74,14 @@ def replace_attr_line(source: bytes, r: Range, attr_name: str, new_text: str) ->
 
 
 def via_suffix(attribute: Attribute) -> str:
-    """Nomme la référence par laquelle une valeur a été atteinte, pour qu'une découverte
-    rapportée sur une ligne qui ne lit que `password = var.db_password` dise où se trouve
-    réellement le littéral."""
+    """Name the reference behind a resolved value so the finding explains where the literal lives."""
     if not attribute.resolved_from:
         return ""
     return " (via " + attribute.resolved_from + ")"
 
 
 def credential_var_name(res: Resource, block_type: str, attr_name: str) -> str:
-    """Nomme une variable à partir de la ressource, du bloc imbriqué et de l'attribut pour éviter
-    les collisions."""
+    """Derive a variable name from resource, nested block, and attribute to avoid collisions."""
     name = sanitize_ident(res.name)
     if block_type:
         name += "_" + sanitize_ident(block_type)
@@ -100,7 +93,7 @@ def sanitize_ident(s: str) -> str:
 
 
 def as_fix(edit: LineEdit | None) -> Fix | None:
-    """Élève une édition de ligne résolue en Fix, en laissant passer None."""
+    """Convert a resolved line edit to a Fix, preserving None."""
     if edit is None:
         return None
     return Fix(start_line=edit.start, end_line=edit.end, lines=edit.lines)

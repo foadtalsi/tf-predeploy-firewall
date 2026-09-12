@@ -1,5 +1,4 @@
-"""Accepte les options longues à un tiret des anciens workflows. Les booléens sont traités dans
-arguments.py."""
+"""Support single-dash long options from older workflows. Boolean parsing lives in arguments.py."""
 
 from __future__ import annotations
 
@@ -12,7 +11,7 @@ _SINGLE_DASH_LONG = re.compile(r"^-([a-zA-Z][a-zA-Z0-9-]*)(=.*)?$", re.DOTALL)
 
 
 def normalize_argv(argv: list[str]) -> list[str]:
-    """Réécrit les options longues à tiret simple, à la Go, sous la forme à double tiret."""
+    """Normalize Go-style single-dash long options to double-dash options."""
     normalized: list[str] = []
     for index, argument in enumerate(argv):
         if argument == "--":

@@ -1,4 +1,4 @@
-"""Propose les corrections Bedrock ; seule une confirmation locale écrit les fichiers."""
+"""Request Bedrock fixes; write local files only after the user accepts the diff."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from . import terraformscan
 
 
 def request_fix(findings: list[Finding], source: bytes, key: str, api_base: str) -> str:
-    """Envoie le fichier et ses findings au serveur, qui vérifie le plan Growth."""
+    """Send a file and its findings to the server, which checks Growth access."""
     response = send_json(
         "POST",
         api_base.rstrip("/") + "/v1/autofix",
@@ -37,7 +37,7 @@ def request_fix(findings: list[Finding], source: bytes, key: str, api_base: str)
 
 
 def replacement(source: str, corrected: str) -> Fix | None:
-    """Réduit le fichier corrigé à une plage applicable dans une suggestion GitHub."""
+    """Reduce the corrected file to a line range suitable for a GitHub suggestion."""
     before, after = source.splitlines(), corrected.splitlines()
     changes = [
         op
@@ -48,7 +48,7 @@ def replacement(source: str, corrected: str) -> Fix | None:
         return None
     _, start, _, new_start, _ = changes[0]
     _, _, end, _, new_end = changes[-1]
-    # Une insertion doit s'ancrer sur une ligne existante pour GitHub.
+    # GitHub insertions must anchor to an existing line.
     if start == end:
         if start:
             start -= 1
@@ -65,7 +65,7 @@ def replacement(source: str, corrected: str) -> Fix | None:
 
 
 def accept_local(path: Path, source: bytes, corrected: str) -> None:
-    """Affiche le diff et écrit après accord, seulement si le fichier n'a pas changé."""
+    """Show the diff and write it after confirmation, provided the source has not changed."""
     print(
         "".join(
             unified_diff(
@@ -89,7 +89,7 @@ def accept_local(path: Path, source: bytes, corrected: str) -> None:
 
 
 def propose(args: argparse.Namespace, findings: list[Finding], post_comment: bool) -> None:
-    """Produit une proposition par fichier ; en PR, la forge gère l'acceptation."""
+    """Propose one fix per file. Pull request fixes are accepted through the code host."""
     if not args.license_key:
         print("Auto-fix requires an active Growth license key.", file=sys.stderr)
         return

@@ -1,6 +1,4 @@
-"""Port des quatre fichiers de test de internal/licensing, cas pour cas :
-client_test.go, policy_test.go, waivers_test.go et rulepacks_test.go.
-"""
+"""Hosted usage, waiver, and schema-pack client tests."""
 
 from __future__ import annotations
 
@@ -41,10 +39,7 @@ def test_record_scan_allowed() -> None:
 
 
 def test_record_scan_sends_finding_detail() -> None:
-    """Empêche le tableau de bord de revenir en silence à n'afficher qu'un
-    décompte nu : ScanResult ne portait autrefois que finding_count, si bien
-    qu'un administrateur qui descendait dans un scan n'avait aucun moyen de voir
-    ce qui avait réellement été trouvé."""
+    """Report finding details so dashboard scans do not regress to bare counts."""
     captured: dict[str, object] = {}
 
     def handler(r: Request) -> Response:
@@ -84,9 +79,7 @@ def test_record_scan_sends_finding_detail() -> None:
 
 
 def test_record_scan_omits_findings_when_there_are_none() -> None:
-    """`omitempty` du côté Go. Envoyer `"findings": []` au lieu d'omettre la
-    clé est un document différent, et le plan de contrôle est celui de la
-    version Go."""
+    """Omit the findings key for an empty result, preserving the API contract."""
     captured: dict[str, object] = {}
 
     def handler(r: Request) -> Response:
@@ -173,8 +166,7 @@ def test_get_waivers_unauthorized() -> None:
 
 @pytest.fixture
 def isolated_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Isole le cache de packs dans un répertoire temporaire, pour que les tests
-    ne touchent jamais celui du développeur."""
+    """Isolate pack caches in temporary directories."""
     monkeypatch.setenv("TFPDF_CACHE_DIR", str(tmp_path))
     return tmp_path / "rulepacks"
 
@@ -236,8 +228,7 @@ def test_fetch_rule_pack_revalidates_with_etag_after_ttl(isolated_cache: Path) -
 def test_fetch_rule_pack_falls_back_to_cache_when_service_is_down(
     isolated_cache: Path,
 ) -> None:
-    """La promesse centrale de ce chemin : une panne coûte de la couverture,
-    jamais une coche rouge."""
+    """Use cached packs during service outages without failing the scan."""
     _seed_cache(isolated_cache, "aws", "CACHEDBODY", '"v1"', 2 * PACK_CACHE_TTL_SECONDS)
 
     with StubServer(lambda r: Response(status=500, raw=b"boom")) as srv:
@@ -273,9 +264,7 @@ def test_fetch_rule_pack_empty_body_is_rejected(isolated_cache: Path) -> None:
 
 
 def test_fetch_rule_pack_synthesises_etag_when_absent(isolated_cache: Path) -> None:
-    """Un corps de pack sans en-tête ETag reçoit quand même une identité
-    stable, pour que le scan suivant puisse revalider au lieu de retélécharger
-    indéfiniment."""
+    """Give packs without an ETag a stable identity for later revalidation."""
     with StubServer(lambda r: Response(raw=b"PACKBODY")) as srv:
         pack, exception = new_client("test-key", srv.url).fetch_rule_pack("aws")
     assert exception is None
@@ -284,18 +273,14 @@ def test_fetch_rule_pack_synthesises_etag_when_absent(isolated_cache: Path) -> N
 
 @pytest.mark.parametrize("provider", ["../../etc/passwd", "aws/../..", "", "AWS"])
 def test_pack_file_name_rejects_path_traversal(provider: str) -> None:
-    """Le nom de fournisseur atteint ce code depuis la configuration : il ne
-    doit donc pas pouvoir choisir où nous écrivons."""
+    """Provider names must not escape the cache directory."""
     got = pack_file_name(provider, ".pack.gz")
     assert Path(got).name == got, f"{provider!r} -> {got!r} escapes its directory"
     assert "/" not in got and ".." not in got
 
 
 def test_the_cache_directory_matches_the_go_builds(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Un travail d'intégration continue qui met ce chemin en cache d'une
-    exécution à l'autre continue de fonctionner à travers la bascule au lieu de
-    repartir froid en silence : le chemin est donc celui que résout
-    os.UserCacheDir de Go."""
+    """Preserve the historical cache location used by existing CI caches."""
     monkeypatch.delenv("TFPDF_CACHE_DIR", raising=False)
     monkeypatch.setenv("XDG_CACHE_HOME", "/tmp/xdg-example")
     monkeypatch.setattr("sys.platform", "linux")

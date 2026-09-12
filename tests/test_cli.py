@@ -1,7 +1,4 @@
-"""Port des tests unitaires de cmd/tf-predeploy-firewall, cas pour cas :
-main_test.go, providers_test.go, policy_test.go, waivers_test.go,
-second_reviewer_test.go et suggestions_test.go.
-"""
+"""CLI configuration, provider selection, waiver, reviewer, and suggestion tests."""
 
 from __future__ import annotations
 
@@ -117,10 +114,7 @@ def test_load_config_invalid_blast_radius_env(
 
 
 def test_load_config_keeps_a_yaml_false_for_suggestions(tmp_path: Path) -> None:
-    """`suggestions: false` doit survivre, et `suggestions` absent doit garder
-    le défaut à vrai. Une vérification « présent dans le document ? » est ce qui
-    les sépare — la raison pour laquelle `_apply_yaml` est écrit explicitement
-    plutôt qu'en mise à jour de dictionnaire."""
+    """Preserve an explicit suggestions: false while keeping the default when the key is absent."""
     on = tmp_path / "on.yml"
     on.write_text("block_threshold: high\n")
     assert load_config(str(on)).suggestions is True
@@ -195,10 +189,7 @@ def test_resolve_providers_detects_from_block_headers() -> None:
 
 
 def test_resolve_providers_only_fetches_providers_with_shipped_packs() -> None:
-    """Seuls les fournisseurs dont les packs sont réellement livrés peuvent
-    être récupérés. En lister un trop tôt faisait annoncer par chaque scan d'un
-    dépôt GCP que la couverture « retombe sur le pack embarqué » pour un
-    fournisseur qui n'a pas de pack embarqué."""
+    """Fetch only shipped provider packs to avoid misleading fallback claims."""
     got = resolve_providers(
         "auto",
         _files(
@@ -211,24 +202,20 @@ def test_resolve_providers_only_fetches_providers_with_shipped_packs() -> None:
 
 
 def test_resolve_providers_empty_for_module_only_changes() -> None:
-    """Un diff qui ne touche que des modules n'a besoin d'aucun pack étendu :
-    les règles guidées par le schéma sautent les appels de module, il n'y a donc
-    rien qu'un pack étendu ajouterait."""
+    """Module-only changes do not benefit from extended resource schemas."""
     assert resolve_providers("auto", _files('module "rds" { source = "./m" }')) == []
 
 
 def test_resolve_providers_explicit_list_bypasses_detection() -> None:
-    """Une liste explicite est l'utilisateur qui dit qu'il sait mieux — prise
-    telle quelle, noms inconnus compris (le plan de contrôle répond 404 et le
-    scan avertit)."""
+    """Honor explicit provider lists, including unknown names whose fetch failures produce
+    warnings.
+    """
     got = resolve_providers(" aws, oci ", _files('resource "azurerm_thing" "x" {}'))
     assert got == ["aws", "oci"]
 
 
 def test_resolve_providers_skips_comments() -> None:
-    """Une ressource commentée ne doit pas déclencher de récupération.
-    L'expression régulière s'ancre en début de ligne (avec l'indentation
-    éventuelle), ce qu'un préfixe `#` casse."""
+    """Commented resource declarations must not trigger pack downloads."""
     assert resolve_providers("auto", _files('# resource "aws_db_instance" "x" {}\n')) == []
 
 
@@ -269,10 +256,7 @@ _COVERAGE = Coverage(
 def test_warn_uncovered_providers(
     name: str, source: str, want: str, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """La moitié silencieuse du même défaut : les règles basées sur les valeurs
-    se déclenchent sur n'importe quel fournisseur, si bien qu'un fournisseur non
-    couvert produit un rapport qui a l'air d'avoir marché pendant que les règles
-    guidées par le schéma restent inertes. Le scan doit le dire."""
+    """Warn when value checks run but provider schemas are unavailable."""
     warn_uncovered_providers(_files(source), _COVERAGE)
     exception = capsys.readouterr().err
 
@@ -290,8 +274,7 @@ def test_warn_uncovered_providers(
 
 @pytest.fixture(autouse=True)
 def _no_ambient_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Les variables d'intégration continue du développeur ne doivent pas
-    déborder dans ces tests."""
+    """Keep the developer's CI environment out of these tests."""
     for var in (
         "SCANNER_BLOCK_THRESHOLD",
         "SCANNER_PLAN_BLAST_RADIUS_THRESHOLD",
@@ -332,9 +315,7 @@ def test_apply_waivers_matches_by_category_resource_file() -> None:
 
 
 def test_apply_waivers_line_number_does_not_affect_match() -> None:
-    """La ligne de la découverte a dérivé depuis la création de la dérogation —
-    l'appariement n'est délibérément PAS sensible à la ligne, donc cela doit
-    quand même correspondre."""
+    """Waiver matching must survive moved source lines."""
     body = [
         {
             "category": "missing_lifecycle",
@@ -350,8 +331,7 @@ def test_apply_waivers_line_number_does_not_affect_match() -> None:
 
 
 def test_apply_waivers_without_a_repo_name_leaves_findings_untouched() -> None:
-    """Un dépôt que personne n'a su nommer : il n'y a rien à demander au plan
-    de contrôle, et surtout rien à accorder par défaut."""
+    """Without repository identity, do not request or grant waivers."""
     findings = [_finding(resource="x")]
     got = apply_waivers(findings, "test-key", "http://127.0.0.1:1", "")
     assert not got[0].waived
@@ -359,7 +339,9 @@ def test_apply_waivers_without_a_repo_name_leaves_findings_untouched() -> None:
 
 def test_apply_waivers_fails_open_on_network_error() -> None:
     findings = [_finding(resource="x", severity=Severity.CRITICAL)]
-    got = apply_waivers(findings, "test-key", "http://127.0.0.1:1", "acme/infra")  # rien n'écoute
+    got = apply_waivers(
+        findings, "test-key", "http://127.0.0.1:1", "acme/infra"
+    )  # No server is listening.
     assert not got[0].waived
 
 
@@ -367,9 +349,7 @@ def test_apply_waivers_fails_open_on_network_error() -> None:
 
 
 def test_request_second_reviewer_no_op_without_configured_reviewers() -> None:
-    """Aucun jeton ni dépôt posé et aucun relecteur configuré — ceci doit
-    rendre la main immédiatement sans essayer de construire un client de PR, ce
-    qui échouerait bruyamment sur les variables d'environnement absentes."""
+    """With no reviewers configured, return before requiring pull request context."""
     request_second_reviewer_if_critical([_finding(severity=Severity.CRITICAL)], Config())
 
 
@@ -484,9 +464,7 @@ def test_post_suggestions_skips_waived_findings(monkeypatch: pytest.MonkeyPatch)
 def test_post_suggestions_no_network_when_nothing_is_fixable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """La plupart des découvertes n'ont pas de correctif exact. Ce chemin ne
-    doit rien coûter — pas même les appels d'API nécessaires pour déterminer où
-    se trouve le diff."""
+    """Findings without exact fixes must not trigger diff-related API calls."""
     with StubServer(lambda r: Response(body={})) as srv:
         _with_pr_context(monkeypatch, srv)
         post_suggestions(
@@ -505,9 +483,7 @@ def test_post_suggestions_no_network_when_nothing_is_fixable(
 
 
 def test_post_suggestions_survives_an_api_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Toute la fonctionnalité est un confort posé par-dessus le commentaire de
-    synthèse. Si elle échoue, le verdict du scan ne doit pas en être affecté —
-    ce test existe pour attraper un futur remaniement qui la rendrait fatale."""
+    """Suggestion publication failures must not change the scan verdict."""
     with StubServer(lambda r: Response(status=500, body={})) as srv:
         _with_pr_context(monkeypatch, srv)
         post_suggestions([_fixable_finding()])  # must not raise
@@ -537,10 +513,9 @@ def test_post_suggestions_respects_the_inline_cap(monkeypatch: pytest.MonkeyPatc
 def test_the_event_payload_head_sha_is_preferred_over_github_sha(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """GITHUB_SHA sur un événement pull_request est le commit de fusion
-    éphémère, qui n'est pas un commit de la PR et que GitHub rejette comme
-    commit_id d'une revue. Le SHA de tête doit venir de la charge utile de
-    l'événement."""
+    """Use the event's PR head SHA; GITHUB_SHA may identify a synthetic merge commit unsuitable for
+    reviews.
+    """
     from tfpdf.cli.forges import head_sha_from_event
 
     event = tmp_path / "event.json"

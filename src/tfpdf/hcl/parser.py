@@ -1,27 +1,9 @@
-"""Analyseur à descente récursive pour HCL2 : transforme le flux de jetons en
-l'AST de `ast.py`.
+"""Recursive-descent parser for native HCL2.
 
-Grammaire implémentée, celle de la syntaxe native HCL :
-
-    Body        = (Attribute | Block)*
-    Attribute   = Identifier "=" Expression Newline
-    Block       = Identifier (StringLit | Identifier)* "{" Newline Body "}" Newline
-    Expression  = Conditional
-    Conditional = Or ("?" Expression ":" Expression)?
-    Or          = And ("||" And)*
-    And         = Equality ("&&" Equality)*
-    Equality    = Comparison (("==" | "!=") Comparison)*
-    Comparison  = Additive (("<" | "<=" | ">" | ">=") Additive)*
-    Additive    = Multiplicative (("+" | "-") Multiplicative)*
-    Multiplicative = Unary (("*" | "/" | "%") Unary)*
-    Unary       = ("!" | "-")? Postfix
-    Postfix     = Primary (GetAttr | Index | Splat | Call)*
-
-Sur erreur, enregistre un diagnostic puis **se rattrape au prochain saut de
-ligne ou à l'accolade fermante** plutôt que de s'arrêter, comme hclsyntax : un
-attribut malformé ne doit pas coûter les autres ressources du fichier.
-`parse_config` rend ce qu'il a construit avec les diagnostics ; c'est
-`parser.parse_file` qui décide qu'une erreur rend le fichier illisible.
+Parse bodies as attributes and blocks, and expressions by operator precedence:
+conditional, logical, equality, comparison, arithmetic, unary, and postfix.
+After an error, recover at a newline or closing brace and retain parsed nodes.
+parse_config returns diagnostics; parser.parse_file rejects files with errors.
 """
 
 from __future__ import annotations
@@ -145,22 +127,8 @@ class Parser:
             if token.type is end or token.type is T.EOF:
                 break
 
-            # Où en étions-nous avant de tenter quoi que ce soit ? Comparé en
-            # fin de tour, c'est la garantie que cette boucle se termine.
-            #
-            # Elle ne se terminait pas. `_recover_to_newline` rend la main sans
-            # rien consommer devant un `}` à profondeur nulle — ce qui est juste
-            # quand on rattrape à l'intérieur d'un bloc, dont le `}` est la
-            # borne que l'appelant attend, et faux ici : au niveau racine, `end`
-            # vaut EOF, donc rien ne s'arrête sur une accolade fermante orpheline
-            # et le tour suivant retrouve exactement le même jeton.
-            #
-            # Le symptôme n'était pas un mauvais diagnostic mais un scanner qui
-            # ne rend jamais la main. Le déclencheur d'origine est corrigé
-            # au-dessus (`_parse_for`), et il n'a pas à être le dernier : un
-            # analyseur écrit à la main aura d'autres trous, et le pire d'entre
-            # eux doit rester « une erreur signalée », jamais « la CI du client
-            # tourne jusqu'à son délai ».
+            # Track parser progress: recovery can stop at an orphan closing brace without
+            # consuming it. The outer loop must still terminate.
             before = self.i
 
             if token.type is not T.IDENT:
@@ -174,10 +142,8 @@ class Parser:
                 self._parse_body_item(body)
 
             if self.i == before:
-                # Personne n'a avancé. On consomme le jeton fautif nous-mêmes,
-                # sans second diagnostic : celui qui vient d'être posé décrit
-                # déjà le problème, et en ajouter un par jeton noierait le
-                # rapport.
+                # Consume the offending token if recovery made no progress; its diagnostic
+                # already explains the error.
                 self._next()
         body.src_range = Range(self.filename, start_pos, self._peek().range.end)
         return body
@@ -272,11 +238,8 @@ class Parser:
         )
 
     def _parse_quoted_label(self) -> tuple[str, Range]:
-        """Une étiquette de bloc est une chaîne entre guillemets sans interpolation.
-
-        Une étiquette interpolée — `resource "aws_${x}" "y"` — n'est pas du
-        Terraform valide ; le texte est pris tel qu'écrit pour que le bloc s'analyse
-        quand même et que le reste du fichier soit tout de même scanné.
+        """Parse a quoted block label. Keep interpolated labels as source text so parsing can
+        continue, although Terraform rejects them.
         """
         open_q = self._next()  # OQUOTE
         parts: list[str] = []
@@ -296,12 +259,8 @@ class Parser:
         return "".join(parts), Range(self.filename, open_q.range.start, close_q.range.end)
 
     def _recover_to_newline(self) -> None:
-        """Avance jusqu'au prochain saut de ligne à profondeur d'accolades nulle.
-
-        C'est ce rattrapage qui fait qu'un mauvais attribut ne coûte qu'un attribut.
-        Sans lui, un caractère égaré dans un module de 400 lignes ferait tomber
-        toutes les ressources qui le suivent, et le scan reviendrait propre pour la
-        mauvaise raison.
+        """Recover at the next newline outside nested braces so one malformed attribute does not
+        discard later resources.
         """
         depth = 0
         while True:
@@ -423,8 +382,7 @@ class Parser:
         return IndexExpr(collection=expr, key=key, range=expr.range.merge(close.range))
 
     def _parse_call_on(self, callee: ScopeTraversalExpr) -> Expression:
-        """Un appel dont le nom est arrivé sous forme de traversée —
-        `jsonencode(...)`, `provider::ns::fn(...)`."""
+        """Parse a call whose name was read as a traversal, including namespaced functions."""
         name = callee.traversal.render(max_steps=8) or ""
         self._next()  # (
         args: list[Expression] = []
@@ -490,13 +448,8 @@ class Parser:
         return LiteralValueExpr(cty.DYNAMIC_VAL, token.range)
 
     def _parse_variable(self) -> Expression:
-        """Un identifiant, ou un nom de fonction avec espace de noms.
-
-        `provider::aws::arn_parse(...)` — les fonctions définies par un fournisseur,
-        Terraform 1.8 et plus — est lexé en IDENT `::` IDENT `::` IDENT. Le tout est
-        un seul nom, donc les segments `::` sont repliés dans la racine ici plutôt
-        que de devenir des étapes de traversée ; les traiter comme des étapes
-        rendrait l'appelé irrésoluble et l'expression inanalysable.
+        """Parse an identifier or namespaced function name. Fold provider::aws::arn_parse into one
+        root rather than attribute traversal steps.
         """
         token = self._next()
         name = token.text
@@ -647,13 +600,8 @@ class Parser:
         return token.type is T.IDENT and token.text == "for"
 
     def _parse_for(self, open_tok: Token, is_object: bool) -> Expression:
-        """Analyse une compréhension `for` juste assez pour la consommer
-        correctement.
-
-        Le résultat ne s'évalue jamais (voir ForExpr), donc l'intérêt de l'analyser
-        précisément est structurel : les jetons doivent être consommés jusqu'au
-        crochet correspondant, sinon tout ce qui suit dans le fichier s'analyse de
-        travers.
+        """Consume a for comprehension through its matching delimiter. Preserve syntax structure
+        without evaluating the collection.
         """
         self._next()  # 'for'
         key_var = ""
@@ -676,17 +624,8 @@ class Parser:
                 "Invalid for expression", "Expected ':' after the collection.", self._peek()
             )
 
-        # Les sauts de ligne sont sans signification à l'intérieur de crochets,
-        # et c'est exactement là que `terraform fmt` en met : passé une
-        # certaine longueur, il coupe la ligne après le `:` d'une compréhension
-        # et remet la clé en dessous.
-        #
-        # Cette absence-là ne produisait pas une découverte manquée mais une
-        # BOUCLE INFINIE. L'expression s'analysait de travers, laissait des
-        # jetons orphelins derrière elle, et la boucle de `parse_body` tournait
-        # ensuite sans jamais avancer — le scanner ne rendait plus la main, dans
-        # la CI d'un client, jusqu'au délai du job. Trouvé sur notre propre
-        # `infra/terraform/cron_lambda.tf`.
+        # Ignore newlines inside comprehension brackets, including terraform fmt line breaks
+        # after the colon.
         self._skip_newlines()
 
         first_expr = self.parse_expression()
@@ -729,12 +668,8 @@ class Parser:
 
 
 def _template_expr(parts: list[Expression], rng: Range) -> Expression:
-    """Construit le bon nœud pour un template entre guillemets.
-
-    Un template vide est la chaîne vide ; un template fait d'exactement une
-    interpolation laisse passer sa valeur avec son propre type (le cas
-    « template wrap » de HCL, qui garde `"${var.n}"` numérique) ; tout le reste
-    concatène.
+    """Build a template node, preserving the value's type when the template contains exactly one
+    interpolation.
     """
     if not parts:
         return LiteralValueExpr(cty.EMPTY_STRING, rng)
@@ -754,12 +689,8 @@ def _number_literal(tok: Token, p: Parser) -> cty.Value:
 def parse_config(
     source: bytes | str, filename: str = "", start: Pos | None = None
 ) -> tuple[File, Diagnostics]:
-    """Analyse un fichier HCL entier. À l'image de `hclsyntax.ParseConfig`.
-
-    Rend le fichier *et* les diagnostics ; un fichier comportant des erreurs
-    porte quand même tout ce qui s'est analysé proprement. Les appelants qui
-    veulent du tout-ou-rien vérifient eux-mêmes `diags.has_errors()`, ce que
-    fait `parser.parse_file`.
+    """Return a parsed File and Diagnostics, retaining successfully parsed nodes even on error.
+    Callers requiring a valid whole file must check has_errors().
     """
     raw = source.encode("utf-8") if isinstance(source, str) else source
     lexer = Lexer(raw, filename, start)

@@ -1,4 +1,4 @@
-"""Détection des permissions IAM trop larges dans les documents de politique."""
+"""Detect overly broad permissions in IAM policy documents."""
 
 from __future__ import annotations
 
@@ -49,8 +49,7 @@ _CONDITION_RE = re.compile(r'"?\bCondition"?\s*[:=]', re.IGNORECASE)
 
 
 class IAMWildcardRule:
-    """Signale les documents de politique IAM qui accordent toutes les actions, ou qui accordent
-    à tous les principaux."""
+    """Flag IAM policies granting all actions or access to all principals."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if not file_input.head_source:
@@ -149,9 +148,9 @@ def _check_policy_body(
 
 
 def _line_of_offset(body: str, offset: int, start_line: int) -> int:
-    """Convertit un décalage dans le texte d'un attribut en ligne de fichier,
-    pour qu'un joker enfoui dans un bloc jsonencode de quarante lignes soit
-    rapporté là où il est écrit plutôt qu'en tête de l'attribut."""
+    """Convert an attribute-relative text offset to a source line so nested wildcard findings point
+    to their actual location.
+    """
     if offset < 0 or offset > len(body):
         return start_line
     return start_line + body[:offset].count("\n")

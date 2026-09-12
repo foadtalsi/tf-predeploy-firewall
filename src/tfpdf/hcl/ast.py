@@ -1,19 +1,8 @@
-"""L'AST des expressions et des corps, avec l'évaluation attachée à chaque nœud.
+"""HCL expression and body nodes with static evaluation.
 
-L'évaluation vit sur les nœuds (`expr.value(ctx)`) plutôt que dans un visiteur
-séparé, à l'image du `Expression.Value(ctx)` de hclsyntax, pour que les deux se
-lisent côte à côte quand une découverte diffère entre le scanner Go et le
-scanner Python.
-
-**Les appels de fonction échouent toujours à s'évaluer.** Il n'y a aucune table
-de fonctions, ni ici ni dans `EvalContext`, et c'est l'omission la plus lourde
-de conséquences de ce paquet. `policy = jsonencode({ Statement = [{ Action =
-"*" }] })` est la forme qu'emploie la documentation du fournisseur AWS et celle
-que reproduit le Terraform généré ; elle ne se résout à rien, ce qui est
-pourquoi `rules.iam_wildcard` travaille sur la plage de source brute de
-l'attribut plutôt que sur sa valeur. Implémenter `jsonencode` ici
-n'améliorerait pas cette règle : cela changerait discrètement quelle écriture
-elle attrape, en laissant la forme heredoc à un autre chemin de code.
+Function calls deliberately remain unevaluated. Rules such as iam_wildcard
+inspect raw attribute source to cover jsonencode calls and heredocs. Adding
+function evaluation would change rule behavior and requires regression tests.
 """
 
 from __future__ import annotations
@@ -40,19 +29,16 @@ _REL_ROOT = "__rel"
 
 
 class Expression(ABC):
-    """Classe de base de tout nœud d'expression."""
+    """Base class for expression nodes."""
 
     range: Range
 
     @abstractmethod
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        """Évalue. Rend (valeur, diagnostics) ; vérifier `diags.has_errors()`
-        avant de faire confiance à la valeur, exactement comme le font les
-        appelants Go."""
+        """Return (value, diagnostics). Check diagnostics.has_errors() before using the value."""
 
     def variables(self) -> list[Traversal]:
-        """Chaque traversée absolue que cette expression lit, dans l'ordre de la
-        source."""
+        """Return absolute references read by this expression, in source order."""
         return []
 
 
@@ -70,8 +56,7 @@ class LiteralValueExpr(Expression):
 
 @dataclass(slots=True)
 class ScopeTraversalExpr(Expression):
-    """Une référence enracinée dans la portée : `var.x`, `local.y`,
-    `aws_db_instance.a.id`."""
+    """A reference rooted in scope, such as var.x, local.y, or aws_db_instance.a.id."""
 
     traversal: Traversal
     range: Range = field(default_factory=Range)
@@ -85,8 +70,7 @@ class ScopeTraversalExpr(Expression):
 
 @dataclass(slots=True)
 class RelativeTraversalExpr(Expression):
-    """Des étapes appliquées au résultat d'une autre expression :
-    `foo()[0].bar`."""
+    """Attribute or index steps applied to another expression, such as foo()[0].bar."""
 
     source: Expression
     traversal: Traversal
@@ -119,8 +103,7 @@ class RelativeTraversalExpr(Expression):
 
 @dataclass(slots=True)
 class TemplateExpr(Expression):
-    """Une chaîne entre guillemets ou un heredoc : une suite de parties
-    littérales et interpolées."""
+    """A quoted string or heredoc containing literal and interpolated parts."""
 
     parts: list[Expression]
     range: Range = field(default_factory=Range)
@@ -173,12 +156,8 @@ class TemplateExpr(Expression):
 
 @dataclass(slots=True)
 class TemplateWrapExpr(Expression):
-    """Un template qui est exactement une interpolation : `"${var.x}"`.
-
-    HCL laisse passer la valeur enveloppée avec son propre type plutôt que de
-    la convertir en chaîne, si bien que `count = "${var.n}"` reste un nombre.
-    Fondre ceci dans TemplateExpr transformerait chacune de ces valeurs en
-    chaîne et changerait ce que voit une règle sensible au type.
+    """A template containing only one interpolation, such as "${var.x}". Preserve its value's type
+    instead of coercing it to a string.
     """
 
     wrapped: Expression
@@ -258,13 +237,8 @@ class ObjectConsExpr(Expression):
 
 @dataclass(slots=True)
 class ObjectConsKeyExpr(Expression):
-    """Une clé d'objet. Un identifiant nu est le *nom*, pas une référence.
-
-    `{ name = "x" }` a pour clé « name » ; il ne lit pas une variable appelée
-    `name`. HCL appelle cela la règle de l'« identifiant nu », et s'y tromper
-    ferait de chaque clé d'objet une traversée irrésoluble et de chaque objet
-    une valeur inévaluable — ce qui désactiverait silencieusement, à son tour,
-    les règles fondées sur les valeurs pour tout bloc `tags = {...}` d'un dépôt.
+    """An object key. A bare identifier in { name = "x" } names the key; it does not reference a
+    variable.
     """
 
     wrapped: Expression
@@ -485,8 +459,7 @@ class IndexExpr(Expression):
 
 @dataclass(slots=True)
 class SplatExpr(Expression):
-    """`aws_instance.web[*].id` — jamais résoluble statiquement ici, la source
-    étant une référence de ressource qu'aucune portée ne détient."""
+    """A splat such as aws_instance.web[*].id, which this static evaluator cannot resolve."""
 
     source: Expression
     range: Range = field(default_factory=Range)
@@ -502,12 +475,8 @@ class SplatExpr(Expression):
 
 @dataclass(slots=True)
 class FunctionCallExpr(Expression):
-    """Un appel. Ne s'évalue jamais — voir la docstring du module.
-
-    `args` est conservé pour que `variables()` rapporte quand même ce que
-    l'appel lit, ce qui permet à une découverte de nommer `var.db_password`
-    même quand la valeur est passée par une fonction que le scanner refuse
-    d'exécuter.
+    """An unevaluated function call. Keep its arguments so variables() can still report input
+    references.
     """
 
     name: str
@@ -531,11 +500,7 @@ class FunctionCallExpr(Expression):
 
 @dataclass(slots=True)
 class ForExpr(Expression):
-    """Une compréhension `for`. Analysée pour que le fichier s'analyse encore,
-    jamais évaluée : en résoudre une demande la collection qu'elle parcourt, qui
-    est une ressource ou une variable de plan dans tous les cas que le scanner
-    rencontre.
-    """
+    """A for comprehension, parsed to preserve file structure but not evaluated statically."""
 
     collection: Expression
     key_var: str
@@ -579,8 +544,7 @@ class Block:
     close_brace_range: Range
 
     def def_range(self) -> Range:
-        """L'en-tête du bloc — `resource "aws_db_instance" "prod"` — c'est-à-dire
-        l'endroit où pointe une découverte portant sur le bloc entier."""
+        """Return the block header range used by findings that apply to the whole block."""
         header_range = self.type_range
         for label_range in self.label_ranges:
             header_range = header_range.merge(label_range)

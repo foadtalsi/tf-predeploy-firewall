@@ -1,5 +1,4 @@
-"""Port de internal/parser/parser_test.go et address_test.go, cas pour
-cas."""
+"""Terraform parsing, scope, and address tests."""
 
 from __future__ import annotations
 
@@ -78,12 +77,9 @@ def test_parse_file_malformed_hcl() -> None:
 
 
 def test_parse_file_parses_resources_modules_and_data_sources() -> None:
-    """Les appels de module et les sources de données sont analysés au même
-    titre que les ressources : un dépôt Terraform mûr est surtout fait d'appels
-    de module, et un mot de passe passé à un module est exactement aussi en dur
-    qu'un mot de passe passé à une ressource. Les blocs de déclaration
-    (variable, locals, output) ne le sont pas — ils déclarent, ils ne configurent
-    pas d'infrastructure."""
+    """Parse resources, module calls, and data sources; declaration blocks supply scope rather than
+    infrastructure findings.
+    """
     source = b"""
 variable "region" { default = "us-east-1" }
 locals { env = "prod" }
@@ -109,9 +105,7 @@ resource "aws_vpc" "main" { cidr_block = "10.0.0.0/16" }
 
 
 def test_parse_file_with_context_resolves_vars_and_locals() -> None:
-    """Résolution à travers une valeur par défaut de variable ou un local : la
-    valeur qu'une règle voit doit être la valeur que l'attribut porte
-    réellement, pas le texte de la référence."""
+    """Resolve variable defaults and locals to their actual literal values."""
     source = b"""
 variable "db_password" { default = "changeme" }
 locals { admin_user = "root" }
@@ -143,9 +137,7 @@ resource "aws_db_instance" "prod" {
 
 
 def test_parse_file_with_context_leaves_unresolvable_values_alone() -> None:
-    """La portée ne doit jamais inventer de valeur. Une variable sans valeur
-    par défaut est fournie au moment du plan, et deviner serait la façon dont les
-    faux positifs entrent."""
+    """Leave plan-time inputs unresolved instead of inventing values."""
     source = b"""
 variable "db_password" {}
 
@@ -161,8 +153,7 @@ resource "aws_db_instance" "prod" {
 
 
 def test_build_scope_is_directory_wide() -> None:
-    """Terraform porte les locals au niveau du répertoire : un local déclaré
-    dans un fichier doit donc être visible en scannant un autre."""
+    """Locals declared in one module file must be visible in sibling files."""
     rds = b'resource "aws_db_instance" "p" { password = local.admin_pw }'
     scope = build_scope(
         {
@@ -202,8 +193,7 @@ def test_type_from_address(addr: str, want_type: str, want_data: bool, want_ok: 
 
 
 def test_type_from_address_round_trips_with_address() -> None:
-    """address() et type_from_address doivent s'accorder, sinon un lien pointe
-    vers la mauvaise page pour exactement les blocs que l'analyseur produit."""
+    """Resource address rendering and type extraction must agree."""
     for r in (
         Resource(kind=Kind.RESOURCE, type="aws_vpc", name="main", file="f.tf"),
         Resource(kind=Kind.DATA, type="aws_ami", name="ubuntu", file="f.tf"),

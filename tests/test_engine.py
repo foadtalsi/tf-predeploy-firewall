@@ -1,10 +1,5 @@
-"""Tests du moteur de bout en bout : `rules.run` sur un diff base→tête.
-
-Porte les cas au niveau moteur de internal/rules/rules_test.go et
-internal/ignore/ignore_test.go. Tout ce qui suit passe par le même `run()` que
-le CLI appelle : cela exerce donc ensemble l'analyse, la résolution de portée,
-chaque règle, la suppression en ligne et l'attachement des URL de documentation,
-plutôt qu'une chose à la fois.
+"""Exercise rules.run across parsing, scope resolution, detection, suppression, and documentation
+links.
 """
 
 from __future__ import annotations
@@ -33,9 +28,7 @@ def _categories(findings: list[Finding]) -> set[Category]:
 
 
 def test_run_detects_force_new_across_revisions(kb: KnowledgeBase) -> None:
-    """La règle ForceNew est la seule qui ait besoin des deux révisions : c'est
-    donc elle qui prouve que le moteur fait bien circuler le contenu de
-    base."""
+    """ForceNew detection must receive both base and head contents."""
     base = (FIXTURES / "forcenew_base.tf").read_bytes()
     head = (FIXTURES / "forcenew_head.tf").read_bytes()
 
@@ -52,9 +45,7 @@ def test_run_detects_force_new_across_revisions(kb: KnowledgeBase) -> None:
 
 
 def test_run_reports_no_force_new_for_a_new_file(kb: KnowledgeBase) -> None:
-    """Une ressource qui n'existait pas avant ne peut pas avoir été changée. En
-    rapporter une voudrait dire que chaque nouvelle base de données ressemble à
-    un remplacement imminent."""
+    """New resources have no previous values to replace."""
     head = (FIXTURES / "forcenew_head.tf").read_bytes()
 
     result = run(
@@ -66,8 +57,7 @@ def test_run_reports_no_force_new_for_a_new_file(kb: KnowledgeBase) -> None:
 
 
 def test_run_records_changed_attrs(kb: KnowledgeBase) -> None:
-    """Les règles basées sur le plan utilisent cet ensemble pour distinguer une
-    édition délibérée d'une dérive."""
+    """Record changed attributes so plan checks can distinguish edits from drift."""
     base = (FIXTURES / "forcenew_base.tf").read_bytes()
     head = (FIXTURES / "forcenew_head.tf").read_bytes()
 
@@ -82,8 +72,7 @@ def test_run_records_changed_attrs(kb: KnowledgeBase) -> None:
 
 
 def test_run_reports_a_parse_error_as_a_finding(kb: KnowledgeBase) -> None:
-    """Un fichier que le scanner ne peut pas lire est un trou dont l'appelant
-    doit entendre parler — ni un plantage, ni un silence."""
+    """Report unreadable HCL visibly while allowing other files to scan."""
     result = run(
         [ChangedFile(path="broken.tf", head_content=b'resource "aws_instance" "x" {')],
         kb,
@@ -95,8 +84,7 @@ def test_run_reports_a_parse_error_as_a_finding(kb: KnowledgeBase) -> None:
 
 
 def test_run_attaches_doc_urls(kb: KnowledgeBase) -> None:
-    """Une découverte qui dit qu'un argument n'existe pas doit lier la liste
-    des arguments, sinon l'affirmation ne peut pas être vérifiée."""
+    """Link schema claims to provider documentation."""
     head = (FIXTURES / "unknown_attribute.tf").read_bytes()
     result = run([ChangedFile(path="main.tf", head_content=head)], kb, default_rules())
 
@@ -124,9 +112,7 @@ def test_run_applies_global_ignore(kb: KnowledgeBase) -> None:
 
 
 def test_run_applies_inline_ignore(kb: KnowledgeBase) -> None:
-    """Une directive en ligne N supprime les découvertes des lignes N et N+1,
-    pour que le commentaire puisse se poser sur la ligne de l'attribut ou sur
-    celle du dessus."""
+    """An inline ignore on line N covers N and N+1."""
     source = b"""
 resource "aws_db_instance" "prod" {
   identifier = "x"
@@ -146,9 +132,7 @@ resource "aws_db_instance" "prod" {
 
 
 def test_run_scope_resolution_is_off_without_a_repo_dir(kb: KnowledgeBase) -> None:
-    """Sans repo_dir il n'y a aucun répertoire à lire, donc `var.x` reste non
-    résolu et chaque règle basée sur les valeurs le saute — le comportement
-    d'avant l'existence des portées."""
+    """Without repo_dir, scope resolution must not read unrelated directories."""
     source = b"""
 variable "db_password" { default = "changeme" }
 resource "aws_db_instance" "prod" {
@@ -162,9 +146,7 @@ resource "aws_db_instance" "prod" {
 
 
 def test_run_scope_resolution_with_a_repo_dir(tmp_path: Path, kb: KnowledgeBase) -> None:
-    """Avec un repo_dir, un mot de passe à une indirection de distance dans la
-    valeur par défaut d'une variable est attrapé — et la découverte nomme la
-    référence pour qu'elle ne se lise pas comme un faux positif."""
+    """Resolve literal defaults and explain the reference behind the finding."""
     source = b"""
 variable "db_password" { default = "changeme" }
 resource "aws_db_instance" "prod" {
@@ -184,8 +166,7 @@ resource "aws_db_instance" "prod" {
 
 
 def test_scope_cache_refuses_to_read_outside_the_repo(tmp_path: Path, kb: KnowledgeBase) -> None:
-    """Un chemin fabriqué dans la PR de quelqu'un ne doit pas transformer le
-    scanner en lecteur de fichiers pour l'exécuteur d'intégration continue."""
+    """Scope resolution must not read paths outside the repository."""
     from tfpdf.rules.engine import ScopeCache
 
     repo = tmp_path / "repo"
@@ -229,9 +210,7 @@ def test_apply_path_rules(pattern: str, path: str, suppressed: bool) -> None:
 
 
 def test_path_rules_can_be_scoped_to_categories() -> None:
-    """Une équipe qui a cessé d'appliquer les garde-fous de cycle de vie sur un
-    arbre historique ne doit pas pour autant cesser d'entendre parler des
-    identifiants qui s'y trouvent."""
+    """Excluding lifecycle findings under a path must not hide credentials there."""
     rules = [
         ignore.PathRule(pattern="legacy/**", categories=[Category.MISSING_LIFECYCLE]),
     ]
@@ -243,15 +222,8 @@ def test_path_rules_can_be_scoped_to_categories() -> None:
     assert [f.category for f in kept] == [Category.TUTORIAL_PATTERN]
 
 
-# ---------------------------------------------------------------------------
-# s3_force_destroy
-#
-# Source en ligne plutôt qu'un fichier dans corpus_fixtures/ : cette règle
-# n'existe que dans l'arbre Python. Le binaire Go qui sert d'oracle au corpus
-# ne la connaît pas, donc une fixture partagée ferait échouer la parité sur
-# une divergence voulue. Le test la vérifie ici, seule, et le corpus reste
-# comparable ligne à ligne avec Go.
-# ---------------------------------------------------------------------------
+# Keep s3_force_destroy fixtures separate from the historical Go corpus, whose scanner predates
+# this rule.
 
 _BUCKET_FORCE_DESTROY = b"""
 resource "aws_s3_bucket" "backups" {
@@ -278,29 +250,24 @@ def _force_destroy_findings(kb: KnowledgeBase, source: bytes) -> list[Finding]:
 
 
 def test_s3_force_destroy_true_is_reported(kb: KnowledgeBase) -> None:
-    """`force_destroy = true` retire la seule protection qui reste une fois la
-    ressource marquée pour suppression : sans elle un destroy échoue sur un
-    bucket non vide, et cet échec est ce qui laisse le temps de se raviser."""
+    """force_destroy removes S3's protection against deleting a nonempty bucket."""
     findings = _force_destroy_findings(kb, _BUCKET_FORCE_DESTROY)
 
-    assert len(findings) == 1, "un seul bucket, une seule découverte attendue"
+    assert len(findings) == 1, "one bucket should produce one finding"
     finding = findings[0]
     assert finding.category is Category.MISSING_LIFECYCLE
     assert finding.severity is Severity.MEDIUM
     assert finding.resource == "aws_s3_bucket.backups"
-    assert finding.line == 4, "la découverte pointe la ligne de l'attribut"
+    assert finding.line == 4, "the finding must point to the attribute line"
 
 
 def test_s3_force_destroy_false_is_not_reported(kb: KnowledgeBase) -> None:
-    """Le contre-exemple compte autant : une règle qui répondrait sur la seule
-    présence de l'attribut signalerait le bucket déjà correct, et se ferait
-    désactiver par le premier utilisateur qui la rencontre."""
+    """Explicit force_destroy = false must remain clean."""
     assert _force_destroy_findings(kb, _BUCKET_KEEPS_OBJECTS) == []
 
 
 def test_s3_force_destroy_fix_is_applied_verbatim(kb: KnowledgeBase) -> None:
-    """La correction est ce que l'action propose en bloc ```suggestion, donc
-    elle doit être la ligne exacte à committer — indentation comprise."""
+    """Exact suggestions must preserve the source indentation."""
     finding = _force_destroy_findings(kb, _BUCKET_FORCE_DESTROY)[0]
 
     assert finding.fix is not None

@@ -1,5 +1,6 @@
-"""Accès cloud optionnel, limité à sts:GetCallerIdentity et s3:ListObjectsV2. Aucun contenu de
-bucket n'est lu."""
+"""Optional AWS access limited to sts:GetCallerIdentity and s3:ListObjectsV2; never read object
+contents.
+"""
 
 from __future__ import annotations
 
@@ -11,11 +12,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-#: Les seules opérations que ce processus a le droit d'émettre, par service.
-#: Toute autre est refusée avant l'envoi. Ajouter une entrée est une décision :
-#: elle doit être en lecture seule, la politique IAM de
-#: docs/cloud-read-access.md doit gagner l'action correspondante, et la page
-#: d'accueil énumère cette liste au client.
+# Allowed AWS operations. Any addition must be read-only and documented in
+# docs/cloud-read-access.md and its IAM example.
 _READ_ONLY_OPERATIONS: dict[str, frozenset[str]] = {
     "sts": frozenset({"GetCallerIdentity"}),
     "s3": frozenset({"ListObjectsV2"}),
@@ -23,35 +21,33 @@ _READ_ONLY_OPERATIONS: dict[str, frozenset[str]] = {
 
 
 class WriteAttempted(RuntimeError):
-    """Une opération hors de `_READ_ONLY_OPERATIONS` a été tentée.
-
-    Un défaut de programmation, donc la seule exception de ce module qui
-    remonte au lieu d'être avalée.
+    """An operation outside the read-only allowlist. Propagate this programming error instead of
+    hiding it.
     """
 
 
 @dataclass(frozen=True, slots=True)
 class Access:
-    """La preuve qu'un accès en lecture a été ouvert."""
+    """A successfully opened read-only cloud access session."""
 
     account_id: str
     region: str
 
 
 def _refuse_anything_but_reads(model: Any = None, **_kwargs: Any) -> None:
-    """Gestionnaire `before-parameter-build` : la garde."""
-    if model is None:  # pragma: no cover - botocore le fournit toujours
+    """Reject disallowed operations before botocore builds request parameters."""
+    if model is None:  # pragma: no cover - botocore always supplies the model
         return
     service = model.service_model.service_name
     if model.name not in _READ_ONLY_OPERATIONS.get(service, frozenset()):
         raise WriteAttempted(
-            f"{service}:{model.name} n'est pas dans les opérations de lecture "
-            f"autorisées — voir _READ_ONLY_OPERATIONS dans tfpdf/cloudread.py"
+            f"{service}:{model.name} is not an allowed read-only operation "
+            f"— see _READ_ONLY_OPERATIONS in tfpdf/cloudread.py"
         )
 
 
 def open_access(enabled: bool) -> tuple[Access | None, str]:
-    """Ouvre l'accès en lecture, ou explique pourquoi il n'y en a pas."""
+    """Open read-only access or explain why it is unavailable."""
     if not enabled:
         return None, ""
 
@@ -66,9 +62,7 @@ def open_access(enabled: bool) -> tuple[Access | None, str]:
             "(the published Action image already has it)"
         )
 
-    # botocore ne lit que AWS_DEFAULT_REGION. AWS_REGION est celle que la
-    # plupart des gens écrivent, et l'oublier fait partir les requêtes vers
-    # us-east-1 sans rien dire — donc les deux sont acceptées ici.
+    # Accept AWS_REGION as well as botocore's AWS_DEFAULT_REGION.
     region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or ""
     if not region:
         return None, (
@@ -76,8 +70,7 @@ def open_access(enabled: bool) -> tuple[Access | None, str]:
             "set AWS_REGION (or AWS_DEFAULT_REGION) in the workflow"
         )
 
-    # La session par défaut est posée et gardée avant le premier appel, pour
-    # qu'aucune requête du processus — celle-ci comprise — ne parte non gardée.
+    # Guard the default session before the first request so every operation is checked.
     boto3.setup_default_session(region_name=region)
     boto3.DEFAULT_SESSION.events.register("before-parameter-build", _refuse_anything_but_reads)
 
@@ -99,7 +92,7 @@ def open_access(enabled: bool) -> tuple[Access | None, str]:
 
 
 def permission_summary() -> str:
-    """La liste des appels que ce scan peut émettre, pour l'imprimer."""
+    """Describe the API calls this scan may make."""
     return ", ".join(sorted(_operation_names()))
 
 

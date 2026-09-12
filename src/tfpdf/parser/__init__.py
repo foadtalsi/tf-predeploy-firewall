@@ -1,4 +1,4 @@
-"""Normalise de la source .tf brute en le modèle Resource qu'inspecte le moteur de règles."""
+"""Normalize Terraform source into the Resource model inspected by rules."""
 
 from .hcl import (
     cty_value_to_string,

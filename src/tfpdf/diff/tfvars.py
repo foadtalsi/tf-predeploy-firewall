@@ -1,4 +1,4 @@
-"""Collecte des fichiers .tfvars, dans chacun des quatre modes du scanner."""
+"""Collect variable files for each of the scanner's four scan modes."""
 
 from __future__ import annotations
 
@@ -11,14 +11,12 @@ TFVARS_PATHSPECS = ("*.tfvars", "*.tfvars.json")
 
 
 def is_tfvars(path: str) -> bool:
-    """Reproduit les motifs de chemin ci-dessus pour les modes fondés sur le
-    parcours et sur la copie de travail, où git ne fait pas la correspondance à
-    notre place."""
+    """Match variable-file paths when Git is not performing the path filtering."""
     return path.endswith((".tfvars", ".tfvars.json"))
 
 
 def changed_tfvars_files(repo_dir: str, base_ref: str, head_ref: str) -> list[ChangedFile]:
-    """Tout fichier .tfvars qui diffère entre `base_ref` et `head_ref`."""
+    """Collect variable files changed between base_ref and head_ref."""
     _validate_refs(repo_dir, base_ref, head_ref)
 
     seen: set[str] = set()
@@ -36,12 +34,12 @@ def changed_tfvars_files(repo_dir: str, base_ref: str, head_ref: str) -> list[Ch
 
 
 def staged_tfvars_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tfvars ayant des changements indexés."""
+    """Collect staged variable-file changes."""
     return _multi_spec(repo_dir, _staged_files)
 
 
 def uncommitted_tfvars_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tfvars différant de HEAD dans la copie de travail, les non suivis compris."""
+    """Collect variable files differing from HEAD, including untracked files."""
     return _multi_spec(repo_dir, _uncommitted_files)
 
 
@@ -60,8 +58,7 @@ def _multi_spec(
 
 
 def all_tfvars_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tfvars du dépôt — l'équivalent du scan complet, pour un
-    audit planifié de code déjà fusionné."""
+    """Collect all variable files for a full-repository audit."""
     return [
         ChangedFile(path=rel, head_content=content)
         for rel, content in _walk(repo_dir, lambda p: is_tfvars(p.name))

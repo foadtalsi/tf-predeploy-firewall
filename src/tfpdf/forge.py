@@ -1,5 +1,4 @@
-"""À quoi ressemble la publication de résultats de scan sur une forge quand elle n'a pas la forme
-de GitHub."""
+"""Shared interfaces for publishing scan results to GitHub and other code hosts."""
 
 from __future__ import annotations
 
@@ -9,7 +8,7 @@ from typing import Protocol
 
 @dataclass(slots=True)
 class InlineComment:
-    """Un commentaire à rattacher à une plage de lignes du diff."""
+    """A review comment attached to a line range in a diff."""
 
     #: File path relative to the repository root.
     path: str
@@ -31,7 +30,7 @@ class InlineComment:
 
 @dataclass(slots=True)
 class SuggestionOutcome:
-    """Rend compte de chaque commentaire confié à `post_suggestions`."""
+    """Publication results for comments passed to post_suggestions."""
 
     posted: int = 0
     already_there: int = 0
@@ -39,24 +38,21 @@ class SuggestionOutcome:
 
 
 class Forge(Protocol):
-    """Une forge à laquelle le scanner peut rapporter."""
+    """A code host that can receive scanner reports."""
 
     def upsert_comment(self, body: str, marker: str) -> None:
-        """Trouve le commentaire de synthèse existant contenant `marker` et remplace
-        son corps, ou en crée un."""
+        """Replace the summary comment containing marker, or create one if absent."""
         ...
 
     def post_suggestions(
         self, summary: str, comments: list[InlineComment], head_sha: str
     ) -> SuggestionOutcome:
-        """Rattache les commentaires en commentaires de revue en ligne, en écartant
-        ce que l'hôte refuserait et ce qui a déjà été posté."""
+        """Post inline review comments, skipping unsupported ranges and existing comments."""
         ...
 
 
 def patch_line_numbers(patch: str) -> set[int]:
-    """Parcourt un patch au format unifié, hunk par hunk, et rend les numéros de lignes d'après
-    changement qu'il couvre."""
+    """Parse a unified patch and return the covered line numbers in the updated file."""
     lines: set[int] = set()
     new_line = 0
 
@@ -88,8 +84,7 @@ def patch_line_numbers(patch: str) -> set[int]:
 
 
 def _hunk_new_start(header: str) -> int | None:
-    """La ligne de départ d'après changement d'un en-tête de hunk : par exemple
-    « @@ -12,7 +14,9 @@ resource ... » donne 14."""
+    """Extract the updated-file start line from a hunk header, such as 14 from @@ -12,7 +14,9 @@."""
     plus = header.find("+")
     if plus < 0:
         return None
@@ -105,8 +100,7 @@ def _hunk_new_start(header: str) -> int | None:
 
 
 def lines_in_diff(diff_lines: dict[str, set[int]], cm: InlineComment) -> bool:
-    """Dit si chaque ligne de la plage du commentaire est commentable, au vu des
-    ensembles de lignes de diff par fichier."""
+    """Check that every line in a comment's range is commentable in the file's diff."""
     in_file = diff_lines.get(cm.path)
     if in_file is None:
         return False

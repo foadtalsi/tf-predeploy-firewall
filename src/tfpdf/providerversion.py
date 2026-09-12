@@ -1,30 +1,26 @@
-"""Ce que le dépôt épingle, contre ce que le schéma embarqué décrit."""
+"""Compare repository provider constraints with available schema versions."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-#: Un opérateur suivi d'une version, tel qu'il s'écrit dans Terraform. Une
-#: contrainte sans opérateur (`"3.1.0"`) vaut `=`, comme chez Terraform.
+# A missing comparison operator means equality, as in Terraform's "3.1.0" constraint.
 _TERM = re.compile(r"^\s*(>=|<=|!=|~>|>|<|=)?\s*v?([0-9]+(?:\.[0-9]+)*)\s*$")
 
-#: `name = { … version = "…" … }` dans un bloc required_providers, et la forme
-#: courte `name = "…"` que Terraform accepte encore.
+# Match both provider object declarations and legacy name = "version" declarations.
 _ENTRY_BLOCK = re.compile(r"([a-z][a-z0-9_-]*)\s*=\s*\{(.*?)\}", re.DOTALL)
 _ENTRY_SHORT = re.compile(r'([a-z][a-z0-9_-]*)\s*=\s*"([^"]*)"')
 _VERSION_IN_ENTRY = re.compile(r'version\s*=\s*"([^"]*)"')
 
 
 def parse_version(text: str) -> tuple[int, ...]:
-    """« 6.59.0 » vers (6, 59, 0). Les composants absents valent zéro à la
-    comparaison, pas ici : `~>` a besoin de savoir combien on lui en a donné."""
+    """Parse 6.59.0 into (6, 59, 0), retaining component count for pessimistic constraints (~>)."""
     return tuple(int(part) for part in text.split("."))
 
 
 def _compare(left: tuple[int, ...], right: tuple[int, ...]) -> int:
-    """Compare deux versions en complétant la plus courte par des zéros, ce qui
-    fait de « 3 » et « 3.0.0 » la même chose — comme chez Terraform."""
+    """Compare versions after zero-padding, treating 3 and 3.0.0 as equal."""
     width = max(len(left), len(right))
     a = left + (0,) * (width - len(left))
     b = right + (0,) * (width - len(right))
@@ -51,16 +47,13 @@ class Term:
         if self.operator == "=":
             return order == 0
         if self.operator == "~>":
-            # « autorise le composant le plus à droite à monter ». `~> 3.0` va
-            # de 3.0 à 4.0 exclu ; `~> 3.0.1` s'arrête à 3.1.0. La borne haute
-            # dépend donc du nombre de composants ÉCRITS, pas de leur valeur —
-            # c'est la seule règle de Terraform qu'on ne peut pas deviner en
-            # comparant des nombres.
+            # The written component count determines the upper bound: ~> 3.0 excludes 4.0, while
+            # ~> 3.0.1 excludes 3.1.0.
             if order < 0:
                 return False
             ceiling = self.version[:-1]
             if not ceiling:
-                # `~> 3` n'a pas de composant à figer : tout 3.x et au-delà.
+                # With no earlier component to pin, ~> 3 permits 3 and later versions here.
                 return True
             bumped = (*ceiling[:-1], ceiling[-1] + 1)
             return _compare(candidate, bumped) < 0
@@ -68,10 +61,9 @@ class Term:
 
 
 def parse_constraint(text: str) -> list[Term]:
-    """Les termes d'une contrainte Terraform, séparés par des virgules et tous
-    exigés. Un terme incompréhensible est ignoré plutôt que devinné : la
-    conséquence d'une contrainte mal lue serait de faire taire des découvertes
-    justes."""
+    """Parse comma-separated constraint terms, all of which must hold. Ignore unrecognized terms
+    rather than incorrectly suppressing findings.
+    """
     terms: list[Term] = []
     for piece in text.split(","):
         found = _TERM.match(piece)
@@ -82,9 +74,9 @@ def parse_constraint(text: str) -> list[Term]:
 
 
 def allows(constraint: str, version: str) -> bool:
-    """Vrai si `version` satisfait la contrainte. Une contrainte vide ou
-    illisible autorise tout — c'est le cas d'un dépôt qui n'épingle rien, où le
-    schéma le plus récent est précisément le bon pari."""
+    """Check whether a version satisfies the constraint. Empty or unreadable constraints allow all
+    versions.
+    """
     terms = parse_constraint(constraint)
     if not terms:
         return True
@@ -93,8 +85,7 @@ def allows(constraint: str, version: str) -> bool:
 
 
 def constraints_in(source: bytes) -> dict[str, str]:
-    """Les contraintes déclarées dans les blocs `required_providers` d'un fichier, par nom local
-    de fournisseur."""
+    """Return required_providers constraints keyed by local provider name."""
     text = source.decode("utf-8", errors="replace")
     found: dict[str, str] = {}
     index = 0
@@ -122,9 +113,8 @@ def constraints_in(source: bytes) -> dict[str, str]:
             version = _VERSION_IN_ENTRY.search(match.group(2))
             if version is not None:
                 found.setdefault(match.group(1), version.group(1))
-        # La forme courte est cherchée sur ce dont les entrées à accolades ne
-        # rendent pas compte, sans quoi `version = "…"` d'un bloc serait relu
-        # comme une entrée nommée « version ».
+        # Exclude object bodies from shorthand matching so version is not mistaken for a
+        # provider name.
         without_blocks = _ENTRY_BLOCK.sub("", body)
         for match in _ENTRY_SHORT.finditer(without_blocks):
             found.setdefault(match.group(1), match.group(2))
@@ -132,10 +122,6 @@ def constraints_in(source: bytes) -> dict[str, str]:
 
 
 def provider_of(resource_type: str) -> str:
-    """Le fournisseur d'un type de ressource : ce qui précède le premier « _ ».
-
-    C'est la convention que Terraform impose aux noms de types et celle sur
-    laquelle les packs sont déjà découpés. `aws_eip` → `aws`.
-    """
+    """Return the prefix before the first underscore, such as aws for aws_eip."""
     prefix, separator, _ = resource_type.partition("_")
     return prefix if separator else ""

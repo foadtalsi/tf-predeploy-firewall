@@ -1,4 +1,4 @@
-"""Les sortes de jetons du lexeur HCL2."""
+"""HCL2 lexer token kinds."""
 
 from __future__ import annotations
 

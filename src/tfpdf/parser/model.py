@@ -1,4 +1,4 @@
-"""Le modèle de blocs normalisé sur lequel travaille le moteur de règles."""
+"""Normalized blocks consumed by the rule engine."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from ..hcl import Range
 
 
 class Kind(StrEnum):
-    """Les natures de bloc de premier niveau que ce paquet normalise."""
+    """Supported top-level block kinds."""
 
     #: A `resource "aws_db_instance" "prod" { … }` block.
     RESOURCE = "resource"
@@ -29,7 +29,7 @@ class Kind(StrEnum):
 
 @dataclass(slots=True)
 class Attribute:
-    """Un unique `nom = valeur` à l'intérieur d'un bloc."""
+    """A single name = value attribute inside a block."""
 
     name: str
     #: Range of the whole `name = value` span.
@@ -52,8 +52,7 @@ class Attribute:
 
 @dataclass(slots=True)
 class NestedBlock:
-    """Un sous-bloc nommé dans le corps d'une ressource : `ingress { … }`,
-    `root_block_device { … }`."""
+    """A named nested block, such as ingress or root_block_device."""
 
     type: str
     labels: list[str] = field(default_factory=list)
@@ -63,8 +62,7 @@ class NestedBlock:
 
 @dataclass(slots=True)
 class Resource:
-    """Une vue normalisée d'un bloc de premier niveau, indépendante de l'AST
-    HCL."""
+    """A normalized top-level block independent of the HCL AST."""
 
     #: What sort of block this came from. Rules that depend on the provider
     #: schema (unknown attributes, ForceNew, prevent_destroy) must check this
@@ -94,8 +92,7 @@ class Resource:
     lifecycle_range: Range = field(default_factory=Range)
 
     def address(self) -> str:
-        """L'identifiant canonique, correspondant à l'adresse qu'utilise
-        Terraform."""
+        """Return the canonical Terraform address."""
         if self.kind is Kind.MODULE:
             return "module." + self.name
         if self.kind is Kind.DATA:
@@ -104,7 +101,7 @@ class Resource:
 
 
 def type_from_address(addr: str) -> tuple[str, bool, bool]:
-    """Relit le type de ressource du fournisseur depuis une adresse Terraform."""
+    """Extract the provider resource type from a Terraform address."""
     parts = addr.split(".")
 
     # A plan address can be nested arbitrarily deep in modules

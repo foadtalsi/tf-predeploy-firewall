@@ -1,20 +1,14 @@
 import boto3
 from botocore.exceptions import ClientError
 
-# -----------------------------------------------------------
-# Verifie l'etat des ressources pour pouvoir ajuster la severity
-# Selon l'importance de la ressource la severity augmente
-# -----------------------------------------------------------
+# Optional cloud observations used to adjust finding severity.
 s3 = None
 AWS_OK = None
 
 
-# A appeler une fois au debut d'un scan, jamais par decouverte : chaque appel
-# est un aller-retour vers STS et un client neuf. Le resultat est garde dans
-# AWS_OK, que les verifications lisent. Tant que personne ne l'a appelee,
-# AWS_OK vaut None : les verifications rendent la severity inchangee, ce qui
-# est le bon defaut.
+# Probe once per scan and cache AWS_OK. Before a probe, checks preserve the static severity.
 def available_context() -> bool:
+    """Probe AWS once and cache the S3 client; return whether access is available."""
     global s3, AWS_OK
     try:
         boto3.client("sts").get_caller_identity()
@@ -26,9 +20,9 @@ def available_context() -> bool:
 
 
 def s3_force_destroy_severity_check(severity: str, bucket: str) -> str:
-    # `s3 is None` en plus de AWS_OK : les deux sont poses ensemble par
-    # available_context, mais rien dans le type ne le dit, et une verification
-    # appelee sans sonde prealable planterait au lieu de rendre la severity.
+    """Return low for an absent/empty bucket, critical for objects, or the original severity."""
+    # A missing client must preserve severity, including when a check runs without a prior
+    # probe.
     if not AWS_OK or s3 is None:
         return severity
 

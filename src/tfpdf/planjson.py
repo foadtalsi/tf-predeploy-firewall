@@ -1,4 +1,4 @@
-"""Analyse du JSON produit par `terraform show -json <planfile>` — l'entrée de la phase 2."""
+"""Parse the JSON output of terraform show -json for optional plan analysis."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class Change:
-    """L'objet `change` d'une entrée."""
+    """A resource change's before/after values and actions."""
 
     actions: list[str] = field(default_factory=list)
 
@@ -26,27 +26,25 @@ class Change:
     after_sensitive: dict[str, Any] | None = None
 
     def is_sensitive_attr(self, attr_name: str) -> bool:
-        """Dit si `attr_name` est marqué sensible dans l'un ou l'autre état."""
+        """Return whether the attribute is marked sensitive in either state."""
         return _is_masked_true(self.before_sensitive, attr_name) or _is_masked_true(
             self.after_sensitive, attr_name
         )
 
     def is_replace(self) -> bool:
-        """Dit si ce changement détruit puis recrée la ressource."""
+        """Return whether the change replaces the resource by destroying and recreating it."""
         return "delete" in self.actions and "create" in self.actions
 
     def is_destroy_only(self) -> bool:
-        """Dit si la ressource est supprimée sans remplacement — l'action la plus
-        dangereuse qu'un plan puisse contenir."""
+        """Return whether the resource is destroyed without replacement."""
         return self.actions == ["delete"]
 
     def is_pure_update(self) -> bool:
-        """Dit si le changement est une mise à jour sur place, sans destruction ni
-        recréation."""
+        """Return whether the change updates the resource in place."""
         return self.actions == ["update"]
 
     def is_no_op(self) -> bool:
-        """Dit si Terraform n'a rien trouvé à faire pour cette ressource."""
+        """Return whether Terraform reports no action for the resource."""
         return self.actions == ["no-op"]
 
 
@@ -58,7 +56,7 @@ def _is_masked_true(mask: dict[str, Any] | None, attr_name: str) -> bool:
 
 @dataclass(slots=True)
 class ResourceChange:
-    """Une entrée de `resource_changes[]`."""
+    """An entry in resource_changes."""
 
     address: str = ""
     module_addr: str = ""
@@ -70,15 +68,13 @@ class ResourceChange:
     change: Change = field(default_factory=Change)
 
     def is_managed(self) -> bool:
-        """Dit si cette entrée est une vraie ressource gérée par Terraform, par opposition à la
-        lecture d'une source de données."""
+        """Distinguish managed resources from data-source reads."""
         return self.mode == "managed"
 
 
 @dataclass(slots=True)
 class PlanFile:
-    """Le sous-ensemble minimal du schéma de `terraform show -json`
-    (format_version 1.x) que cet outil comprend."""
+    """The supported subset of Terraform plan JSON format_version 1.x."""
 
     format_version: str = ""
     resource_changes: list[ResourceChange] = field(default_factory=list)
@@ -89,12 +85,12 @@ def _as_dict(v: Any) -> dict[str, Any]:
 
 
 def _as_dict_or_none(v: Any) -> dict[str, Any] | None:
-    """Préserve un `null` JSON comme une absence, comme le fait le map nilable de Go."""
+    """Preserve JSON null as absence rather than converting it to an empty mapping."""
     return v if isinstance(v, dict) else None
 
 
 def parse(data: bytes | str) -> PlanFile:
-    """Décode un document JSON de plan."""
+    """Decode a Terraform plan JSON document."""
     try:
         document = json.loads(data)
     except json.JSONDecodeError as exc:
@@ -131,7 +127,7 @@ def parse(data: bytes | str) -> PlanFile:
 
 
 def load(path: str) -> PlanFile:
-    """Lit et décode un fichier JSON de plan."""
+    """Read and decode a Terraform plan JSON file."""
     try:
         return parse(Path(path).read_bytes())
     except OSError as exc:

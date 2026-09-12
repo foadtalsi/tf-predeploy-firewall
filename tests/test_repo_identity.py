@@ -1,12 +1,5 @@
-"""Sous quel nom un scan est rapporté — et pourquoi il doit toujours en avoir un.
-
-Le plan de contrôle exige `repo_full_name` : sans lui, `/v1/usage/scan` répond
-400 et le CLI n'appelle même pas. Or ce nom ne venait que de `GITHUB_REPOSITORY`
-ou `CI_PROJECT_PATH`, deux variables qu'un poste de travail n'a pas. Un scan
-lancé à la main avec une clé de licence n'était donc **pas décompté du quota**,
-et n'apparaissait dans aucun tableau de bord — sans le moindre message. Ces
-tests tiennent le repli qui bouche ce trou, et le seul cas qui reste non
-rapporté doit désormais le dire.
+"""Verify repository identity for hosted scan reporting, including local Git-remote fallback and a
+visible warning when no identity is available.
 """
 
 from __future__ import annotations
@@ -21,9 +14,7 @@ from tfpdf.cli.forges import _repo_path_from_remote_url, repo_full_name
 from tfpdf.cli.orgpolicy import report_usage
 from tfpdf.report.finding import Category, Finding, Severity
 
-#: Les variables qui nommeraient le dépôt à la place du repli. Effacées dans
-#: chaque test : la suite tourne elle-même en CI, où elles sont posées, et un
-#: test du repli qui lit `GITHUB_REPOSITORY` ne teste pas le repli.
+# Clear CI identity variables so tests actually exercise the Git-remote fallback.
 _CI_VARS = ("GITHUB_REPOSITORY", "CI_PROJECT_PATH", "TFPDF_REPO_NAME")
 
 
@@ -51,29 +42,22 @@ def _repo(tmp_path: Path, origin: str | None = "git@github.com:acme/infra.git") 
     return tmp_path
 
 
-# --- lire l'URL d'un distant -------------------------------------------------
+# Parse Git remote URLs.
 
 
 @pytest.mark.parametrize(
     ("url", "want"),
     [
-        # Les trois formes que `git remote get-url` rend réellement, et le même
-        # résultat pour les trois : c'est le point. Un dépôt cloné en SSH et le
-        # même dépôt scanné par GitHub Actions doivent porter le MÊME nom, sans
-        # quoi ils compteraient pour deux dépôts dans la limite du plan.
+        # HTTPS and SSH remote forms must resolve to the same hosted repository identity.
         ("git@github.com:acme/infra.git", "acme/infra"),
         ("https://github.com/acme/infra.git", "acme/infra"),
         ("ssh://git@github.com/acme/infra.git", "acme/infra"),
         ("https://github.com/acme/infra", "acme/infra"),
-        # Un jeton dans l'URL — ce que pose un `git clone` de CI — ne doit pas
-        # se retrouver dans le nom du dépôt.
+        # Strip credentials embedded in CI clone URLs.
         ("https://x-token:ghp_secret@github.com/acme/infra.git", "acme/infra"),
-        # GitLab : le chemin est gardé entier, sous-groupes compris, parce que
-        # c'est entier que `CI_PROJECT_PATH` le donne.
+        # Preserve GitLab subgroup paths, matching CI_PROJECT_PATH.
         ("git@gitlab.com:acme/platform/infra.git", "acme/platform/infra"),
-        # Rien d'exploitable : un dépôt cloné depuis un dossier n'a aucune
-        # identité que le plan de contrôle reconnaîtrait, et lui en inventer
-        # une créerait un dépôt fantôme facturé au client.
+        # Local folder remotes have no hosted identity; do not invent one.
         ("/home/me/infra", ""),
         ("../sibling.git", ""),
         ("C:/repos/infra", ""),
@@ -85,21 +69,18 @@ def test_the_repo_path_is_read_out_of_a_remote_url(url: str, want: str) -> None:
     assert _repo_path_from_remote_url(url) == want
 
 
-# --- l'ordre des sources -----------------------------------------------------
+# Identity source precedence.
 
 
 def test_a_local_scan_is_named_after_its_origin_remote(tmp_path: Path) -> None:
-    """Le trou lui-même : hors CI, ceci rendait "" et le scan n'était pas
-    compté."""
+    """Local scans inherit the origin remote's repository identity."""
     assert repo_full_name(str(_repo(tmp_path))) == "acme/infra"
 
 
 def test_the_ci_variable_still_wins_over_the_remote(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Là où la CI nomme le dépôt, elle reste l'autorité — le repli ne doit pas
-    renommer les scans déjà rapportés et scinder l'historique d'un dépôt en
-    deux."""
+    """CI identity takes precedence so existing scan history keeps the same repository name."""
     monkeypatch.setenv("GITHUB_REPOSITORY", "acme/canonical")
     assert repo_full_name(str(_repo(tmp_path))) == "acme/canonical"
 
@@ -116,12 +97,13 @@ def test_a_repo_without_a_remote_has_no_name(tmp_path: Path) -> None:
 
 
 def test_a_directory_that_is_not_a_repo_has_no_name(tmp_path: Path) -> None:
-    """git échoue, et cela vaut « pas de nom » et non une erreur : un scan ne
-    dépend pas de savoir se nommer."""
+    """A nonrepository directory has no identity but does not fail merely because naming is
+    unavailable.
+    """
     assert repo_full_name(str(tmp_path)) == ""
 
 
-# --- ce que le scan rapporte -------------------------------------------------
+# Hosted scan reporting.
 
 
 def _finding() -> Finding:
@@ -153,27 +135,21 @@ def test_a_named_scan_is_reported_and_counted() -> None:
 def test_a_nameless_scan_reports_nothing_and_says_so(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Le seul chemin qui laisse encore un scan hors quota. Il doit être bruyant :
-    un écart silencieux entre ce qu'une organisation consomme et ce que son
-    tableau de bord montre est exactement le bug qu'on vient de corriger."""
+    """Warn explicitly when a scan cannot be recorded without repository identity."""
     assert report_usage("test-key", "http://127.0.0.1:1", [_finding()], False, "") is False
     warning = capsys.readouterr().err
     assert "will NOT be counted" in warning
     assert "--repo-name" in warning
 
 
-# --- le câblage, de bout en bout ---------------------------------------------
+# End-to-end CLI integration.
 
 
 def test_a_local_scan_with_a_license_key_records_itself(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """Le scan que le trou laissait passer : un dépôt sur un poste, une clé de
-    licence, aucune variable de CI.
-
-    Les tests unitaires ci-dessus tiendraient tous alors même que `main` ne
-    demanderait jamais le nom du dépôt. Celui-ci pilote la vraie ligne de
-    commande et regarde ce qui part sur le fil.
+    """Run the real CLI to verify licensed local scans actually send usage with the resolved
+    repository identity.
     """
     from tfpdf.cli.main import main
 
@@ -184,8 +160,7 @@ def test_a_local_scan_with_a_license_key_records_itself(
         received.append(request)
         if request.path == "/v1/usage/scan":
             return Response(body={"allowed": True})
-        # Politique, dérogations, packs de règles : tout échoue ouvert, donc un
-        # 404 laisse le scan tourner sur sa configuration locale.
+        # Optional waivers and packs fail open; a 404 preserves the local scan.
         return Response(status=404, body={})
 
     with StubServer(handler) as server:
@@ -204,6 +179,45 @@ def test_a_local_scan_with_a_license_key_records_itself(
 
     capsys.readouterr()
     scans = [r for r in received if r.path == "/v1/usage/scan"]
-    assert len(scans) == 1, f"le scan doit être rapporté une fois : {[r.path for r in received]}"
+    assert len(scans) == 1, f"the scan must be reported once: {[r.path for r in received]}"
     assert scans[0].body["repo_full_name"] == "acme/infra"
     assert code in (0, 1)
+
+
+def test_a_refused_quota_never_fails_the_build_or_hides_the_report(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Quota refusal skips recording without hiding reports or changing the scan verdict."""
+    from tfpdf.cli.main import main
+
+    repo = _repo(tmp_path)
+
+    def handler(request: Request) -> Response:
+        if request.path == "/v1/usage/scan":
+            return Response(
+                body={
+                    "allowed": False,
+                    "reason": 'plan "Trial" includes 50 scans and this org has used all of them',
+                }
+            )
+        return Response(status=404, body={})
+
+    with StubServer(handler) as server:
+        code = main(
+            [
+                "--repo-dir",
+                str(repo),
+                "--full-repo-scan",
+                "--license-key",
+                "test-key",
+                "--license-api-base",
+                server.url,
+                "--post-comment=false",
+            ]
+        )
+
+    captured = capsys.readouterr()
+    assert code != 3, "quota refusal must not fail the build"
+    assert code in (0, 1), "the exit code depends only on findings"
+    assert captured.out.strip(), "quota refusal must not hide the report"
+    assert "not recorded" in captured.err, "quota refusal must produce a warning"

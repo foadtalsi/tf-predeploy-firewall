@@ -1,9 +1,5 @@
-"""Le rapport tel qu'un terminal le reçoit.
-
-Sans équivalent Go. Deux choses sont en jeu et une seule est cosmétique : que
-la sortie soit lisible, et surtout que le Markdown — comparé octet pour octet
-au scanner Go, et qui part dans les commentaires de PR — ne change pas d'un
-caractère parce qu'on a ajouté un rendu à côté.
+"""Terminal rendering tests, including preservation of Markdown output for redirected streams and
+PR reports.
 """
 
 from __future__ import annotations
@@ -49,12 +45,11 @@ def _plain(findings: list[Finding], **kwargs: object) -> str:
     )
 
 
-# --- ce qui rend la sortie lisible ------------------------------------------
+# Terminal readability.
 
 
 def test_the_explanation_appears_once_per_rule_not_once_per_finding() -> None:
-    """Le défaut qui a motivé ce module : trente-trois découvertes du dépôt
-    répétaient deux phrases, une fois par ligne."""
+    """Print repeated rule explanations once per group."""
     long_message = "aws_cloudwatch_log_group is a stateful resource with no guard"
     findings = [_finding(file=f"f{i}.tf", line=i, message=long_message) for i in range(9)]
 
@@ -66,10 +61,7 @@ def test_the_explanation_appears_once_per_rule_not_once_per_finding() -> None:
 
 
 def test_two_rules_of_the_same_category_do_not_share_a_heading() -> None:
-    """`missing_lifecycle` et `s3_force_destroy` s'affichent tous deux
-    « Missing prevent_destroy ». Deux groupes au même titre se lisent comme une
-    répétition ; le nom de règle les sépare, et c'est aussi ce qu'on écrit dans
-    `ignore_rules` pour en faire taire un."""
+    """Include rule identity so detectors sharing a category have distinct headings."""
     out = _plain(
         [
             _finding(rule_name="missing_lifecycle", message="pas de garde"),
@@ -80,7 +72,7 @@ def test_two_rules_of_the_same_category_do_not_share_a_heading() -> None:
 
 
 def test_only_what_differs_between_findings_is_repeated() -> None:
-    """Chaque ligne ne porte que ce que l'en-tête ne dit pas déjà."""
+    """Show only per-finding details that the shared explanation does not cover."""
     out = _plain(
         [
             _finding(message='"name" is ForceNew on aws_iam_role and may recreate it', line=1),
@@ -93,8 +85,7 @@ def test_only_what_differs_between_findings_is_repeated() -> None:
 
 
 def test_a_quoted_subject_is_only_used_when_every_line_has_one() -> None:
-    """Une colonne réduite sur certaines lignes et pas sur d'autres ne se
-    compare plus d'une ligne à l'autre — pire qu'une colonne longue."""
+    """Use quoted-subject shortening consistently across every row in a group."""
     out = _plain(
         [
             _finding(message='"name" is ForceNew on aws_iam_role', line=1),
@@ -106,8 +97,7 @@ def test_a_quoted_subject_is_only_used_when_every_line_has_one() -> None:
 
 
 def test_a_difference_already_visible_in_the_resource_is_not_repeated() -> None:
-    """`cloudwatch_log_group` à côté de `aws_cloudwatch_log_group.api` occupe
-    une colonne pour ne rien apprendre."""
+    """Omit details already visible in the resource address."""
     out = _plain(
         [
             _finding(resource="aws_dynamodb_table.main", message="aws_dynamodb_table has no guard"),
@@ -134,8 +124,7 @@ def test_a_blocked_scan_says_it_at_the_top() -> None:
 
 
 def test_waived_findings_are_shown_apart_and_not_counted() -> None:
-    """Une dérogation reste visible — sinon elle disparaît du dossier — mais
-    elle ne compte pas dans le total qui décide de bloquer."""
+    """Keep waived findings visible but outside the blocking count."""
     waived = _finding(line=2)
     waived.waived = True
     out = _plain([_finding(), waived])
@@ -157,29 +146,22 @@ def test_severities_come_worst_first() -> None:
 
 
 def test_no_color_is_obeyed_whatever_its_value(monkeypatch: pytest.MonkeyPatch) -> None:
-    """La convention no-color.org : la variable compte par sa présence, pas par
-    son contenu. Discuter de sa valeur revient à ne pas la respecter."""
+    """NO_COLOR is enabled by presence, regardless of value."""
     for value in ("", "0", "false", "1"):
         monkeypatch.setenv("NO_COLOR", value)
         assert wants_color(None) is False
 
 
 def test_a_redirected_output_carries_no_escape_sequences() -> None:
-    """Rediriger vers un fichier ne doit pas y écrire des séquences ANSI."""
+    """Redirected output must not contain ANSI escape sequences."""
     assert "\033" not in _plain([_finding()])
 
 
-# --- ce qui ne doit surtout pas avoir changé --------------------------------
+# Preserve existing output contracts.
 
 
 def test_a_pipe_still_receives_the_markdown_byte_for_byte(tmp_path: Path) -> None:
-    """Le point qui compte le plus de ce fichier.
-
-    Des scripts redirigent cette sortie, et le Markdown est comparé octet pour
-    octet au scanner Go. Le rendu terminal ne s'active que sur un terminal ;
-    tout le reste — un tube, un fichier, un runner de CI — reçoit exactement ce
-    qu'il recevait avant.
-    """
+    """Pipes retain the existing Markdown format; automatic terminal rendering is TTY-only."""
     (tmp_path / "main.tf").write_bytes(
         b'resource "aws_s3_bucket" "b" {\n  bucket = "x"\n  force_destroy = true\n}\n'
     )
@@ -198,7 +180,6 @@ def test_a_pipe_still_receives_the_markdown_byte_for_byte(tmp_path: Path) -> Non
         cwd=Path(__file__).parent.parent,
         env={"PATH": "/usr/bin:/bin", "PYTHONPATH": str(Path(__file__).parent.parent / "src")},
     )
-    # Un sous-processus capturé n'est pas un terminal : c'est le cas par défaut
-    # de tout ce qui existait avant ce module.
+    # Captured subprocess output is not a TTY and must retain Markdown.
     assert "<!-- tf-predeploy-firewall:report -->" in result.stdout
     assert "| Severity | File | Line |" in result.stdout
