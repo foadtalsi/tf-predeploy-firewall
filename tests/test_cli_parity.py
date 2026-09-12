@@ -7,6 +7,7 @@ these tests skip. The former neighboring Go checkout is optional.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -127,13 +128,43 @@ def both(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
+#: Rules this scanner retired on purpose while the Go oracle still lists them.
+#:
+#: `cost_impact` was removed in a7d5552 together with the cost estimates. It was
+#: the last rule, so removing it shifts no `ruleIndex`; if a retired rule were not
+#: last, the results would stop matching and this comparison would fail, which is
+#: the right outcome. Delete an entry if its rule comes back.
+RETIRED_SARIF_RULES = frozenset({"cost_impact"})
+
+
+def _without_retired_rules(sarif: bytes) -> dict[str, object]:
+    """The Go oracle's SARIF without the rules this scanner retired on purpose."""
+    document = json.loads(sarif)
+    for run in document["runs"]:
+        driver = run["tool"]["driver"]
+        driver["rules"] = [
+            rule for rule in driver["rules"] if rule["id"] not in RETIRED_SARIF_RULES
+        ]
+    return document
+
+
 @pytest.mark.parametrize("artefact", ["sarif.json", "cq.json", "err"])
 def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) -> None:
-    """Compare SARIF, Code Quality, and coverage output byte for byte. Match the oracle's stamped
-    version to the installed Python package.
+    """Compare SARIF, Code Quality, and coverage output against the Go oracle byte for byte, except
+    for SARIF rules this scanner retired on purpose. Match the oracle's stamped version to the
+    installed Python package.
     """
     go = (both / f"go.{artefact}").read_bytes()
     py = (both / f"py.{artefact}").read_bytes()
+    if artefact == "sarif.json":
+        # Retired rules are the one deliberate difference from the Go oracle. Every other rule,
+        # every result and every ruleIndex must still match.
+        listed = {
+            rule["id"] for run in json.loads(py)["runs"] for rule in run["tool"]["driver"]["rules"]
+        }
+        assert not listed & RETIRED_SARIF_RULES, "a retired rule is listed again"
+        assert _without_retired_rules(go) == json.loads(py)
+        return
     assert go == py
 
 
