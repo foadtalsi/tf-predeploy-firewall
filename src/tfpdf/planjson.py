@@ -1,16 +1,4 @@
-"""Analyse du JSON produit par `terraform show -json <planfile>` — l'entrée de
-la phase 2.
-
-Port de internal/planjson/model.go.
-
-Contrairement au scan statique de la phase 1, ceci exige que le job CI de
-l'utilisateur exécute lui-même `terraform plan` avec de vrais identifiants
-cloud ; cet outil ne lance jamais terraform lui-même. Il ne
-fait que lire le JSON résultant, pour détecter des risques qu'un diff HCL pur ne
-peut pas voir : une destruction ou un remplacement confirmé, un plan touchant
-bien plus de ressources que le diff de la PR elle-même, ou un attribut sensible
-qui dérive hors des changements de la PR.
-"""
+"""Analyse du JSON produit par `terraform show -json <planfile>` — l'entrée de la phase 2."""
 
 from __future__ import annotations
 
@@ -22,20 +10,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class Change:
-    """L'objet `change` d'une entrée.
-
-    `before` et `after` sont décodés en dictionnaires génériques (les nombres
-    JSON deviennent des flottants) — suffisant pour des tests d'égalité, ce dont
-    les règles se contentent. `before_sensitive` et `after_sensitive` reflètent
-    les marques de sensibilité de Terraform : pour un attribut sensible, le
-    masque contient `true` (ou un map ou tableau imbriqué de masques pour les
-    valeurs structurées), **alors même que before et after contiennent toujours
-    la vraie valeur en clair**. Tout appelant qui affiche une valeur d'attribut
-    dans un message de découverte DOIT consulter ces masques d'abord et
-    caviarder, puisque les découvertes finissent dans des commentaires de PR et
-    des sorties SARIF susceptibles d'être vues par un public plus large que le
-    plan lui-même.
-    """
+    """L'objet `change` d'une entrée."""
 
     actions: list[str] = field(default_factory=list)
 
@@ -57,13 +32,7 @@ class Change:
         )
 
     def is_replace(self) -> bool:
-        """Dit si ce changement détruit puis recrée la ressource.
-
-        Les actions contiennent à la fois « delete » et « create », dans un
-        ordre ou dans l'autre : Terraform émet ["delete","create"] pour un
-        remplacement, contre ["create","delete"] pour un remplacement
-        create-before-destroy.
-        """
+        """Dit si ce changement détruit puis recrée la ressource."""
         return "delete" in self.actions and "create" in self.actions
 
     def is_destroy_only(self) -> bool:
@@ -101,14 +70,8 @@ class ResourceChange:
     change: Change = field(default_factory=Change)
 
     def is_managed(self) -> bool:
-        """Dit si cette entrée est une vraie ressource gérée par Terraform, par
-        opposition à la lecture d'une source de données.
-
-        Les règles doivent sauter les sources de données : elles ne sont jamais
-        détruites, remplacées ni dérivées au sens qui intéresse ces règles, et
-        une source de données peut partager un nom de type avec une ressource
-        gérée sans rapport.
-        """
+        """Dit si cette entrée est une vraie ressource gérée par Terraform, par opposition à la
+        lecture d'une source de données."""
         return self.mode == "managed"
 
 
@@ -126,14 +89,7 @@ def _as_dict(v: Any) -> dict[str, Any]:
 
 
 def _as_dict_or_none(v: Any) -> dict[str, Any] | None:
-    """Préserve un `null` JSON comme une absence, comme le fait le map nilable
-    de Go.
-
-    Décoder les deux en dictionnaire vide — le réflexe Python — ferait chercher
-    l'attribut de tarification dans un dictionnaire vide des deux côtés, et
-    calculer un delta nul : un plan créant une passerelle NAT ne rapporterait
-    aucun impact de coût.
-    """
+    """Préserve un `null` JSON comme une absence, comme le fait le map nilable de Go."""
     return v if isinstance(v, dict) else None
 
 

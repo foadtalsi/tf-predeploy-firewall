@@ -1,9 +1,5 @@
-"""À quel fournisseur appartient un fichier scanné, et quels packs étendus
-valent la peine d'être récupérés pour lui.
-
-Porte la moitié « détection de fournisseur » de
-cmd/tf-predeploy-firewall/main.go.
-"""
+"""À quel fournisseur appartient un fichier scanné, et quels packs étendus valent la peine d'être
+récupérés pour lui."""
 
 from __future__ import annotations
 
@@ -56,16 +52,8 @@ _PROVIDER_PREFIX = re.compile(rb'^\s*(?:resource|data)\s+"([a-z][a-z0-9]*)_', re
 
 
 def resolve_providers(flag_value: str, files: list[ChangedFile]) -> list[str]:
-    """Transforme le drapeau `--providers` en la liste des packs étendus à
-    récupérer : une liste explicite séparée par des virgules est prise telle
-    quelle, et « auto » scanne les en-têtes de blocs des fichiers modifiés.
-
-    La détection lit la source brute plutôt que d'attendre l'analyseur : la base
-    de connaissances doit exister avant que la passe d'analyse et de scan ne
-    tourne, et une expression régulière sur des en-têtes de blocs ne peut pas se
-    tromper d'une façon qui compte — un faux positif récupère un pack inutile, un
-    faux négatif retombe sur les packs embarqués.
-    """
+    """Résout --providers : liste explicite, ou fournisseurs détectés disposant d'un pack en mode
+    auto."""
     if flag_value != "auto":
         return [provider.strip() for provider in flag_value.split(",") if provider.strip()]
     return [provider for provider in detect_providers(files) if provider in FETCHABLE_PROVIDERS]
@@ -84,18 +72,8 @@ def detect_providers(files: list[ChangedFile]) -> list[str]:
 
 
 def warn_uncovered_providers(files: list[ChangedFile], cov: Coverage) -> None:
-    """Dit, sur stderr, lesquels des fournisseurs scannés ne sont couverts par
-    aucun pack de règles chargé.
-
-    Sans cela, le trou est invisible. Les règles basées sur les valeurs —
-    identifiants en dur, CIDR ouverts, entropie, règles personnalisées — n'ont
-    besoin d'aucun schéma et se déclenchent normalement, si bien qu'un dépôt bâti
-    sur un fournisseur non couvert obtient un rapport qui a l'air d'avoir marché
-    pendant que la moitié guidée par le schéma (arguments inconnus, ForceNew,
-    prevent_destroy, coût) reste silencieusement inerte. Un scan qui couvre la
-    moitié d'un dépôt doit dire quelle moitié, sinon « pourquoi n'a-t-il pas
-    attrapé ça ? » n'a pas de réponse.
-    """
+    """Avertit des fournisseurs sans schéma chargé ; leurs valeurs restent analysées par les
+    règles indépendantes du schéma."""
     covered = {provider.name for provider in cov.providers}
     uncovered = [
         provider

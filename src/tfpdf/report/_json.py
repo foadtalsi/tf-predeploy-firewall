@@ -1,21 +1,4 @@
-"""Une sérialisation qui correspond octet pour octet au
-`json.MarshalIndent(v, "", "  ")` de Go.
-
-Deux documents que ce scanner produit sont consommés par des machines
-configurées contre la sortie de la version Go — un dépôt SARIF et un rapport
-GitLab Code Quality — donc « du JSON sémantiquement équivalent » n'est pas la
-barre. Les deux différences qui mordent réellement :
-
-  * L'encodeur de Go échappe `<`, `>` et `&` en HTML par défaut, et échappe
-    aussi U+2028 et U+2029. Le message d'une découverte cite du texte source :
-    une règle qui rapporte sur `cidr_blocks = ["0.0.0.0/0"]` va bien, mais une
-    règle qui cite une politique façon XML ou un `&&` ne va pas.
-  * Go émet le non-ASCII en UTF-8 brut ; le `json.dumps` de Python l'échappe en
-    `\\uXXXX` sauf instruction contraire. Chaque tiret cadratin d'un message de
-    règle différerait.
-
-Les deux sont traités ici, pour qu'aucun appelant n'ait à s'en souvenir.
-"""
+"""Une sérialisation qui correspond octet pour octet au `json.MarshalIndent(v, "", " ")` de Go."""
 
 from __future__ import annotations
 
@@ -43,13 +26,7 @@ _GO_FLOAT_EXP_THRESHOLD = 1e21
 
 
 def _go_numbers(v: Any) -> Any:
-    """Réécrit les flottants entiers en entiers, comme Go écrit un float64.
-
-    Go sérialise `float64(70)` en `70` ; le `json` de Python écrit `70.0`. Les
-    données de tarification du paquet de règles sont le seul endroit où des
-    flottants atteignent un document sérialisé, et un pack régénéré doit être
-    comparable au pack commité.
-    """
+    """Réécrit les flottants entiers en entiers, comme Go écrit un float64."""
     if isinstance(v, bool):
         return v  # bool is an int subclass; it must stay true/false
     if isinstance(v, float):
@@ -75,13 +52,7 @@ def marshal_indent(v: Any) -> bytes:
 
 
 def marshal(v: Any) -> bytes:
-    """Sérialise comme le ferait `json.Marshal` de Go : compact, sans espaces.
-
-    Utilisé pour les packs de règles générés, qui sont comparés aux packs
-    commités — une espace après chaque deux-points ferait plusieurs centaines de
-    kilo-octets de différence sur le pack AWS complet, et un diff que personne ne
-    peut lire.
-    """
+    """Sérialise comme le ferait `json.Marshal` de Go : compact, sans espaces."""
     out = json.dumps(_go_numbers(v), separators=(",", ":"), ensure_ascii=False)
     for raw, escaped in _GO_ESCAPES:
         out = out.replace(raw, escaped)

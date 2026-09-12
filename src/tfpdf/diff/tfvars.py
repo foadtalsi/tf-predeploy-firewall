@@ -1,11 +1,4 @@
-"""Collecte des fichiers .tfvars, dans chacun des quatre modes du scanner.
-
-Port de internal/diff/tfvars.go.
-
-Il leur faut leurs propres motifs de chemin parce que le glob « *.tf » ne les
-attrape pas, et parce que deux formes sont en usage : terraform.tfvars et
-*.auto.tfvars (HCL), plus leurs équivalents .json.
-"""
+"""Collecte des fichiers .tfvars, dans chacun des quatre modes du scanner."""
 
 from __future__ import annotations
 
@@ -48,13 +41,7 @@ def staged_tfvars_files(repo_dir: str) -> list[ChangedFile]:
 
 
 def uncommitted_tfvars_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier .tfvars différant de HEAD dans la copie de travail, les non
-    suivis compris.
-
-    Le non-suivi compte ici plus que partout ailleurs : tout l'intérêt d'une
-    vérification de pre-commit sur un fichier .tfvars est d'attraper le secret à
-    l'instant qui précède le `git add` qui en ferait une part du dépôt.
-    """
+    """Tout fichier .tfvars différant de HEAD dans la copie de travail, les non suivis compris."""
     return _multi_spec(repo_dir, _uncommitted_files)
 
 

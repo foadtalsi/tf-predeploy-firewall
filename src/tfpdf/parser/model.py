@@ -1,9 +1,4 @@
-"""Le modèle de blocs normalisé sur lequel travaille le moteur de règles.
-
-Port de internal/parser/model.go. Les règles voient ces types et ne touchent
-jamais à l'AST HCL, si bien qu'un changement dans la façon dont le HCL est
-analysé ne peut pas se propager dans trente fichiers de règles.
-"""
+"""Le modèle de blocs normalisé sur lequel travaille le moteur de règles."""
 
 from __future__ import annotations
 
@@ -14,13 +9,7 @@ from ..hcl import Range
 
 
 class Kind(StrEnum):
-    """Les natures de bloc de premier niveau que ce paquet normalise.
-
-    Elles partagent un seul type parce que toute règle qui s'intéresse aux
-    *valeurs* — un mot de passe en dur, un CIDR ouvert — s'y intéresse de façon
-    identique ; seules les règles ayant besoin d'un schéma de fournisseur sont
-    réservées aux ressources.
-    """
+    """Les natures de bloc de premier niveau que ce paquet normalise."""
 
     #: A `resource "aws_db_instance" "prod" { … }` block.
     RESOURCE = "resource"
@@ -115,17 +104,7 @@ class Resource:
 
 
 def type_from_address(addr: str) -> tuple[str, bool, bool]:
-    """Relit le type de ressource du fournisseur depuis une adresse Terraform.
-
-    L'inverse de `Resource.address`, et des adresses qu'emploie `terraform show
-    -json`, qui suivent la même grammaire. Elle existe pour que tout ce qui ne
-    détient qu'une adresse — une découverte, une entrée de plan — puisse quand
-    même atteindre la documentation du fournisseur pour ce type.
-
-    Rend (type_de_ressource, est_source_de_données, ok). `ok` vaut False pour
-    les adresses sans type propre : un appel de module, ou le « - » de
-    remplacement que porte une découverte concernant tout un fichier.
-    """
+    """Relit le type de ressource du fournisseur depuis une adresse Terraform."""
     parts = addr.split(".")
 
     # A plan address can be nested arbitrarily deep in modules

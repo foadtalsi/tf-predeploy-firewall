@@ -1,17 +1,4 @@
-"""Règles de détection définies par l'organisation, de façon déclarative.
-
-Port de internal/customrules/customrules.go.
-
-Du YAML : type de ressource, attribut ou bloc, et expression régulière — sans
-que cet outil n'exécute jamais de code fourni par l'organisation. Un
-interpréteur de DSL sans aucune surface `eval` ou `exec` est une frontière de
-sécurité délibérée : ce projet tourne dans les pipelines CI d'autres gens, donc
-« laissons les clients écrire du code qui s'exécute ici » n'est pas un compromis
-à prendre pour une commodité.
-
-**Voir aussi le défaut connu de `parser.cty_value_to_string`**, qui fait qu'une
-règle `negate: true` sur un attribut valant un objet se déclenche à tort.
-"""
+"""Règles de détection définies par l'organisation, de façon déclarative."""
 
 from __future__ import annotations
 
@@ -29,12 +16,7 @@ VALID_SEVERITIES = frozenset({"low", "medium", "high", "critical"})
 
 
 class CustomRuleError(ValueError):
-    """Un jeu de règles personnalisées qui n'a pas pu être analysé ou validé.
-
-    Bruyant par choix : une faute de frappe dans la configuration d'une
-    organisation doit faire échouer le scan plutôt que de ne rien détecter en
-    silence.
-    """
+    """Un jeu de règles personnalisées qui n'a pas pu être analysé ou validé."""
 
 
 @dataclass(slots=True)
@@ -182,13 +164,7 @@ class Config:
 
 
 def load(data: bytes | str) -> Config:
-    """Analyse et valide un jeu de règles personnalisées.
-
-    Chaque règle est validée au chargement — sévérité valide, expression
-    régulière valide, champs obligatoires présents — pour qu'une faute de frappe
-    dans la configuration d'une organisation fasse échouer le scan bruyamment
-    plutôt que de ne rien détecter en silence.
-    """
+    """Analyse et valide un jeu de règles personnalisées."""
     try:
         raw = yaml.safe_load(data)
     except yaml.YAMLError as exc:

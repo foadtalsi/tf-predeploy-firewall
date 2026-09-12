@@ -1,22 +1,11 @@
-"""Le CLI de TF Pre-Deploy Firewall.
-
-Port de cmd/tf-predeploy-firewall/main.go.
-
-Scanne les fichiers .tf modifiés entre deux références git, rapporte les
-découvertes de risque, et éventuellement poste ou met à jour un commentaire de
-PR et conditionne le code de sortie à un seuil de sévérité.
-
-Codes de sortie, inchangés depuis la version Go parce que des CI en dépendent :
-
-    0  exécuté, rien au niveau du seuil de blocage ni au-dessus
-    1  bloqué — une découverte a atteint le seuil
-    2  le scan n'a pas pu tourner (mauvais drapeaux, config illisible, échec git)
-    3  le quota du plan de l'organisation est épuisé
-"""
+"""Point d'entrée CLI. Codes de sortie : 0 succès, 1 blocage, 2 erreur de scan, 3 quota épuisé."""
 
 from __future__ import annotations
 
 import sys
+
+#: "dev" means a from-source build, matching the Go binary's unstamped default.
+from importlib.metadata import PackageNotFoundError, version
 
 from .. import (
     diff,
@@ -37,16 +26,9 @@ from .pipeline import blocked_by as blocked_by
 from .pipeline import load_knowledge_base as load_knowledge_base
 from .pipeline import load_ruleset as load_ruleset
 
-#: "dev" means a from-source build, matching the Go binary's unstamped default.
-try:  # pragma: no cover - depends on how the package was installed
-    from importlib.metadata import PackageNotFoundError
-    from importlib.metadata import version as _pkg_version
-
-    try:
-        VERSION = _pkg_version("tf-predeploy-firewall")
-    except PackageNotFoundError:
-        VERSION = "dev"
-except ImportError:  # pragma: no cover
+try:
+    VERSION = version("tf-predeploy-firewall")
+except PackageNotFoundError:  # pragma: no cover
     VERSION = "dev"
 
 
@@ -65,13 +47,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     report.set_tool_version(VERSION)
 
-    if (
-        sum(
-            bool(enabled)
-            for enabled in (arguments.staged, arguments.uncommitted, arguments.full_repo_scan)
-        )
-        > 1
-    ):
+    if sum((arguments.staged, arguments.uncommitted, arguments.full_repo_scan)) > 1:
         return _die("--staged, --uncommitted and --full-repo-scan are mutually exclusive")
     post_comment = bool(arguments.post_comment)
     if arguments.staged or arguments.uncommitted:
@@ -106,9 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         return execute_scan(arguments, config, post_comment)
-    except ConfigError as exc:
-        return _die(str(exc))
-    except diff.GitError as exc:
+    except (ConfigError, diff.GitError) as exc:
         return _die(str(exc))
 
 

@@ -41,13 +41,7 @@ def _die(message: str) -> int:
 
 
 def _wants_markdown_on_stdout(choice: str) -> bool:
-    """Dit si stdout reçoit le Markdown plutôt que la mise en forme terminal.
-
-    Le défaut est « auto » plutôt que « text » à cause de ce qui existe déjà :
-    des scripts redirigent cette sortie vers un fichier ou la passent à un
-    autre outil, et changer ce qu'ils reçoivent casserait sans prévenir. Un
-    terminal, lui, n'a jamais rien attendu de particulier.
-    """
+    """En mode auto, conserve le Markdown pour les redirections et le texte pour un terminal."""
     if choice == "markdown":
         return True
     if choice == "text":
@@ -59,27 +53,13 @@ def _wants_markdown_on_stdout(choice: str) -> bool:
 
 
 def blocked_by(findings: list[Finding], threshold: Severity | str) -> bool:
-    """Dit si une découverte *active* atteint le seuil.
-
-    Les découvertes couvertes par une dérogation sont sautées, ce qui est la
-    différence avec `severity.should_block_ignoring_waivers` — voir le nom de
-    cette fonction.
-    """
+    """Bloque si une découverte non acceptée atteint le seuil."""
     return any(finding.severity.at_least(threshold) for finding in findings if not finding.waived)
 
 
 def load_ruleset(path: str, opts: Options) -> list[Rule]:
-    """Résout le pack de règles de ce scan : celui livré avec la version, ou un
-    fichier externe quand `--rules` en nomme un.
-
-    Un pack externe REMPLACE le jeu intégré au lieu de s'y ajouter, ce qui est
-    la seule option honnête : un pack qui ne pourrait qu'ajouter des règles ne
-    pourrait pas corriger un faux positif d'une règle intégrée, et c'est la
-    première raison pour laquelle on se saisit de cette option. Cela veut dire
-    aussi qu'une erreur ici donne un scan tournant sur bien moins de règles que
-    l'opérateur ne le croit : l'échange est donc annoncé sur stderr, avec le
-    décompte.
-    """
+    """Charge les règles intégrées ou un pack externe. Celui-ci les remplace, sauf avec extends:
+    builtin."""
     if not path:
         return rules.default_rules(opts)
 
@@ -119,19 +99,8 @@ def load_ruleset(path: str, opts: Options) -> list[Rule]:
 def load_knowledge_base(
     license_key: str, api_base: str, providers: list[str]
 ) -> schema.KnowledgeBase:
-    """Construit la base de connaissances du moteur de règles : le pack de base
-    gratuit livré avec cette version, plus — pour une organisation sous licence
-    — le pack étendu couvrant toute la surface de ressources du fournisseur.
-
-    Sans clé de licence, ceci ne fait aucune entrée-sortie réseau et le scanner
-    se comporte exactement comme l'outil gratuit qu'il a toujours été.
-
-    Avec une clé, un pack étendu impossible à récupérer est un avertissement,
-    jamais une erreur : le scan continue sur le pack de base. Une couverture qui
-    rétrécirait en silence serait ici le pire mode de défaillance possible, donc
-    une couverture réduite est toujours énoncée à voix haute plutôt que déduite
-    de découvertes absentes.
-    """
+    """Superpose les packs payants aux packs intégrés. Un échec conserve la couverture disponible
+    et émet un avertissement."""
     if not license_key or not providers:
         return schema.load()
 

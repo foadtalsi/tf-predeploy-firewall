@@ -11,17 +11,8 @@ from typing import Any
 
 @dataclass(slots=True)
 class Policy:
-    """Une surcharge des réglages par défaut du scanner, valable pour toute
-    l'organisation, réservée au plan Growth et gérée centralement via le plan de
-    contrôle plutôt qu'éparpillée dans le config.yml local de chaque dépôt.
-
-    Un champ à `None` signifie « pas de surcharge pour ce réglage » : l'appelant
-    garde ce que disait la configuration locale. C'est pourquoi chaque champ est
-    optionnel plutôt que doté d'une valeur par défaut — Go utilise des pointeurs
-    ici pour la même raison, et un `ignore_rules: []` que le plan de contrôle a
-    délibérément envoyé n'est pas la même instruction qu'un `ignore_rules` dont
-    il n'a jamais parlé.
-    """
+    """Surcharges de configuration distantes. None signifie absence de surcharge, distincte d'une
+    liste vide."""
 
     block_threshold: str | None = None
     ignore_rules: list[str] | None = None
@@ -42,12 +33,7 @@ class Policy:
     require_second_reviewer_teams: list[str] | None = None
 
     def is_empty(self) -> bool:
-        """Dit si le plan de contrôle n'a envoyé aucune surcharge.
-
-        Le plan de contrôle répond `{}` quand aucune politique n'existe, ce qui
-        décode en une Policy dont tous les champs sont vides — et l'appelant
-        veut `None` pour cela, pas un objet qui ne surcharge rien.
-        """
+        """Dit si le plan de contrôle n'a envoyé aucune surcharge."""
         return all(
             getattr(self, field_name) is None
             for field_name in (

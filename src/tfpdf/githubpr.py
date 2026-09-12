@@ -1,10 +1,4 @@
-"""Publication du rapport de scan sur une pull request GitHub.
-
-Porte internal/githubpr/comment.go et internal/githubpr/review.go.
-
-L'API REST nue, sans SDK : c'est une poignée d'appels par pipeline, et un SDK
-serait une dépendance que la CI d'autres gens devrait valider à leur place.
-"""
+"""Publication du rapport de scan sur une pull request GitHub."""
 
 from __future__ import annotations
 
@@ -72,16 +66,8 @@ class Client:
     # --- reviewers --------------------------------------------------------
 
     def request_reviewers(self, users: list[str], teams: list[str]) -> None:
-        """Demande une relecture aux utilisateurs et groupes donnés — sert à
-        imposer une seconde relecture humaine quand une découverte critique est
-        présente.
-
-        Ceci ne fait que demander la relecture ; c'est GitHub lui-même, via le
-        réglage des relecteurs obligatoires de la protection de branche —
-        configuré une fois sur le dépôt et non par PR — qui bloque réellement la
-        fusion dessus. Sans effet, silencieusement, si les deux listes sont
-        vides.
-        """
+        """Demande une relecture aux utilisateurs et groupes donnés — sert à imposer une seconde
+        relecture humaine quand une découverte critique est présente."""
         if not users and not teams:
             return
         url = (
@@ -99,26 +85,7 @@ class Client:
     def post_suggestions(
         self, summary: str, comments: list[InlineComment], commit_sha: str
     ) -> SuggestionOutcome:
-        """Rattache les commentaires à la PR en une seule revue.
-
-        Deux contraintes de GitHub façonnent ceci. D'abord, un commentaire de
-        revue ne peut se poser que sur une ligne figurant dans le diff — tout
-        autre cas fait rejeter la revue entière par l'API, et pas seulement le
-        commentaire fautif — donc le diff est récupéré et les commentaires hors
-        de lui sont écartés ici plutôt que découverts sous forme de 422.
-        Ensuite, une revue ne peut pas être modifiée d'un bloc comme le
-        commentaire de synthèse : réexécuter empilerait une copie fraîche de
-        chaque suggestion sur la PR. Les deux sont traitées avant que quoi que
-        ce soit ne soit posté.
-
-        `commit_sha` doit être la tête de PR sur laquelle ce scan a réellement
-        tourné. Le passer fait que si la branche a bougé entre-temps, GitHub
-        rejette la revue au lieu d'épingler des suggestions sur des lignes qui
-        ont changé depuis.
-
-        Rend sans rien avoir posté, et sans erreur, quand tous les commentaires
-        ont été écartés — le cas courant d'une réexécution sans changement.
-        """
+        """Rattache les commentaires à la PR en une seule revue."""
         out = SuggestionOutcome()
         if not comments:
             return out
@@ -167,16 +134,8 @@ class Client:
         return out
 
     def _commentable_lines(self) -> dict[str, set[int]]:
-        """Associe à chaque fichier modifié les numéros de lignes, dans le fichier
-        d'après changement, sur lesquels GitHub acceptera un commentaire de
-        revue.
-
-        Les lignes ajoutées comme les lignes de contexte y ont droit ; seules
-        les lignes supprimées non, n'ayant aucune position dans le nouveau
-        fichier. Que les lignes de contexte comptent n'est pas un détail : une
-        ressource sans prevent_destroy est généralement signalée sur son en-tête
-        `resource "…" {` inchangé, qui n'apparaît dans le diff qu'en contexte.
-        """
+        """Associe à chaque fichier modifié les numéros de lignes, dans le fichier d'après
+        changement, sur lesquels GitHub acceptera un commentaire de revue."""
         out: dict[str, set[int]] = {}
         for page in range(1, _MAX_PAGES + 1):
             url = (

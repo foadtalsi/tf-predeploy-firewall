@@ -1,9 +1,4 @@
-"""Normalise de la source .tf brute en le modèle Resource qu'inspecte le
-moteur de règles.
-
-Port de internal/parser. Enveloppe `tfpdf.hcl` pour que les règles ne touchent
-jamais directement à l'AST.
-"""
+"""Normalise de la source .tf brute en le modèle Resource qu'inspecte le moteur de règles."""
 
 from .hcl import (
     cty_value_to_string,

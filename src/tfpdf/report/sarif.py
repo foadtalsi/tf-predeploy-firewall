@@ -1,15 +1,4 @@
-"""Sortie SARIF 2.1.0, pour envoi vers GitHub Code Scanning.
-
-Port de internal/report/sarif.go.
-
-Seul le sous-ensemble du format que Code Scanning lit réellement est modélisé.
-Spécification : https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html
-
-Chaque dataclass ici se sérialise explicitement plutôt que par un encodeur
-générique, parce que l'ordre des clés et le comportement d'omission des valeurs
-vides doivent tous deux correspondre à ce que produisent les étiquettes de
-structure de Go.
-"""
+"""Sortie SARIF 2.1.0, pour envoi vers GitHub Code Scanning."""
 
 from __future__ import annotations
 
@@ -216,17 +205,8 @@ SARIF_RULES: list[SarifRule] = [
 
 
 def described_rules() -> list[SarifRule]:
-    """`SARIF_RULES`, chaque entrée voyant son texte d'aide, sa description
-    complète et son lien de documentation remplis depuis le pack de règles.
-
-    Gardé comme une dérivation plutôt qu'écrit dans les littéraux ci-dessus pour
-    que les deux ne puissent pas diverger : une catégorie ajoutée à l'un et
-    oubliée dans l'autre apparaît comme une règle sans explication, ce que le
-    test vérifie.
-
-    `replace` plutôt qu'une mutation — le catalogue est un état de module, et un
-    rendu qui l'éditerait fuirait dans le suivant.
-    """
+    """`SARIF_RULES`, chaque entrée voyant son texte d'aide, sa description complète et son lien
+    de documentation remplis depuis le pack de règles."""
     out: list[SarifRule] = []
     for r in SARIF_RULES:
         h = lookup_rule_help(r.id)

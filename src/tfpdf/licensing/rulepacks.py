@@ -1,18 +1,5 @@
-"""Récupère le pack de règles étendu d'une organisation sous licence et le
-superpose au pack de base embarqué.
-
-Port de internal/licensing/rulepacks.go.
-
-Trois propriétés à tenir, par ordre de priorité :
-
-1. **Un scan n'échoue jamais à cause de nous.** Plan de contrôle tombé, lent ou
-   incohérent : le scan tourne sur la dernière copie en cache, ou à défaut sur
-   le pack de base embarqué.
-2. **Aucune découverte n'apparaît ni ne disparaît en silence.** Le pack
-   réellement utilisé est indiqué dans la sortie du scan.
-3. **Pas de retéléchargement de 560 Ko à chaque scan.** Cache disque revalidé
-   par ETag ; le régime permanent est un 304.
-"""
+"""Récupère le pack de règles étendu d'une organisation sous licence et le superpose au pack de
+base embarqué."""
 
 from __future__ import annotations
 
@@ -72,17 +59,8 @@ class RulePack:
 def fetch_rule_pack(
     api_base: str, api_key: str, provider: str
 ) -> tuple[RulePack | None, Exception | None]:
-    """Rend le pack de règles étendu d'un fournisseur, en préférant une copie
-    fraîche, puis une copie en cache, et en indiquant précisément laquelle a
-    servi.
-
-    L'erreur rendue est **consultative** : chaque fois qu'elle est non-None,
-    l'appelant doit avertir et continuer sur le pack de base, jamais abandonner.
-    Un résultat `(None, None)` est impossible — l'un des deux est toujours posé.
-    Rendre une paire plutôt que lever est délibéré, à l'image du `(pack, err)`
-    de Go : le cas intéressant ici est d'avoir *les deux* à la fois, un pack en
-    cache utilisable accompagné de la raison pour laquelle il n'est pas frais.
-    """
+    """Récupère un pack, avec repli sur le cache. Retourne le pack et une éventuelle erreur
+    consultative."""
     cache_dir: Path | None
     try:
         cache_dir = pack_cache_dir()
@@ -171,13 +149,7 @@ def _download_rule_pack(
 
 def _user_cache_dir() -> Path:
     """Le répertoire de cache par utilisateur de la plateforme, correspondant à
-    l'`os.UserCacheDir` de Go.
-
-    Écrit explicitement plutôt que pris dans une bibliothèque, parce que le
-    chemin doit être celui qu'utilisait la version Go : un job de CI qui met en
-    cache `~/.cache/tf-predeploy-firewall` continue de fonctionner à travers la
-    bascule au lieu de repartir silencieusement d'un cache froid.
-    """
+    l'`os.UserCacheDir` de Go."""
     # Read into a local first. `sys.platform` compared inline is special-cased
     # by type checkers, which then declare every branch but this machine's
     # unreachable — and all three branches have to stay checked.
@@ -203,12 +175,7 @@ def _user_cache_dir() -> Path:
 
 
 def pack_cache_dir() -> Path:
-    """Où les packs sont mis en cache.
-
-    `TFPDF_CACHE_DIR` existe pour qu'un job de CI puisse le pointer sur un
-    répertoire qu'il restaure déjà entre deux exécutions (actions/cache),
-    ramenant le régime permanent à zéro appel réseau.
-    """
+    """Où les packs sont mis en cache."""
     base = os.environ.get("TFPDF_CACHE_DIR")
     root = Path(base) if base else _user_cache_dir() / "tf-predeploy-firewall"
     dir_ = root / "rulepacks"

@@ -1,20 +1,6 @@
-"""Charge les packs de règles : la surface d'arguments valides de chaque type de
-ressource, ses arguments ForceNew, s'il est porteur d'état, et son prix
-approximatif — sans plan, sans état et sans identifiants.
-
-Port de internal/schema/loader.go et docs.go.
-
-Les packs sont des fichiers de données générés par un outil qui ne vit pas
-dans ce dépôt (`tfpdfcloud.genpack`, plan de contrôle). Le
-scanner embarque un pack de base et peut y superposer un pack plus large
-récupéré au moment du scan ; les deux viennent de la même version du
-fournisseur, donc la superposition ne contredit jamais la base.
-
-Plus rien ici n'est écrit à la main par type de ressource. Les listes curées que
-ceci remplace donnaient 29 arguments à `aws_instance` là où le fournisseur en
-déclare 71, et chaque argument manquant devenait une fausse découverte
-« attribut halluciné » — en sévérité haute, donc bloquante.
-"""
+"""Charge les packs de règles : la surface d'arguments valides de chaque type de ressource, ses
+arguments ForceNew, s'il est porteur d'état, et son prix approximatif — sans plan, sans état
+et sans identifiants."""
 
 from __future__ import annotations
 
@@ -68,13 +54,7 @@ class ResourceSchema:
 
 @dataclass(slots=True)
 class PricingSpec:
-    """Le coût mensuel approximatif curé pour un type de ressource.
-
-    Un type peut avoir un coût forfaitaire `base`, et/ou un coût dépendant de
-    la valeur d'un unique attribut moteur de prix (`attribute`, par exemple
-    instance_type). Un raté dans `by_attribute` retombe sur `default`. Tous les
-    chiffres sont des estimations grossières en dollars par mois.
-    """
+    """Le coût mensuel approximatif curé pour un type de ressource."""
 
     #: Flat monthly cost regardless of arguments.
     base: float = 0.0
@@ -99,13 +79,7 @@ class PricingSpec:
 
 @dataclass(slots=True)
 class _PackResource:
-    """L'entrée d'un type de ressource telle qu'elle apparaît sur disque.
-
-    Décodée paresseusement : le pack AWS complet fait environ 14 Mo de JSON
-    couvrant quelque 1700 types, et un scan n'en touche typiquement que
-    quelques dizaines. Garder l'entrée brute et décoder à la demande garde le
-    coût proportionnel au dépôt scanné plutôt qu'à la taille du pack.
-    """
+    """L'entrée d'un type de ressource telle qu'elle apparaît sur disque."""
 
     top_level: list[str] = field(default_factory=list)
     nested_blocks: dict[str, list[str]] = field(default_factory=dict)
@@ -206,13 +180,7 @@ class Coverage:
 
 
 class KnowledgeBase:
-    """Les packs chargés, éventuellement pour plusieurs fournisseurs à la fois.
-
-    Les types de ressources sont naturellement cloisonnés par leur préfixe
-    (aws_db_instance, azurerm_mssql_server), donc les recherches n'ont besoin
-    d'aucun routage par fournisseur : les packs sont simplement consultés dans
-    l'ordre de chargement inverse. À construire avec `load` ou `load_with`.
-    """
+    """Les packs chargés, éventuellement pour plusieurs fournisseurs à la fois."""
 
     __slots__ = ("_embedded", "_packs")
 
@@ -235,12 +203,7 @@ class KnowledgeBase:
         return None
 
     def resource_schema(self, r_type: str) -> ResourceSchema | None:
-        """La surface d'arguments valides d'un type de ressource.
-
-        Les types que ne couvre aucun pack chargé rendent None, et la règle des
-        arguments inconnus les saute entièrement : sous-détecter est toujours
-        préférable à signaler du Terraform valide.
-        """
+        """La surface d'arguments valides d'un type de ressource."""
         resource = self._lookup(r_type)
         if resource is None or not resource.top_level:
             return None
@@ -306,24 +269,8 @@ class KnowledgeBase:
         return None
 
     def doc_url(self, r_type: str, data_source: bool = False) -> str:
-        """La page de documentation du Terraform Registry pour un type de
-        ressource, ou « » quand aucun pack chargé ne le couvre.
-
-        L'URL épingle la version du fournisseur depuis laquelle le pack a été
-        généré, au lieu de pointer sur « latest ». Une découverte affirme qu'un
-        argument n'existe pas ; la page qui étaye cette affirmation doit être
-        la version du fournisseur contre laquelle le scanner a vérifié, sinon
-        la première chose qu'un lecteur sceptique trouve est une page de doc en
-        désaccord avec l'outil, pour des raisons qu'aucun des deux n'explique.
-
-        À noter : les packs ne décrivent que des types de ressources. Une
-        source de données dont le nom n'a pas d'équivalent en ressource —
-        aws_availability_zones, aws_caller_identity — n'obtient donc aucun
-        lien, même si sa page de documentation existe. Deviner l'URL depuis le
-        nom du type marcherait la plupart du temps, et le reste du temps
-        enverrait quelqu'un sur un 404 pour vérifier une affirmation ; un lien
-        absent est le moindre échec.
-        """
+        """La page de documentation du Terraform Registry pour un type de ressource, ou « » quand
+        aucun pack chargé ne le couvre."""
         pack = self._pack_for(r_type)
         if pack is None:
             return ""
@@ -367,15 +314,8 @@ def parse_pack(fp: IO[bytes] | bytes) -> _LoadedPack:
 
 
 def load() -> KnowledgeBase:
-    """La base de connaissances construite à partir des seuls packs de base
-    embarqués — l'offre gratuite, et le repli chaque fois qu'aucun pack étendu
-    n'est disponible.
-
-    Chaque pack de base sous `data/` est livré avec la distribution, un par
-    fournisseur que l'offre gratuite couvre. Ajouter un fournisseur à l'offre
-    gratuite est donc un changement de données — déposer
-    pack_<fournisseur>_base.json.gz dans data/ — et non un changement de code.
-    """
+    """La base de connaissances construite à partir des seuls packs de base embarqués — l'offre
+    gratuite, et le repli chaque fois qu'aucun pack étendu n'est disponible."""
     packs: list[_LoadedPack] = []
     data_dir = resources.files(__package__).joinpath("data")
     names = sorted(pack.name for pack in data_dir.iterdir() if pack.name.endswith(".json.gz"))
@@ -393,13 +333,8 @@ def load() -> KnowledgeBase:
 
 
 def load_with(*extra: IO[bytes] | bytes) -> tuple[KnowledgeBase, list[Exception]]:
-    """La base de connaissances avec des packs supplémentaires superposés aux
-    packs de base embarqués, dans l'ordre donné.
-
-    Un pack qui échoue à l'analyse est signalé mais n'empêche pas le
-    chargement : perdre un pack étendu doit dégrader la couverture, jamais
-    casser la CI d'un client.
-    """
+    """Superpose les packs dans l'ordre donné. Retourne la couverture disponible et les erreurs
+    de chargement."""
     errs: list[Exception] = []
     knowledge_base = load()
     for resource in extra:

@@ -1,15 +1,4 @@
-"""Sortie Code Quality de GitLab.
-
-Port de internal/report/codequality.go.
-
-Le JSON dérivé de CodeClimate que le widget de merge request de GitLab rend
-nativement. C'est l'équivalent GitLab de l'envoi de SARIF sur GitHub : les
-découvertes apparaissent dans l'interface de la MR elle-même, avec des flèches
-de dégradation par rapport à la branche cible, sans qu'aucun jeton de
-publication de commentaire ne soit requis.
-
-https://docs.gitlab.com/ci/testing/code_quality/#code-quality-report-format
-"""
+"""Sortie Code Quality de GitLab."""
 
 from __future__ import annotations
 
@@ -32,16 +21,8 @@ SEVERITY_TO_CODE_QUALITY = {
 
 
 def render_code_quality(findings: list[Finding]) -> bytes:
-    """Sérialise les découvertes en un rapport Code Quality GitLab.
-
-    L'empreinte exclut délibérément le numéro de ligne : GitLab compare les
-    problèmes d'un pipeline à l'autre par empreinte, et une empreinte qui se
-    décalerait avec la ligne ferait ressembler chaque rebase à des découvertes
-    qui apparaissent et disparaissent. Elle inclut en revanche le message,
-    contrairement à la clé plus grossière de la référence : deux découvertes de
-    même catégorie sur une même ressource — deux identifiants en dur, par
-    exemple — ne doivent pas se fondre en une seule ligne du widget.
-    """
+    """Produit le rapport GitLab. L'empreinte inclut le message mais exclut la ligne pour rester
+    stable après déplacement."""
     issues: list[dict[str, Any]] = []
     for finding in findings:
         if finding.waived:

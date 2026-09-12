@@ -1,12 +1,4 @@
-"""Le choix de la forge depuis l'environnement CI, et tout ce qui y est posté.
-
-Porte la moitié « forge » de cmd/tf-predeploy-firewall/main.go.
-
-Chaque fonction ici est au mieux-effort. Elles s'exécutent après le commentaire
-de synthèse, qui porte déjà toutes les découvertes, donc un échec coûte le
-confort et rien d'autre — aucune ne touche au code de sortie. C'est la décision
-de blocage qui est le mécanisme d'application.
-"""
+"""Le choix de la forge depuis l'environnement CI, et tout ce qui y est posté."""
 
 from __future__ import annotations
 
@@ -48,49 +40,13 @@ def _warn(message: str) -> None:
 
 
 def repo_full_name_from_env() -> str:
-    """L'identité org/dépôt utilisée pour la licence — usage, dérogations,
-    politique d'organisation — sur la CI où tourne cette exécution.
-
-    Le plan de contrôle s'indexe sur la chaîne elle-même, donc
-    « groupe/projet » venu de GitLab vaut autant que « proprio/dépôt » venu de
-    GitHub.
-    """
+    """L'identité org/dépôt utilisée pour la licence — usage, dérogations, politique
+    d'organisation — sur la CI où tourne cette exécution."""
     return os.environ.get("GITHUB_REPOSITORY") or os.environ.get("CI_PROJECT_PATH", "")
 
 
 def repo_full_name(repo_dir: str = ".", override: str = "") -> str:
-    """Le nom sous lequel ce scan est rapporté au plan de contrôle.
-
-    Hors CI, `GITHUB_REPOSITORY` et `CI_PROJECT_PATH` sont tous les deux
-    absents, et ce nom était alors vide. Or il est **obligatoire** côté
-    serveur : un scan sans lui n'était pas rapporté du tout, donc pas décompté
-    du quota. Un poste de travail portant une clé de licence scannait sans
-    limite, en silence, et l'organisation ne voyait jamais ces scans dans son
-    tableau de bord. C'est ce trou que le repli sur le distant git bouche.
-
-    L'ordre, du plus fort au plus faible :
-
-    1. `--repo-name` / `TFPDF_REPO_NAME`, qui tranche partout — c'est la sortie
-       de secours quand rien d'autre ne convient ;
-    2. la variable de la CI, qui reste la source d'autorité là où elle existe ;
-    3. l'URL du distant `origin`, réduite à son chemin.
-
-    Le point 3 est fait pour **coïncider** avec le point 2 et non pour s'y
-    ajouter : `git@github.com:acme/infra.git` donne `acme/infra`, exactement ce
-    que GitHub Actions met dans `GITHUB_REPOSITORY`. Un dépôt scanné tantôt en
-    CI tantôt sur un poste reste donc un seul dépôt, et n'en consomme qu'un
-    dans la limite de dépôts du plan.
-
-    Ce que ce repli ne rattrape pas : la casse. `GITHUB_REPOSITORY` porte le
-    nom canonique, tandis que le distant porte ce que la personne a tapé en
-    clonant — `Acme/Infra` cloné ainsi compterait pour un second dépôt. Rendre
-    la chaîne minuscule casserait les forges dont les chemins sont sensibles à
-    la casse ; `--repo-name` est la réponse à ce cas-là.
-
-    Rendre "" reste possible (aucun dépôt git, aucun distant, un distant qui
-    est un simple chemin de dossier). L'appelant traite ce cas ; jamais une
-    erreur, un scan ne dépendant pas de savoir se nommer.
-    """
+    """Résout le dépôt : argument explicite, variables de CI, puis distant Git."""
     if override.strip():
         return override.strip()
     if from_ci := repo_full_name_from_env():
@@ -99,13 +55,7 @@ def repo_full_name(repo_dir: str = ".", override: str = "") -> str:
 
 
 def _repo_path_from_remote_url(url: str) -> str:
-    """Le « proprio/dépôt » contenu dans une URL de distant git, ou "".
-
-    Les trois formes qu'un `git remote get-url` peut rendre :
-    `https://hôte/chemin.git`, `ssh://git@hôte/chemin.git`, et la forme scp
-    `git@hôte:chemin.git`. Le chemin est gardé entier, sous-groupes GitLab
-    compris, parce que c'est entier que `CI_PROJECT_PATH` le donne.
-    """
+    """Le « proprio/dépôt » contenu dans une URL de distant git, ou ""."""
     url = url.strip().removesuffix("/")
     if not url:
         return ""
@@ -187,15 +137,8 @@ def _pr_number_from_event() -> int:
 
 
 def head_sha_from_event() -> str:
-    """Le commit de tête de la PR, depuis la charge utile de l'événement
-    Actions.
-
-    `GITHUB_SHA` n'est délibérément pas utilisé : sur un événement
-    pull_request il pointe sur le commit de fusion éphémère, qui n'est pas un
-    commit de la PR et que GitHub refuse comme commit_id d'une revue. Un
-    résultat vide convient : GitHub rattache alors la revue au dernier commit
-    en date.
-    """
+    """Lit le SHA de tête de la PR dans l'événement Actions, sans utiliser le commit de merge
+    synthétique."""
     event_path = os.environ.get("GITHUB_EVENT_PATH")
     if not event_path:
         return ""
@@ -237,12 +180,8 @@ def github_pr_client() -> githubpr.Client:
 
 
 def active_forge() -> tuple[_Forge, str]:
-    """La forge, et le SHA de tête sur lequel le scan a tourné (vide quand il
-    est indéterminable).
-
-    GitLab CI quand ses variables prédéfinies sont présentes, GitHub sinon —
-    le défaut historique, et ce que fournit action.yml.
-    """
+    """La forge, et le SHA de tête sur lequel le scan a tourné (vide quand il est
+    indéterminable)."""
     if os.environ.get("GITLAB_CI"):
         try:
             client = gitlabmr.from_env()
@@ -268,12 +207,8 @@ def post_to_pr(body: str) -> None:
 
 
 def post_suggestions(findings: list[Finding]) -> None:
-    """Poste en commentaires de revue en ligne les correctifs applicables tels
-    quels.
-
-    C'est la différence entre dire à quelqu'un quoi écrire et le laisser
-    cliquer sur un bouton.
-    """
+    """Publie les correctifs exacts en commentaires de revue ; conserve le rapport même si la
+    publication échoue."""
     render = suggestion_body_for()
     comments: list[InlineComment] = []
     dropped = 0
@@ -334,15 +269,7 @@ def post_suggestions(findings: list[Finding]) -> None:
 
 
 def request_second_reviewer_if_critical(findings: list[Finding], config: Config) -> None:
-    """Demande une relecture aux utilisateurs et groupes configurés dès qu'au
-    moins une découverte de sévérité critique est présente.
-
-    Au mieux-effort : un échec ici — l'un des identifiants configurés n'étant
-    pas collaborateur du dépôt, par exemple — est journalisé et n'affecte
-    jamais le code de sortie. Le blocage et la sortie en 1 dus au seuil sont le
-    véritable mécanisme d'application ; ceci n'est qu'un coup de coude poli
-    par-dessus.
-    """
+    """Demande les relecteurs configurés pour les découvertes critiques non acceptées."""
     if not config.require_second_reviewer_users and not config.require_second_reviewer_teams:
         return
     if os.environ.get("GITLAB_CI"):

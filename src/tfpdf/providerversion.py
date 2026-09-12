@@ -1,26 +1,4 @@
-"""Ce que le dépôt épingle, contre ce que le schéma embarqué décrit.
-
-Le scanner juge « cet argument existe-t-il ? » contre **une** version de
-fournisseur : celle du pack qu'il porte. La page d'accueil, elle, promet
-« whether an argument exists in the provider you're actually pinned to ».
-
-Les deux se contredisaient, et ça se voyait sur du vrai code. Un dépôt qui
-déclare `aws = "~> 3.0"` écrit légitimement `vpc = true` sur un `aws_eip` :
-l'attribut n'a disparu qu'en 6.x. Le scanner le signalait quand même, en
-« attribut inconnu », severity high, avec un lien vers la documentation 6.59.0 —
-c'est-à-dire une accusation confiante et fausse, sur exactement le point qui
-distingue ce produit de `terraform validate`.
-
-Ce module lit la contrainte et répond à une seule question : **le schéma que
-nous portons est-il dans la fourchette que ce module a épinglée ?** Quand la
-réponse est non, les découvertes tirées du schéma sont retirées pour ce
-fournisseur. Se taire vaut mieux qu'avoir tort avec assurance — nous n'avons pas
-le schéma de la version qu'ils utilisent, donc nous n'avons rien à en dire.
-
-Ce qui n'est PAS retiré : tout ce qui juge une valeur écrite plutôt qu'un
-schéma — credentials, entropie, CIDR ouverts, prevent_destroy, versions non
-épinglées. Ces règles ne dépendent d'aucune version de fournisseur.
-"""
+"""Ce que le dépôt épingle, contre ce que le schéma embarqué décrit."""
 
 from __future__ import annotations
 
@@ -115,13 +93,8 @@ def allows(constraint: str, version: str) -> bool:
 
 
 def constraints_in(source: bytes) -> dict[str, str]:
-    """Les contraintes déclarées dans les blocs `required_providers` d'un
-    fichier, par nom local de fournisseur.
-
-    Lit le texte brut plutôt que l'arbre analysé : `terraform { … }` n'est pas
-    une ressource, donc il ne passe pas par le modèle Resource, et c'est déjà
-    ainsi que la règle des versions non épinglées le lit.
-    """
+    """Les contraintes déclarées dans les blocs `required_providers` d'un fichier, par nom local
+    de fournisseur."""
     text = source.decode("utf-8", errors="replace")
     found: dict[str, str] = {}
     index = 0

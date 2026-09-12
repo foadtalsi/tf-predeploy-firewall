@@ -21,45 +21,12 @@ SEVERITY_EMOJI = {
 
 
 def _by_file_then_line(finding: Finding) -> tuple[str, int, str, str]:
-    """Un ordre **total**, contrairement à celui de Go.
-
-    Go trie sur `(fichier, ligne)` seuls avec `sort.Slice`, qui n'est pas
-    stable : l'ordre relatif de deux découvertes sur la même ligne est donc
-    décidé par la permutation que le pdqsort de Go produit. Elle est
-    reproductible pour une entrée donnée et arbitraire à tout autre égard, et
-    elle peut changer lors d'une montée de version de Go — un commentaire de PR
-    se réordonnerait en silence sans qu'aucune règle ait bougé. Deux découvertes
-    sur une même ligne n'a rien d'exotique non plus : une ressource avec état et
-    un mot de passe en dur reçoit `missing_lifecycle` et `tutorial_pattern` sur
-    sa ligne d'en-tête.
-
-    Étendre la clé à la catégorie et au message spécifie l'ordre au lieu d'en
-    hériter.
-
-    Cela ne reproduit **pas** la sortie de Go octet pour octet. Sur le corpus
-    de fixtures, `tutorial_pattern.tf` ligne 1 porte deux découvertes —
-    `missing_lifecycle` et `tutorial_pattern` — et les deux implémentations les
-    émettent dans un ordre différent. C'est le comportement voulu : notre ordre
-    est spécifié, celui de Go est celui que son pdqsort a produit ce jour-là.
-    Les tests de parité comparent donc les lignes du Markdown comme un
-    multiensemble plus la séquence (fichier, ligne), et non octet pour octet ;
-    SARIF et Code Quality, eux, restent identiques au bit près. La correction a
-    sa place côté Go également, où le comparateur devrait porter les deux mêmes
-    champs.
-    """
+    """Un ordre **total**, contrairement à celui de Go."""
     return (finding.file, finding.line, str(finding.category), finding.message)
 
 
 def render_markdown(findings: list[Finding], threshold: Severity | str, blocked: bool) -> str:
-    """Construit le corps complet du commentaire de PR pour un ensemble de
-    découvertes.
-
-    `blocked` indique si le seuil de sévérité configuré a été franchi par les
-    découvertes ACTIVES, c'est-à-dire non couvertes par une dérogation. Une
-    découverte avec dérogation ne contribue jamais à `blocked`, mais apparaît
-    quand même dans sa propre section plus bas : en accepter une n'est jamais
-    silencieux.
-    """
+    """Construit le corps complet du commentaire de PR pour un ensemble de découvertes."""
     sections: list[str] = [MARKER + "\n", "## TF Pre-Deploy Firewall\n\n"]
 
     active = [finding for finding in findings if not finding.waived]
@@ -106,12 +73,8 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
 
 
 def _render_waivers(sections: list[str], waived: list[Finding]) -> None:
-    """Liste les découvertes qu'un administrateur a acceptées via le plan de
-    contrôle (Starter et plus, GET /v1/waivers).
-
-    Elles restent visibles pour qu'une dérogation soit une décision documentée
-    et non une disparition silencieuse du rapport.
-    """
+    """Liste les découvertes qu'un administrateur a acceptées via le plan de contrôle (Starter et
+    plus, GET /v1/waivers)."""
     if not waived:
         return
     waived = sorted(waived, key=_by_file_then_line)
@@ -134,25 +97,15 @@ def _render_waivers(sections: list[str], waived: list[Finding]) -> None:
 
 
 def resource_cell(f: Finding) -> str:
-    """Rend l'adresse de la ressource, liée à la documentation du fournisseur
-    pour son type quand elle est connue.
-
-    Le lien est porté par l'adresse plutôt que par une colonne à lui : une
-    septième colonne coûterait de la largeur à chaque ligne, sur un tableau déjà
-    large, pour porter le même mot partout.
-    """
+    """Rend l'adresse de la ressource, liée à la documentation du fournisseur pour son type quand
+    elle est connue."""
     if not f.doc_url:
         return "`" + f.resource + "`"
     return f"[`{f.resource}`]({f.doc_url})"
 
 
 def _render_suggestions(sections: list[str], sorted_findings: list[Finding]) -> None:
-    """Ajoute un bloc repliable « Suggested fixes » par découverte qui en a un.
-
-    C'est du HCL à copier-coller, pas un patch calculé : cet outil n'a jamais
-    d'accès en écriture au dépôt. Gardé hors du tableau principal, un bloc de
-    code multi-lignes ne tenant pas dans une cellule de tableau markdown.
-    """
+    """Ajoute un bloc repliable « Suggested fixes » par découverte qui en a un."""
     if not any(finding.suggestion for finding in sorted_findings):
         return
 

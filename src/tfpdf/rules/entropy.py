@@ -1,20 +1,5 @@
-"""Détection des chaînes à forte entropie : le repli pour les secrets qui ne
-correspondent à aucun format connu.
-
-Port de internal/rules/entropy.go.
-
-Une clé AWS a un préfixe, un JWT a des points, un PEM a un en-tête — mais un
-jeton d'API aléatoire d'un SaaS quelconque n'est que quarante caractères de
-base64 sans aucune forme, et des motifs fondés sur la forme n'énuméreront jamais
-tous les fournisseurs. Le hasard lui-même est la seule propriété qu'ils
-partagent tous.
-
-Tout ici est réglé contre les faux positifs plutôt que pour le rappel, parce que
-cette vérification tourne sur chaque littéral de chaîne de chaque fichier scanné
-et que son mode de défaillance — signaler un ARN ou un identifiant de ressource
-comme un secret fuité — est exactement ce qui apprend aux gens à ignorer une
-règle.
-"""
+"""Détection des chaînes à forte entropie : le repli pour les secrets qui ne correspondent à
+aucun format connu."""
 
 from __future__ import annotations
 
@@ -70,44 +55,12 @@ _WHITESPACE = (" ", "\t", "\n")
 
 
 def is_public_by_shape(value: str) -> bool:
-    """Dit si une valeur est publique par construction, quelle que soit son
-    entropie.
-
-    Cette connaissance existait déjà, enfermée dans `looks_like_secret` — donc
-    consultée par le seul repli statistique, et par aucune des règles qui
-    apparient une forme. Le résultat se voyait sur du vrai code :
-
-        policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-
-    rapporté en **critical** comme « possible AWS secret key (40-char base64) ».
-    Le motif `[a-z0-9/+]{40}` n'est pas ancré : il trouve une fenêtre de quarante
-    caractères à l'intérieur du nom de la policy, la confirmation ne juge que
-    cette fenêtre, et personne n'a jamais regardé la valeur entière — qui
-    commence par `arn:`, une des formes listées ici depuis toujours.
-
-    Une politique gérée d'AWS est publique, constante, et documentée. Accuser
-    quelqu'un de l'avoir commise est le genre de découverte qui fait couper la
-    règle, puis l'outil.
-
-    Ne juge que le PRÉFIXE. Tout ce qui ressemble à un secret enfoui dans une
-    valeur plus grande — une clé dans un script `user_data`, une armure PEM sur
-    plusieurs lignes — doit continuer de sortir, et c'est le motif qui s'en
-    charge.
-    """
+    """Dit si une valeur est publique par construction, quelle que soit son entropie."""
     return value.lower().startswith(BENIGN_PREFIXES)
 
 
 def shannon_entropy(s: str) -> float:
-    """L'entropie par caractère de `s`, en bits.
-
-    Mesurée sur les **octets UTF-8**, et non sur les caractères Python, parce que
-    l'original Go indexe `s[i]` sur une chaîne — ce qui en Go est un octet — et
-    compte dans une table de 256 cases. Pour l'ASCII les deux coïncident
-    exactement ; pour tout le reste non, et la différence tombe sur un seuil qui
-    décide si une valeur est rapportée comme un secret fuité. Compter des
-    caractères ici ferait diverger les deux scanners précisément sur les entrées
-    les moins susceptibles de figurer dans une suite de tests.
-    """
+    """L'entropie par caractère de `s`, en bits."""
     if not s:
         return 0.0
     data = s.encode("utf-8")
@@ -125,17 +78,8 @@ def shannon_entropy(s: str) -> float:
 
 
 def looks_like_secret(value: str) -> tuple[float, bool]:
-    """Dit si une valeur littérale de chaîne a la signature statistique d'un
-    secret généré par machine, avec l'entropie mesurée pour le message de la
-    découverte.
-
-    Exportée aux côtés de `is_credential_attr_name`,
-    `match_credential_value_pattern` et `is_open_cidr` pour que les scanners
-    hors ressources (`tfpdf.tfvars`, `tfpdf.terragrunt`) jugent une valeur au
-    même standard exact qu'un attribut de ressource. Un secret n'est pas moins
-    commité parce qu'il siège dans un fichier .tfvars, et deux définitions
-    divergentes de « ressemble à un secret » seraient un bug en germe.
-    """
+    """Dit si une valeur littérale de chaîne a la signature statistique d'un secret généré par
+    machine, avec l'entropie mesurée pour le message de la découverte."""
     if byte_len(value) < ENTROPY_MIN_LENGTH:
         return 0.0, False
     # Propre à l'entropie, et NON à `is_public_by_shape` : mesurer le hasard
@@ -155,11 +99,5 @@ def looks_like_secret(value: str) -> tuple[float, bool]:
 
 
 def byte_len(s: str) -> int:
-    """La longueur en octets UTF-8, c'est-à-dire ce que rend le `len(string)`
-    de Go.
-
-    Sert aux seuils de longueur minimale et à la clause « over %d chars » des
-    découvertes d'entropie, pour que les deux scanners citent le même nombre au
-    lecteur.
-    """
+    """La longueur en octets UTF-8, c'est-à-dire ce que rend le `len(string)` de Go."""
     return len(s.encode("utf-8"))

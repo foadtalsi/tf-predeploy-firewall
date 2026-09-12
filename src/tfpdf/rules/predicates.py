@@ -1,15 +1,4 @@
-"""Le vocabulaire de prédicats qu'un fichier de règles peut invoquer.
-
-Port de internal/rules/predicates.go.
-
-C'est ici la frontière entre les données et le code. Une règle déclare *ce
-qu'*elle cherche ; quand décider demande plus qu'un motif — mesurer le hasard,
-distinguer une sortie base64 d'un chemin de fichier — elle nomme l'un de ces
-prédicats, et ces deux tables sont la liste complète de ce qu'un nom peut
-atteindre. Il n'y a ni crochet d'enregistrement ni chemin de greffon, donc
-l'ensemble des choses qu'une règle peut faire arriver est exactement ce qui est
-écrit ici, et auditable sur un écran.
-"""
+"""Le vocabulaire de prédicats qu'un fichier de règles peut invoquer."""
 
 from __future__ import annotations
 
@@ -19,15 +8,8 @@ from .entropy import looks_like_secret, shannon_entropy
 
 
 def looks_like_base64_secret(match: str) -> bool:
-    """Dit si une suite base64 de 40 caractères est plausiblement une sortie
-    aléatoire plutôt qu'un chemin ou un identifiant.
-
-    Deux conditions, toutes deux peu coûteuses et toutes deux nécessaires. Le
-    secret d'exemple canonique d'AWS
-    (wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY) passe les deux confortablement ;
-    la commande de build qui avait été un jour rapportée comme une clé fuitée
-    n'en passe aucune.
-    """
+    """Dit si une suite base64 de 40 caractères est plausiblement une sortie aléatoire plutôt
+    qu'un chemin ou un identifiant."""
     has_upper = has_lower = has_digit = False
     for r in match:
         if "A" <= r <= "Z":
@@ -68,11 +50,6 @@ VALUE_PREDICATES: dict[str, Callable[[str], tuple[float, bool]]] = {
 
 
 def known_predicates() -> tuple[list[str], list[str]]:
-    """Chaque nom qu'un fichier de règles peut employer, pour la passe de
-    validation qui tourne au chargement.
-
-    Une règle nommant un prédicat que cette version n'a pas doit échouer
-    bruyamment : le sauter en silence désactiverait un détecteur pendant que le
-    scan continuerait de rapporter un succès.
-    """
+    """Chaque nom qu'un fichier de règles peut employer, pour la passe de validation qui tourne
+    au chargement."""
     return sorted(CONFIRM_PREDICATES), sorted(VALUE_PREDICATES)

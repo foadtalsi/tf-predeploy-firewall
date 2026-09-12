@@ -1,31 +1,4 @@
-"""Le rapport tel qu'on le lit dans un terminal.
-
-Sans équivalent Go. Le scanner n'a longtemps eu qu'un seul rendu, le Markdown
-du commentaire de PR, et le CLI l'imprimait tel quel : un tableau Markdown,
-des balises `<details>`, un commentaire HTML de marquage et une URL de
-registre complète par ligne. Sur une pull request GitHub le rend joliment ;
-dans un terminal, trente-trois découvertes font trois cents lignes de syntaxe
-qu'aucun humain ne lit.
-
-Ce module ne remplace pas l'autre, il s'ajoute à côté. Le Markdown reste
-exactement ce qu'il était — il est comparé octet pour octet au scanner Go, et
-c'est lui qui part dans la PR. Ici on choisit l'inverse de ses contraintes :
-
-- **Groupé par règle, pas par fichier.** Un scan de dépôt entier répète deux
-  ou trois motifs sur trente lignes. Lire l'explication une fois puis parcourir
-  les emplacements est plus court et plus juste que relire la même phrase neuf
-  fois. C'est aussi ce qui rend la sortie utile quand elle grandit.
-- **Une ligne par emplacement.** Le message varie à l'intérieur d'un groupe
-  (l'attribut, le type de ressource), et ce qui varie est en tête de phrase
-  dans toutes les règles du pack — le tronquer à la largeur du terminal garde
-  donc la partie utile.
-- **Rien qu'on ne puisse copier.** Chaque emplacement s'écrit `fichier:ligne`,
-  la forme que les éditeurs et les terminaux savent ouvrir.
-
-Les couleurs suivent `NO_COLOR` (https://no-color.org) et disparaissent dès que
-la sortie n'est pas un terminal, pour qu'une redirection vers un fichier ne
-récolte pas des séquences d'échappement.
-"""
+"""Le rapport tel qu'on le lit dans un terminal."""
 
 from __future__ import annotations
 
@@ -151,13 +124,7 @@ def _headline(
 
 
 def _group_by_rule(findings: Iterable[Finding]) -> list[list[Finding]]:
-    """Regroupe par règle, en gardant l'ordre de première apparition.
-
-    La clé est `rule_name` quand elle existe et la catégorie sinon : une
-    découverte construite hors du pack n'a pas de nom de règle, et la ranger
-    sous « inconnu » avec les autres serait pire que de la ranger par
-    catégorie.
-    """
+    """Regroupe par règle, en gardant l'ordre de première apparition."""
     groups: dict[str, list[Finding]] = {}
     for finding in findings:
         groups.setdefault(finding.rule_name or str(finding.category), []).append(finding)
@@ -206,29 +173,12 @@ def _render_group(
 
 
 def _shared_message(group: list[Finding]) -> str:
-    """Le message du groupe, celui de la première découverte.
-
-    Les règles produisent une phrase par découverte, mais c'est la même phrase
-    avec un type ou un attribut différent dedans. En prendre une est donc
-    fidèle, et `_what_differs` s'occupe de rendre visible ce qui change.
-    """
+    """Le message du groupe, celui de la première découverte."""
     return " ".join(group[0].message.split())
 
 
 def _what_differs(group: list[Finding]) -> list[str]:
-    """Ce qui distingue chaque message des autres du même groupe.
-
-    Retire le plus long préfixe et le plus long suffixe communs à tout le
-    groupe ; ce qui reste est ce que la ligne doit dire de plus que l'en-tête.
-
-    Les deux bornes reculent jusqu'à une frontière de mot — guillemets
-    compris, sinon un préfixe commun d'un seul caractère laisse un `name"`
-    orphelin dont il faut deviner qu'il s'ouvrait avant la coupe.
-
-    Rendu vide quand ce qui diffère est déjà visible ailleurs sur la ligne :
-    répéter `cloudwatch_log_group` à côté de
-    `aws_cloudwatch_log_group.api_lambda` occupe une colonne pour rien.
-    """
+    """Ce qui distingue chaque message des autres du même groupe."""
     if len(group) < 2:
         return [""]
 
@@ -256,19 +206,7 @@ def _what_differs(group: list[Finding]) -> list[str]:
 
 
 def _quoted_subjects(differing: list[str]) -> list[str] | None:
-    """Réduit chaque ligne au terme cité qui l'ouvre, quand toutes en ont un.
-
-    Le pack met entre guillemets le sujet d'une découverte — l'attribut, la
-    clé. Quand ce qui distingue les lignes commence par un terme cité, ce
-    terme *est* la distinction et le reste de la phrase répète l'en-tête :
-    vingt-deux lignes de `"name" is a ForceNew attribute on…` deviennent
-    vingt-deux fois `"name"` ou `"hash_key"`.
-
-    Exigé de tout le groupe, et non ligne par ligne : une seule ligne sans
-    terme cité rendrait la colonne incomparable d'une ligne à l'autre, ce qui
-    est pire qu'une colonne un peu longue. Rend None dans ce cas, et
-    l'appelant garde le texte entier.
-    """
+    """Réduit chaque ligne au terme cité qui l'ouvre, quand toutes en ont un."""
     subjects = []
     for text in differing:
         if not text.startswith('"'):
@@ -281,12 +219,7 @@ def _quoted_subjects(differing: list[str]) -> list[str] | None:
 
 
 def _inside_a_word(text: str, index: int) -> bool:
-    """Dit si couper `text` à `index` couperait un mot en deux.
-
-    Le guillemet compte comme faisant partie du mot : le pack cite les noms
-    d'attributs, et une coupe entre le guillemet et le nom produit exactement
-    le fragment qu'on cherche à éviter.
-    """
+    """Dit si couper `text` à `index` couperait un mot en deux."""
     if index <= 0 or index >= len(text):
         return False
     return _word_char(text[index - 1]) and _word_char(text[index])
@@ -303,12 +236,7 @@ def _wrap(text: str, width: int) -> list[str]:
 
 
 def _fit(message: str, room: int) -> str:
-    """Coupe à `room` caractères, sur une frontière de mot quand il y en a une.
-
-    Ce qui distingue deux découvertes d'une même règle est en tête de message
-    dans tout le pack — l'attribut concerné, le type de ressource — donc
-    tronquer par la fin garde ce qui les sépare.
-    """
+    """Coupe à `room` caractères, sur une frontière de mot quand il y en a une."""
     message = " ".join(message.split())
     if len(message) <= room:
         return message

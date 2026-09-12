@@ -12,31 +12,14 @@ from .model import Attribute, Kind, NestedBlock, Resource
 
 
 def parse_file(filename: str, source: bytes) -> list[Resource]:
-    """Analyse un fichier .tf et rend les blocs qu'il déclare.
-
-    Lève `HCLParseError` sur du HCL malformé ; les appelants doivent traiter un
-    échec d'analyse comme une découverte à eux plutôt que de faire tomber tout
-    le scan.
-    """
+    """Analyse un fichier .tf et rend les blocs qu'il déclare."""
     return parse_file_with_context(filename, source, None)
 
 
 def parse_file_with_context(
     filename: str, source: bytes, context: EvalContext | None
 ) -> list[Resource]:
-    """`parse_file`, avec une portée pour résoudre les références.
-
-    Sans contexte, `password = var.db_password` est simplement irrésoluble et
-    chaque règle le saute. Avec un contexte construit depuis les blocs `locals`
-    et les valeurs par défaut de `variable` du répertoire environnant (voir
-    `build_scope`), cette même ligne se résout en la valeur qu'elle portera
-    réellement — c'est ainsi qu'un mot de passe laissé dans une valeur par
-    défaut est attrapé au lieu de se cacher à une indirection de distance.
-
-    Une référence que la portée ne peut pas résoudre reste non résolue plutôt
-    que devinée, si bien qu'une portée plus riche ne trouve jamais que davantage,
-    jamais autre chose.
-    """
+    """`parse_file`, avec une portée pour résoudre les références."""
     body = _parse_body(filename, source)
 
     resources: list[Resource] = []
@@ -146,30 +129,9 @@ def first_traversal_name(expr: Expression) -> str:
 
 
 def cty_value_to_string(v: Value) -> str:
-    """Rend une valeur littérale en texte brut, pour la comparaison de motifs :
-    comparer des valeurs d'attributs ForceNew d'une révision à l'autre, ou
-    chercher « 0.0.0.0/0 » par expression régulière.
-
-    **Défaut connu, porté tel quel plutôt que corrigé ici.** Un objet ou un map
-    rend `""` — seuls les chaînes, nombres, booléens et séquences sont traités.
-    Une règle personnalisée « doit avoir des tags » écrite ainsi :
-
-        attribute: tags
-        pattern: ".+"
-        negate: true
-
-    voit donc `""` pour `tags = { env = "prod" }`, conclut que le motif n'a pas
-    correspondu, et **se déclenche sur une ressource qui définit bien des
-    tags**. C'est un faux positif qui bloque une PR chez un client.
-
-    Le comportement a été confirmé identique côté Go — mêmes deux découvertes
-    sur les mêmes deux lignes — et
-    `test_customrules.py::test_negated_rule_misfires_on_an_object_valued_attribute`
-    l'épingle, pour que le port reste fidèle et qu'une correction apparaisse
-    comme un changement délibéré des deux côtés à la fois. L'endroit naturel
-    pour corriger est ici : rendre un objet comme ses paires `clé=valeur`
-    triées.
-    """
+    """Rend une valeur littérale en texte brut, pour la comparaison de motifs : comparer des
+    valeurs d'attributs ForceNew d'une révision à l'autre, ou chercher « 0.0.0.0/0 » par
+    expression régulière."""
     if v.is_null() or v.is_unknown():
         return ""
     if v.type is hcl.STRING:

@@ -1,16 +1,4 @@
-"""Le peu de HTTP que fait le scanner, avec la bibliothèque standard.
-
-`githubpr` et `gitlabmr` portent chacun leur propre paire `getJSON`/`doJSON` en
-Go, ce qui y est raisonnable : ce sont des paquets séparés et la paire fait six
-lignes de `net/http`. En Python l'équivalent est du passe-partout
-`urllib.request`, et deux copies écrites à la main en feraient deux endroits où
-la gestion d'erreurs peut diverger. Elles ne diffèrent que par leur en-tête
-d'authentification, qui devient donc le paramètre.
-
-Bibliothèque standard à dessein. Le scanner tourne dans la CI d'autres gens, et
-`requests` serait une dépendance d'exécution que leur revue de chaîne
-d'approvisionnement devrait valider pour un POST par pipeline.
-"""
+"""Le peu de HTTP que fait le scanner, avec la bibliothèque standard."""
 
 from __future__ import annotations
 
@@ -28,35 +16,17 @@ DEFAULT_TIMEOUT = 30.0
 
 
 class HTTPError(RuntimeError):
-    """Une réponse hors 2xx, portant son corps.
-
-    Le message d'erreur de la forge est généralement la seule chose qui
-    explique l'échec (« Reviews may only be requested from collaborators »), il
-    n'est donc jamais avalé.
-    """
+    """Une réponse hors 2xx, portant son corps."""
 
 
 class TransportError(HTTPError):
-    """La requête n'a jamais obtenu de réponse — DNS, connexion, TLS, délai.
-
-    Distincte de `HTTPError` parce que `licensing` se branche sur des codes de
-    statut et doit pouvoir distinguer « le service a dit 403 » de « le service
-    était injoignable » ; sous-classe pour que chaque `except HTTPError`
-    existant l'attrape encore.
-    """
+    """La requête n'a jamais obtenu de réponse — DNS, connexion, TLS, délai."""
 
 
 @dataclass(slots=True, frozen=True)
 class RawResponse:
-    """Une réponse avec son statut intact, pour les appelants dont la logique
-    *est* le code de statut.
-
-    `licensing.fetch_rule_pack` traite 304 comme « ton cache est encore bon »,
-    403 comme « ton plan n'inclut pas ceci », 404 comme « aucun pack publié » et
-    200 comme un corps à garder — quatre issues différentes, dont aucune n'est
-    une exception. Lever sur un hors-2xx comme le fait `get_json` obligerait à
-    reconstruire le statut depuis une chaîne d'erreur.
-    """
+    """Une réponse avec son statut intact, pour les appelants dont la logique *est* le code de
+    statut."""
 
     status: int
     body: bytes
@@ -77,13 +47,7 @@ def request_raw(
     timeout: float = DEFAULT_TIMEOUT,
     max_bytes: int | None = None,
 ) -> RawResponse:
-    """Exécute une requête et rend la réponse sans juger son statut.
-
-    Seul un service injoignable lève, puisque c'est le seul cas sans statut sur
-    lequel se brancher. `max_bytes` plafonne la lecture : une lecture non bornée
-    depuis un service que nous ne contrôlons pas n'est pas quelque chose qu'un
-    runner de CI devrait offrir.
-    """
+    """Exécute une requête et rend la réponse sans juger son statut."""
     request = urllib.request.Request(url, data=body, method=method, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

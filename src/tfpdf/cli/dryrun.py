@@ -14,17 +14,9 @@ from .config import ConfigError, load_custom_rules
 
 
 def run_rules_dry_run(config_path: str, repo_dir: str) -> int:
-    """Répond à la question que se pose tout auteur de règle personnalisée et
-    à laquelle le vrai scan ne peut pas répondre sans risque — sans faire échouer
-    la CI, sans poster de commentaires et sans rapporter d'usage. Rend le code de
-    sortie du processus.
-
-    Il sort en 0 même quand des règles trouvent quelque chose : les
-    correspondances sont ici la boucle de retour de l'auteur, pas des violations.
-    La seule chose qui sorte en non-zéro est un fichier de règles qui ne se
-    charge pas, parce qu'une configuration inanalysable ferait aussi échouer le
-    vrai scan, et que c'est ici l'endroit pour l'apprendre.
-    """
+    """Répond à la question que se pose tout auteur de règle personnalisée et à laquelle le vrai
+    scan ne peut pas répondre sans risque — sans faire échouer la CI, sans poster de
+    commentaires et sans rapporter d'usage. Rend le code de sortie du processus."""
     try:
         custom_rules = load_custom_rules(config_path)
     except ConfigError as exc:

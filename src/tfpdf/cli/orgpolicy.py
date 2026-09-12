@@ -1,13 +1,4 @@
-"""Ce que le plan de contrôle optionnel a le droit de changer à un scan.
-
-Porte la moitié tournée vers la licence de cmd/tf-predeploy-firewall/main.go.
-
-Tout ici échoue **ouvert**. Une panne côté facturation ne doit jamais être la
-raison pour laquelle la vérification de PR d'un client payant passe au rouge :
-un plan de contrôle injoignable laisse donc le scan tourner exactement sur la
-configuration locale qu'il aurait utilisée de toute façon. La seule exception
-est un refus explicite de quota, qui est une réponse et non une panne.
-"""
+"""Politique distante, dérogations et compte rendu d'usage du scanner."""
 
 from __future__ import annotations
 
@@ -26,14 +17,8 @@ def _warn(message: str) -> None:
 def apply_org_policy(
     config: Config, license_key: str, api_base: str, repo_full_name: str = ""
 ) -> None:
-    """Récupère la politique Growth gérée centralement pour l'organisation, s'il
-    y en a une, et la fusionne sur `cfg` sur place.
-
-    Priorité, du plus faible au plus fort : config.yml du dépôt < politique de
-    l'organisation < variable d'environnement. Un opérateur peut donc toujours
-    forcer un réglage localement par variable d'environnement, même quand une
-    politique d'organisation existe — une échappatoire délibérée, pas un oubli.
-    """
+    """Applique la politique distante ; les variables d'environnement restent prioritaires. Une
+    panne conserve la configuration locale."""
     client = licensing.new_client(license_key, api_base)
     try:
         policy = client.get_policy(repo_full_name)
@@ -69,14 +54,8 @@ def apply_org_policy(
 def apply_waivers(
     findings: list[Finding], license_key: str, api_base: str, repo_full_name: str = ""
 ) -> list[Finding]:
-    """Marque comme couverte par une dérogation chaque découverte
-    correspondante, en y attachant sa justification.
-
-    L'appariement se fait par catégorie + ressource + fichier, pas par ligne —
-    voir `licensing.Waiver`. Échoue ouvert : si le plan de contrôle est
-    injoignable, les découvertes reviennent inchangées. Un hoquet du plan de
-    contrôle ne doit jamais accorder, ni refuser, une dérogation en silence.
-    """
+    """Accepte les découvertes correspondant à une dérogation par catégorie, ressource et
+    fichier, sans dépendre du numéro de ligne."""
     if not repo_full_name:
         return findings
 
@@ -108,13 +87,8 @@ def report_usage(
     blocked: bool,
     repo_full_name: str = "",
 ) -> bool:
-    """Envoie l'issue de ce scan au service de licence. Rend True quand le quota
-    de l'organisation est épuisé, auquel cas l'appelant s'arrête avant de poster
-    des commentaires ou d'écrire du SARIF.
-
-    Échoue en ouvert : une panne ou une erreur réseau est journalisée mais ne
-    bloque PAS le scan.
-    """
+    """Rapporte le scan. Retourne True si le quota est refusé ; une panne réseau avertit sans
+    bloquer."""
     if not repo_full_name:
         # Le seul chemin qui laisse encore un scan non rapporté : ni CI, ni
         # distant git exploitable, ni --repo-name. Il se dit à voix haute,

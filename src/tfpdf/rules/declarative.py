@@ -31,16 +31,7 @@ class AttrLocation:
 
 
 class DeclarativeRule:
-    """Évalue une ou plusieurs définitions de règles qui examinent le même
-    genre d'emplacement.
-
-    Un groupe détient des alternatives ordonnées et la première qui correspond à
-    un emplacement l'emporte. C'est ce qui fait qu'un JWT est rapporté comme un
-    JWT plutôt que comme « une chaîne à forte entropie » : les formats
-    spécifiques sont listés avant le repli statistique, et le repli n'a jamais
-    la parole sur une valeur qui a déjà un nom. Une règle sans groupe est un
-    groupe d'un seul élément, pour qu'il n'y ait qu'un seul chemin de code.
-    """
+    """Évalue une ou plusieurs définitions de règles qui examinent le même genre d'emplacement."""
 
     __slots__ = ("scope", "specs")
 
@@ -63,14 +54,7 @@ class DeclarativeRule:
         return findings
 
     def _locations(self, resource: Resource) -> list[AttrLocation]:
-        """Les attributs candidats pour la portée de cette règle.
-
-        Triés par nom parce que l'ordre d'un dictionnaire suit l'insertion — qui
-        suit l'ordre de la source — et qu'un scanner dont la sortie se décale
-        quand quelqu'un permute deux attributs est un scanner dont personne ne
-        peut comparer deux rapports. L'original Go trie pour la même raison,
-        l'itération d'un map y étant randomisée.
-        """
+        """Les attributs candidats pour la portée de cette règle."""
         matcher = self.specs[0].match
         assert matcher is not None  # guaranteed: a declarative rule always has one
         locations: list[AttrLocation] = []
@@ -168,13 +152,7 @@ class DeclarativeRule:
 def build_fix(
     spec: Rule, source: bytes, loc: AttrLocation, variables: dict[str, str]
 ) -> Fix | None:
-    """Rend un correctif déclaratif, ou None quand il ne peut pas être produit
-    exactement.
-
-    Tout chemin de sortie qui n'est pas un remplacement complet et à
-    l'identique rend None : rater un correctif en un clic coûte un clic, en
-    produire un faux commet du HCL cassé dans la branche de quelqu'un.
-    """
+    """Rend un correctif déclaratif, ou None quand il ne peut pas être produit exactement."""
     if spec.fix is None:
         return None
     # The literal was reached through a variable or a local, so the line under

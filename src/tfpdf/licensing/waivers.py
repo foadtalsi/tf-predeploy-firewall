@@ -12,15 +12,8 @@ from typing import Any
 
 @dataclass(slots=True, frozen=True)
 class Waiver:
-    """La décision d'un administrateur (Starter et plus, via le tableau de bord)
-    d'accepter une découverte précise plutôt que de la laisser bloquer les
-    fusions.
-
-    Appariée par catégorie + ressource + fichier au sein d'un dépôt, et **non**
-    par numéro de ligne : une ligne se décale quand du code sans rapport change
-    au-dessus d'elle, et exiger une correspondance exacte de ligne ferait périmer
-    une dérogation à la première modification étrangère.
-    """
+    """La décision d'un administrateur (Starter et plus, via le tableau de bord) d'accepter une
+    découverte précise plutôt que de la laisser bloquer les fusions."""
 
     category: str = ""
     resource: str = ""

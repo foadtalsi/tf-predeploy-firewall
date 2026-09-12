@@ -10,14 +10,8 @@ from .base import FileInput
 
 
 class UnknownAttributeRule:
-    """Signale les attributs absents du schéma connu pour un type de ressource
-    — signature courante d'une hallucination d'IA : un attribut qui « sonne
-    juste » mais n'existe pas.
-
-    Seuls les types couverts par un pack de règles chargé sont vérifiés ; les
-    types non couverts sont sautés, pour éviter les faux positifs sur des
-    attributs réels mais non décrits.
-    """
+    """Signale les attributs absents du schéma connu pour un type de ressource — signature
+    courante d'une hallucination d'IA : un attribut qui « sonne juste » mais n'existe pas."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if knowledge_base is None:
@@ -88,14 +82,8 @@ class UnknownAttributeRule:
 
 
 class ForceNewChangeRule:
-    """Signale les modifications d'attributs connus comme ForceNew dans le
-    schéma du fournisseur, sur une ressource qui existait déjà avant ce
-    changement.
-
-    Sans plan ni état, on ne peut pas savoir ce qui est réellement déployé, mais
-    « cet attribut a changé sur une adresse de ressource préexistante » est un
-    indicateur fiable : l'appliquer détruira et recréera la ressource.
-    """
+    """Signale les modifications d'attributs connus comme ForceNew dans le schéma du fournisseur,
+    sur une ressource qui existait déjà avant ce changement."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if knowledge_base is None:

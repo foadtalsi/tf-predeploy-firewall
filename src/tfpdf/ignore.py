@@ -1,18 +1,4 @@
-"""Le mécanisme de suppression à trois niveaux.
-
-Port de internal/ignore/ignore.go et pathrules.go.
-
- 1. Commentaire en ligne, sur la ligne de la découverte ou juste au-dessus :
-    `# tf-firewall-ignore: unknown_attribute,tutorial_pattern`
- 2. Liste globale dans config.yml (`ignore_rules`), qui supprime une catégorie
-    dans tous les fichiers.
- 3. Motifs de chemin (`ignore_paths`), qui suppriment un fichier ou une
-    arborescence entière, éventuellement restreints à certaines catégories.
-
-**Tout ce qui fait disparaître une découverte mérite une relecture** : le succès
-et l'échec s'y ressemblent, un motif trop large étouffant un arbre entier sans
-rien signaler.
-"""
+"""Le mécanisme de suppression à trois niveaux."""
 
 from __future__ import annotations
 
@@ -31,19 +17,8 @@ _ALL = "all"
 
 
 def parse_comments(source: bytes) -> dict[int, set[str]]:
-    """Parcourt une source .tf brute et rend, par numéro de ligne (indexé à 1),
-    l'ensemble des catégories supprimées sur cette ligne.
-
-    Une directive en ligne N supprime les découvertes de la ligne N *et* de la
-    ligne N+1, pour que le commentaire puisse se placer sur la ligne de
-    l'attribut elle-même ou juste au-dessus.
-
-    Les catégories restent de simples chaînes plutôt que des valeurs
-    `Category` : une directive nommant une catégorie inexistante doit
-    simplement ne rien détecter, comme en Go, au lieu de lever une erreur sur un
-    membre d'énumération inconnu et de faire tomber tout le scan pour une faute
-    de frappe dans le commentaire de quelqu'un.
-    """
+    """Parcourt une source .tf brute et rend, par numéro de ligne (indexé à 1), l'ensemble des
+    catégories supprimées sur cette ligne."""
     out: dict[int, set[str]] = {}
     text = source.decode("utf-8", errors="replace")
     for line_num, line in enumerate(text.split("\n"), start=1):
@@ -87,20 +62,9 @@ def apply(
 
 @dataclass(slots=True)
 class PathRule:
-    """Supprime les découvertes dans les fichiers correspondant à `pattern` —
-    un motif acceptant `**` (n'importe quel nombre de segments de chemin, zéro
-    compris) en plus des `*` et `?` habituels sur un seul segment.
-
-    C'est le pendant à grande échelle des deux mécanismes qui existaient déjà :
-    un commentaire en ligne ignore une ligne, la liste globale ignore une
-    catégorie partout, mais ni l'un ni l'autre ne pouvait dire « ne scanne pas
-    legacy/** du tout » sans parsemer de commentaires chaque fichier de cette
-    arborescence.
-
-    `categories`, s'il est non vide, restreint la suppression à ces seules
-    catégories sous le chemin correspondant ; vide signifie « ignorer toutes les
-    catégories sous ce chemin ».
-    """
+    """Supprime les découvertes dans les fichiers correspondant à `pattern` — un motif acceptant
+    `**` (n'importe quel nombre de segments de chemin, zéro compris) en plus des `*` et `?`
+    habituels sur un seul segment."""
 
     pattern: str
     #: `Category | str`, parce qu'une catégorie peut être le « custom:<id> »
@@ -109,13 +73,7 @@ class PathRule:
     categories: list[Category | str] = field(default_factory=list)
 
     def suppresses(self, category: Category | str) -> bool:
-        """Dit si cette règle couvre `category`.
-
-        Accepte une chaîne nue autant qu'une `Category`, parce que le
-        `custom:<id>` d'une règle personnalisée n'est pas un membre de
-        l'énumération intégrée — et qu'une règle de chemin qui le nomme doit
-        pouvoir le supprimer.
-        """
+        """Dit si cette règle couvre `category`."""
         if not self.categories:
             return True
         return any(str(c) == str(category) for c in self.categories)
@@ -148,14 +106,8 @@ def glob_to_regexp(pattern: str) -> re.Pattern[str]:
 
 
 def apply_path_rules(findings: Sequence[Finding], rules: Sequence[PathRule]) -> list[Finding]:
-    """Retire les découvertes sous un chemin correspondant à une règle, dans la
-    limite des catégories de cette règle.
-
-    Appliqué en passe finale sur l'ensemble complet des découvertes — phase 1,
-    phase 2 et règles personnalisées réunies : une suppression par chemin ne se
-    soucie pas du moteur qui a produit une découverte, seulement de l'endroit
-    où elle se trouve.
-    """
+    """Retire les découvertes sous un chemin correspondant à une règle, dans la limite des
+    catégories de cette règle."""
     if not rules:
         return list(findings)
 

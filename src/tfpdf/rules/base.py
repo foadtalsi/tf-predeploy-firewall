@@ -1,9 +1,4 @@
-"""Les types que toutes les règles partagent.
-
-Extraits de `engine.py` pour que les détecteurs puissent importer ce dont ils
-ont besoin sans importer le moteur qui les exécute : le moteur importe chaque
-détecteur, et l'arête inverse serait un cycle.
-"""
+"""Les types que toutes les règles partagent."""
 
 from __future__ import annotations
 

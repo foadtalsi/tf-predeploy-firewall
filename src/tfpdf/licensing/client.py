@@ -1,13 +1,4 @@
-"""Le client optionnel du plan de contrôle.
-
-Port de internal/licensing/client.go, plus les moitiés « requête » de policy.go
-et waivers.go.
-
-Entièrement sur adhésion : sans clé d'API configurée, rien ici n'est invoqué et
-le scanner se comporte exactement comme l'outil libre et sans licence qu'il a
-toujours été. Cela garde le moteur de scan lui-même exempt de licence — seule la
-vérification d'usage et de quota parle à un service payant.
-"""
+"""Client du service cloud, utilisé uniquement quand une clé de licence est fournie."""
 
 from __future__ import annotations
 
@@ -27,27 +18,14 @@ DEFAULT_TIMEOUT = 10.0
 
 
 class LicensingError(RuntimeError):
-    """Le plan de contrôle a refusé, ou n'a pas pu répondre.
-
-    Jamais fatale en soi : chaque appelant du CLI décide lui-même si une panne
-    du service de licence doit bloquer le scan ou seulement journaliser un
-    avertissement. Ce module ne prend pas position là-dessus, ce qui est
-    pourquoi il rapporte au lieu de sortir.
-    """
+    """Le plan de contrôle a refusé, ou n'a pas pu répondre."""
 
 
 @dataclass(slots=True, frozen=True)
 class FindingSummary:
-    """Le sous-ensemble d'une découverte envoyé au plan de contrôle, pour que
-    les pages Rapports, Tendances et Journal d'audit du tableau de bord puissent
-    montrer ce qui a réellement été trouvé, et pas seulement un compteur.
-
-    Délibérément pas `report.Finding` lui-même. Aucun cycle d'import n'oblige à
-    l'éviter ; garder le type réseau séparé fait qu'une évolution future de la
-    Finding interne — un champ dont seul le commentaire de PR aurait besoin, par
-    exemple — ne peut pas changer en silence ce qui est rapporté à un service
-    payant sans une modification délibérée ici aussi.
-    """
+    """Le sous-ensemble d'une découverte envoyé au plan de contrôle, pour que les pages Rapports,
+    Tendances et Journal d'audit du tableau de bord puissent montrer ce qui a réellement été
+    trouvé, et pas seulement un compteur."""
 
     category: str = ""
     severity: str = ""
@@ -81,13 +59,8 @@ class Client:
     # --- usage ------------------------------------------------------------
 
     def record_scan(self, result: ScanResult) -> tuple[bool, str]:
-        """Rapporte un scan terminé et rend `(autorisé, raison)`.
-
-        Les erreurs réseau ou serveur sont levées en `LicensingError` : les
-        appelants décident eux-mêmes si une panne du service de licence doit
-        bloquer le scan (échec fermé) ou seulement journaliser un avertissement
-        et continuer (échec ouvert).
-        """
+        """Retourne (autorisé, raison). Les erreurs réseau ou serveur sont levées ; l'appelant
+        décide si elles bloquent."""
         payload = {
             "repo_full_name": result.repo_full_name,
             "finding_count": result.finding_count,
@@ -136,16 +109,8 @@ class Client:
     # --- policy -----------------------------------------------------------
 
     def get_policy(self, repo_full_name: str) -> Policy | None:
-        """Récupère la politique gérée centralement pour l'organisation, s'il y
-        en a une, fusionnée par le plan de contrôle avec la surcharge propre à
-        ce dépôt — une surcharge de dépôt l'emporte champ par champ sur la
-        politique de l'organisation.
-
-        Passer "" donne la politique d'organisation non fusionnée. Rend None,
-        et non une erreur, quand ni l'une ni l'autre n'existe : c'est l'état
-        normal des organisations Starter et de toute organisation Growth qui
-        n'a encore rien configuré.
-        """
+        """Lit la politique fusionnée pour ce dépôt, ou celle de l'organisation si le dépôt est
+        vide. Retourne None sans surcharge."""
         url = self.api_base + "/v1/policy"
         if repo_full_name:
             url += "?repo=" + quote(repo_full_name, safe="")

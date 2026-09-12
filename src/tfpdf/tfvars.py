@@ -1,17 +1,5 @@
-"""Scanne les fichiers .tfvars à la recherche des mêmes identifiants en dur que
-les règles de motif attrapent dans les blocs de ressources.
-
-Port de internal/tfvars/tfvars.go.
-
-Comble le plus large écart entre ce que l'outil prétendait et ce qu'il faisait :
-un .tfvars est par construction l'endroit où vivent les valeurs, et le correctif
-que le scanner suggérait lui-même disait d'utiliser « un fichier tfvars non
-commité » sans jamais vérifier si l'un l'était.
-
-Seuls les fichiers commités arrivent ici — la liste vient de git — donc un
-.tfvars gitignoré n'est jamais vu. C'est juste : la découverte est « ce secret
-est dans le dépôt ».
-"""
+"""Scanne les fichiers .tfvars à la recherche des mêmes identifiants en dur que les règles de
+motif attrapent dans les blocs de ressources."""
 
 from __future__ import annotations
 
@@ -43,13 +31,8 @@ def is_tfvars_path(path: str) -> bool:
 
 
 def scan_file(path: str, source: bytes) -> list[Finding]:
-    """Scanne un fichier .tfvars (ou .tfvars.json) à la recherche
-    d'identifiants en dur et de blocs CIDR grand ouverts.
-
-    Lève plutôt que d'avaler une erreur d'analyse, même convention que
-    `parser.parse_file` : un fichier .tfvars que le scanner ne sait pas lire est
-    une lacune que l'appelant doit signaler, pas une qu'il doit masquer.
-    """
+    """Scanne un fichier .tfvars (ou .tfvars.json) à la recherche d'identifiants en dur et de
+    blocs CIDR grand ouverts."""
     if path.endswith(".json"):
         return _scan_json(path, source)
     return _scan_hcl(path, source)
@@ -70,14 +53,7 @@ def _scan_hcl(path: str, source: bytes) -> list[Finding]:
 
 
 def _scan_value(path: str, name: str, attribute: hcl.Attribute, line: int) -> list[Finding]:
-    """Évalue la valeur d'une variable et la juge.
-
-    Les valeurs qui référencent quoi que ce soit — un appel de fonction, une
-    autre variable — ne peuvent pas être évaluées statiquement et sont sautées,
-    selon la même règle que suit tout le reste de l'outil : ne jamais deviner une
-    valeur, parce qu'une supposition est précisément par où entre un faux
-    positif.
-    """
+    """Évalue la valeur d'une variable et la juge."""
     v, diags = attribute.expr.value(None)
     if diags.has_errors() or v.is_null() or not v.is_wholly_known():
         return []
@@ -181,12 +157,7 @@ def _scan_json(path: str, source: bytes) -> list[Finding]:
 
 
 def _judge_json(path: str, name: str, v: object) -> list[Finding]:
-    """Reflète `_judge` pour du JSON décodé.
-
-    Ligne 1 partout : le décodeur JSON jette les positions, et rapporter une
-    mauvaise ligne serait pire que de rapporter le fichier — c'est le nom de la
-    variable dans le message qui la localise.
-    """
+    """Reflète `_judge` pour du JSON décodé."""
     if isinstance(v, str):
         return _judge_string(path, name, v, 1)
     if isinstance(v, dict):

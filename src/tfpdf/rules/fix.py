@@ -1,15 +1,5 @@
-"""Aides pour construire des valeurs `report.Fix` — des remplacements assez
-exacts pour que le bouton « Commit suggestion » de GitHub les écrive dans la
-branche sans que personne ne les relise.
-
-Port de internal/rules/fix.go et des aides de nommage de
-internal/rules/rule_tutorial_pattern.go.
-
-Tout ici est conservateur à dessein. Chaque aide rend `None` dès que la source
-ne ressemble pas à ce qu'elle supposait, et l'appelant émet alors la découverte
-avec sa seule suggestion en langage humain. Rater un correctif en un clic coûte
-un clic ; en produire un faux commet du HCL cassé.
-"""
+"""Construit des remplacements exacts de lignes. Retourne None lorsque le code ne permet pas une
+édition fiable."""
 
 from __future__ import annotations
 
@@ -33,12 +23,7 @@ class LineEdit:
 
 
 def line_text(source: bytes, n: int) -> str | None:
-    """La ligne `n` (indexée à 1) de `src`, sans sa fin de ligne.
-
-    None si `src` est absente ou si `n` est hors plage — le cas normal pour les
-    appelants qui n'ont jamais fourni la source, par exemple des tests
-    unitaires qui construisent un FileInput à la main.
-    """
+    """La ligne `n` (indexée à 1) de `src`, sans sa fin de ligne."""
     if not source or n < 1:
         return None
     lines = source.decode("utf-8", errors="replace").split("\n")
@@ -54,25 +39,13 @@ def indent_of(s: str) -> str:
 
 
 def opens_block(line: str) -> bool:
-    """Dit si une ligne est un en-tête de bloc auquel on peut ajouter du contenu
-    sans risque, c'est-à-dire qu'elle se termine par `{` et a donc un corps qui
-    commence à la ligne suivante.
-
-    Un bloc sur une seule ligne (`lifecycle { prevent_destroy = false }`) échoue
-    à ce test, et c'est le but : ajouter une ligne après lui placerait le
-    nouveau contenu hors des accolades.
-    """
+    """Vérifie qu'une ligne ouvre un bloc dont le corps commence sur la ligne suivante."""
     return line.rstrip(" \t").endswith("{")
 
 
 def declares_attr(line: str, name: str) -> bool:
-    """Dit si `line` est la déclaration de l'attribut `name` — `name = …`,
-    éventuellement indentée.
-
-    Sert à confirmer que la ligne visée par une plage est bien l'affectation
-    d'une ligne que l'on entend écraser, et non un bloc sur une ligne qui se
-    trouve la contenir.
-    """
+    """Dit si `line` est la déclaration de l'attribut `name` — `name = …`, éventuellement
+    indentée."""
     rest = line.lstrip(" \t")
     if not rest.startswith(name):
         return False
@@ -80,13 +53,7 @@ def declares_attr(line: str, name: str) -> bool:
 
 
 def insert_into_block(source: bytes, header: Range, *add: str) -> LineEdit | None:
-    """Construit un correctif qui garde la ligne d'en-tête d'un bloc telle
-    quelle et ajoute des lignes juste en dessous, indentées d'un niveau.
-
-    Réécrire l'en-tête à l'identique plutôt que de le régénérer est délibéré :
-    il peut porter un commentaire de fin de ligne, un espacement inhabituel ou
-    des méta-arguments `for_each` que cet outil n'a pas à normaliser.
-    """
+    """Conserve l'en-tête exact du bloc et insère les lignes en les indentant d'un niveau."""
     line_no = header.start.line
     text = line_text(source, line_no)
     if text is None or not opens_block(text):
@@ -111,29 +78,17 @@ def replace_attr_line(source: bytes, r: Range, attr_name: str, new_text: str) ->
 
 
 def via_suffix(attribute: Attribute) -> str:
-    """Nomme la référence par laquelle une valeur a été atteinte, pour qu'une
-    découverte rapportée sur une ligne qui ne lit que `password =
-    var.db_password` dise où se trouve réellement le littéral.
-
-    Sans cela, le rapport ressemble à un faux positif pour quiconque ouvre le
-    fichier.
-    """
+    """Nomme la référence par laquelle une valeur a été atteinte, pour qu'une découverte
+    rapportée sur une ligne qui ne lit que `password = var.db_password` dise où se trouve
+    réellement le littéral."""
     if not attribute.resolved_from:
         return ""
     return " (via " + attribute.resolved_from + ")"
 
 
 def credential_var_name(res: Resource, block_type: str, attr_name: str) -> str:
-    """Un identifiant HCL valide et raisonnablement unique pour la variable
-    qu'un correctif propose — nom de la ressource plus nom de l'attribut,
-    puisque le même nom d'attribut (`password`) revient d'une ressource à
-    l'autre dans un même fichier.
-
-    `block_type` est le bloc imbriqué dans lequel l'attribut se trouve, et
-    rejoint le nom quand il y en a un : une ressource peut contenir deux blocs
-    déclarant le même attribut, et proposer la même variable pour les deux
-    ferait discrètement écraser le sens du premier correctif par le second.
-    """
+    """Nomme une variable à partir de la ressource, du bloc imbriqué et de l'attribut pour éviter
+    les collisions."""
     name = sanitize_ident(res.name)
     if block_type:
         name += "_" + sanitize_ident(block_type)
@@ -145,12 +100,7 @@ def sanitize_ident(s: str) -> str:
 
 
 def as_fix(edit: LineEdit | None) -> Fix | None:
-    """Élève une édition de ligne résolue en Fix, en laissant passer None.
-
-    Les aides d'édition rendent None dès que la source ne ressemblait pas à ce
-    qu'elles supposaient, et tous les appelants d'ici réagissent pareil :
-    émettre la découverte avec sa seule suggestion en langage humain.
-    """
+    """Élève une édition de ligne résolue en Fix, en laissant passer None."""
     if edit is None:
         return None
     return Fix(start_line=edit.start, end_line=edit.end, lines=edit.lines)

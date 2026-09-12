@@ -1,12 +1,4 @@
-"""Quels attributs le diff .tf propre à cette PR a réellement touchés.
-
-Port de internal/rules/changedattrs.go.
-
-Les règles fondées sur le plan s'en servent pour savoir si une valeur que le
-plan dit changée a bien été touchée par cette PR, ou si elle a dérivé depuis une
-autre source : édition en console, autre pipeline, valeur par défaut d'un
-fournisseur qui a bougé.
-"""
+"""Quels attributs le diff .tf propre à cette PR a réellement touchés."""
 
 from __future__ import annotations
 
@@ -18,14 +10,8 @@ ChangedAttrKey = str
 
 
 def changed_attrs_for_resource(head: Resource | None, base: Resource | None) -> set[ChangedAttrKey]:
-    """Les clés d'attributs dont la valeur littérale diffère entre la base et la
-    tête, ou dont la présence a changé (ajouté ou retiré).
-
-    Les expressions non littérales (var.x, data.foo.bar) sont traitées
-    prudemment comme « changées » — nous ne pouvons pas prouver qu'elles ne
-    l'ont pas été, et il vaut mieux sous-rapporter la dérive que la
-    sur-rapporter.
-    """
+    """Les clés d'attributs dont la valeur littérale diffère entre la base et la tête, ou dont la
+    présence a changé (ajouté ou retiré)."""
     changed: set[ChangedAttrKey] = set()
     if head is None or base is None:
         return changed
@@ -70,19 +56,8 @@ def _diff_attr_maps(
 
 
 def bare_resource_address(plan_addr: str) -> str:
-    """Réduit une adresse de plan terraform à la forme nue « type.nom » que
-    produit l'analyseur HCL.
-
-    Une adresse de plan peut porter un préfixe de chemin de module
-    (« module.vpc.module.subnets.aws_subnet.private ») et/ou un suffixe de clé
-    d'instance issu de count ou for_each (« aws_instance.web[0] »,
-    `aws_instance.web["prod"]`), dont le scan HCL statique ne sait rien : il ne
-    voit jamais que le type et l'étiquette propres au bloc de ressource. Sans
-    cette normalisation, chaque ressource à l'intérieur d'un module — la
-    disposition de très loin la plus courante dans la vraie vie — ou derrière un
-    count ou un for_each échouerait à s'apparier avec l'ensemble des attributs
-    modifiés, et serait mal rapportée comme une dérive.
-    """
+    """Réduit une adresse de plan terraform à la forme nue « type.nom » que produit l'analyseur
+    HCL."""
     addr = plan_addr
     index = addr.find("[")
     if index >= 0:

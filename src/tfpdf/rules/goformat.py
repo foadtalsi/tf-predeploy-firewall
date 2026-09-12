@@ -1,22 +1,4 @@
-"""Rend une valeur issue d'un JSON décodé comme le `fmt.Sprint` de Go.
-
-| valeur JSON  | Go            | `str` Python |
-|--------------|---------------|--------------|
-| `5`          | `5`           | `5`          |
-| `5.0`        | `5`           | `5.0`        |
-| `true`       | `true`        | `True`       |
-| `null`       | `<nil>`       | `None`       |
-| `[1, 2]`     | `[1 2]`       | `[1, 2]`     |
-| `{"a": 1}`   | `map[a:1]`    | `{'a': 1}`   |
-
-La deuxième ligne est celle qui casse quelque chose. `DriftRule` compare
-`fmt.Sprint(before) == fmt.Sprint(after)`, et le décodeur de Go transforme tout
-nombre JSON en `float64` : `5` et `5.0` s'y comparent égaux. Python garde `int`
-et `float` distincts, donc `"5" != "5.0"` rapporterait une dérive sur un
-attribut auquel rien n'a touché. Chaque nombre passe donc par le chemin float64.
-
-`strconv.Quote` vit dans `template.go_quote`, pas ici.
-"""
+"""Rend une valeur issue d'un JSON décodé comme le `fmt.Sprint` de Go."""
 
 from __future__ import annotations
 
@@ -51,16 +33,7 @@ def sprint(v: Any) -> str:
 
 
 def format_float(f: float) -> str:
-    """Rend un float64 comme le fait le `%v` de Go —
-    `strconv.FormatFloat(f, 'g', -1, 64)`.
-
-    Les chiffres les plus courts qui font l'aller-retour, puis le choix `'g'`
-    entre notation ordinaire et notation exponentielle. Pour la forme la plus
-    courte, Go fixe la précision de bascule à 6, si bien que 100000 s'affiche en
-    entier et 1000000 devient `1e+06` ; le `repr` de Python bascule à 1e16. La
-    règle est `exp < -4 ou exp >= 6`, où `exp` est la puissance de dix du
-    chiffre de tête.
-    """
+    """Rend un float64 comme le fait le `%v` de Go — `strconv.FormatFloat(f, 'g', -1, 64)`."""
     if math.isnan(f):
         return "NaN"
     if math.isinf(f):

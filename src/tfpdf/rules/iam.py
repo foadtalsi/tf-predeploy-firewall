@@ -49,45 +49,8 @@ _CONDITION_RE = re.compile(r'"?\bCondition"?\s*[:=]', re.IGNORECASE)
 
 
 class IAMWildcardRule:
-    """Signale les documents de politique IAM qui accordent toutes les actions,
-    ou qui accordent à tous les principaux.
-
-    # Pourquoi ceci est compilé plutôt que déclaratif
-
-    Le matcher ne voit que les valeurs d'attributs qui s'évaluent statiquement
-    en littéral, et une politique IAM moderne ne le fait presque jamais. La
-    forme qu'emploie la documentation du fournisseur AWS, et que reproduit le
-    Terraform généré, est
-
-        policy = jsonencode({ Statement = [{ Action = "*", Resource = "*" }] })
-
-    soit un appel de fonction sur une expression d'objet. Le parseur ne la
-    résout à rien, donc `value_matches` n'a rien à comparer. Les politiques en
-    heredoc, elles, arrivent bien en littéraux et pourraient être comparées —
-    mais écrire la règle pour la seule forme qui se trouve être visible
-    reviendrait à ce que le scanner attrape l'écriture ancienne et rare, et rate
-    celle que les gens écrivent réellement.
-
-    Cette règle travaille donc sur la plage de source brute de l'attribut, que
-    le parseur enregistre même quand il ne peut pas évaluer l'expression.
-
-    # Ce qu'elle ne signale délibérément pas
-
-    `Resource: "*"` tout seul. C'est incontournable pour toute une famille
-    d'actions dont l'API ne prend aucun ARN de ressource —
-    s3:ListAllMyBuckets, ec2:DescribeInstances, la plupart des iam:List* —
-    donc une règle qui le signalerait se déclencherait sur une large part des
-    politiques correctes. Une ressource joker n'est rapportée ici que couplée à
-    une action joker, où la paire signifie « administrateur ».
-
-    Un `Principal: "*"` dans un document qui porte aussi une Condition. Le motif
-    à l'échelle d'une organisation — principal public restreint par
-    aws:PrincipalOrgID ou aws:SourceArn — est à la fois courant et correct, et
-    distinguer les deux demanderait un cloisonnement par déclaration que cette
-    règle ne tente pas. Étouffer tout le document dès qu'une Condition apparaît
-    échange un faux négatif contre un faux positif, ce qui est le bon sens de
-    l'échange : c'est une accusation infondée qui fait désactiver un scanner.
-    """
+    """Signale les documents de politique IAM qui accordent toutes les actions, ou qui accordent
+    à tous les principaux."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         if not file_input.head_source:

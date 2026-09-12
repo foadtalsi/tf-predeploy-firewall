@@ -18,18 +18,8 @@ class Severity(StrEnum):
     CRITICAL = "critical"
 
     def at_least(self, other: Severity | str) -> bool:
-        """Dit si ceci est au moins aussi sévère que `other`.
-
-        `other` n'est délibérément pas restreint à une `Severity`. Un seuil
-        configuré arrive en texte libre — `SCANNER_BLOCK_THRESHOLD`, une ligne
-        `block_threshold:`, une politique d'organisation — et le `severityRank`
-        de Go est un map, donc une valeur non reconnue y vaut le rang 0 et
-        chaque découverte se compare comme l'atteignant ou la dépassant. C'est
-        un vrai piège — une faute de frappe transforme le scanner en « bloque
-        sur tout » — mais c'est le comportement livré, et lever une exception
-        ici transformerait la même faute en trace d'appel. Le CLI le dit sur
-        stderr plutôt que de diverger ; voir `cli.config.warn_unknown_threshold`.
-        """
+        """Compare les sévérités. Un seuil inconnu vaut le rang minimal ; le CLI émet alors un
+        avertissement."""
         return _SEVERITY_RANK[self] >= _SEVERITY_RANK.get(other, 0)  # type: ignore[arg-type]
 
 
@@ -74,25 +64,8 @@ class Category(StrEnum):
 
 @dataclass(slots=True)
 class Fix:
-    """Un remplacement exactement applicable pour les lignes
-    [start_line, end_line].
-
-    Délibérément plus étroit que `Finding.suggestion`. Une suggestion est
-    proche de la prose : un extrait qu'un humain lit et adapte, libre de faire
-    référence à une variable qui n'existe pas encore ou de montrer deux
-    modifications à deux endroits. Un Fix est le texte littéral que ces lignes
-    doivent devenir, parce que GitHub le rend en bloc `suggestion` dont le
-    bouton « Commit suggestion » l'écrit dans la branche sans être lu. Tout ce
-    qui ne serait pas exact à l'octet près commettrait du HCL cassé au nom de
-    quelqu'un d'autre.
-
-    Une règle ne pose donc un Fix que lorsqu'elle peut nommer le remplacement
-    avec certitude : la valeur est écrite en ligne (et non atteinte via une
-    variable qu'elle ne peut pas réécrire), elle occupe des lignes entières, et
-    le correctif générique est sans ambiguïté. Toute autre découverte reçoit
-    quand même sa suggestion dans le commentaire de synthèse. Un Fix absent est
-    le cas normal, pas une lacune.
-    """
+    """Remplacement exact de lignes à la tête de la PR, numérotées dès 1 et bornes incluses. Les
+    corrections incertaines restent des suggestions textuelles."""
 
     #: Inclusive, 1-based, referring to the file as it exists at the PR head.
     start_line: int

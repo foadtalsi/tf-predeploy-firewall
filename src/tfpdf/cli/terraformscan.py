@@ -1,15 +1,4 @@
-"""Quels fichiers un scan regarde, selon le mode demandé.
-
-Porte les quatre commutateurs de mode répétés de
-cmd/tf-predeploy-firewall/main.go.
-
-Go écrit quatre fois le même `switch` — une fois pour les .tf, une fois pour
-terragrunt.hcl, une fois pour les .tfvars, et une de plus dans le dry run —
-parce que le paquet `diff` expose une fonction distincte par paire (mode, sorte
-de fichier) et que Go n'a aucun moyen de nommer la paire. Il n'y a rien à gagner
-à recopier cette répétition : une cinquième sorte de fichier ajoutée à trois des
-quatre commutateurs est exactement le bug que cette forme invite.
-"""
+"""Quels fichiers un scan regarde, selon le mode demandé."""
 
 from __future__ import annotations
 
@@ -85,12 +74,7 @@ def changed_tfvars(repo_dir: str, mode: Mode) -> list[ChangedFile]:
 
 
 def scan_terragrunt(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
-    """Scanne les fichiers terragrunt.hcl modifiés.
-
-    Un fichier qui échoue à l'analyse est signalé et sauté, jamais fatal : un
-    seul fichier inanalysable ne doit pas coûter les découvertes de tous les
-    autres.
-    """
+    """Scanne les fichiers Terragrunt modifiés ; avertit et poursuit si un fichier échoue."""
     findings: list[Finding] = []
     for changed_file in changed_terragrunt(repo_dir, mode):
         try:

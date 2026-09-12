@@ -1,12 +1,4 @@
-"""Mise en forme des messages des règles déclaratives.
-
-Port de internal/rules/template.go.
-
-Un ensemble fixe de jetons `{placeholder}`, substitués depuis ce que le matcher
-a trouvé. Délibérément pas un langage d'expression : un fichier de règles décide
-de la formulation, pas du flot de contrôle, et dès qu'un template peut calculer
-il cesse d'être une donnée.
-"""
+"""Mise en forme des messages des règles déclaratives."""
 
 from __future__ import annotations
 
@@ -31,13 +23,7 @@ _GO_ESCAPES = {
 
 
 def expand(template: str, variables: dict[str, str]) -> str:
-    """Substitue les jetons connus et laisse tout le reste octet pour octet.
-
-    Les jetons inconnus survivent intacts à dessein : les templates de correctif
-    et de suggestion contiennent de véritables accolades HCL (`variable "x" {`),
-    et un moteur qui les avalerait ou lèverait dessus ne pourrait pas écrire de
-    Terraform.
-    """
+    """Substitue les jetons connus et laisse tout le reste octet pour octet."""
     if not template:
         return ""
 
@@ -56,17 +42,7 @@ def expand_all(tmpls: list[str], variables: dict[str, str]) -> list[str]:
 
 
 def go_quote(s: str) -> str:
-    """Rend `s` comme le fait le `strconv.Quote` de Go.
-
-    Utilisé pour les valeurs de remplissage `{attr_q}`, `{value_q}` et
-    `{name_q}`, qui mettent un identifiant ou une valeur entre guillemets dans
-    un message de découverte. Le `repr` de Python n'est pas un substitut : il
-    préfère les apostrophes, si bien que chaque message sortirait avec les
-    mauvais guillemets et que chaque fichier témoin différerait.
-
-    Le non-ASCII imprimable est gardé tel quel, comme le fait Go ; seuls les
-    caractères de contrôle et les deux caractères structurels sont échappés.
-    """
+    """Rend `s` comme le fait le `strconv.Quote` de Go."""
     out = ['"']
     for ch in s:
         esc = _GO_ESCAPES.get(ch)

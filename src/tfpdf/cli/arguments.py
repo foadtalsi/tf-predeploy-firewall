@@ -26,13 +26,7 @@ def _go_bool(value: str) -> bool:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Le jeu de drapeaux, correspondant exactement aux noms et défauts de la
-    version Go.
-
-    Les booléens prennent une valeur attachée *optionnelle* au lieu d'être en
-    `store_true`, parce qu'`action.yml` passe `--full-repo-scan=false`. Voir
-    `goflags`.
-    """
+    """Options CLI. Les booléens acceptent une valeur attachée, notamment --full-repo-scan=false."""
     parser = argparse.ArgumentParser(
         prog="tf-predeploy-firewall",
         description=CLI_DESCRIPTION,

@@ -63,17 +63,8 @@ class ScopeCache:
         self._head_by_path = head_by_path or {}
 
     def constraints_for(self, path: str, head_content: bytes | None) -> dict[str, str]:
-        """Les contraintes de version des fournisseurs qui s'appliquent à `path`.
-
-        Par répertoire, parce que c'est la portée que Terraform donne à
-        `required_providers` : un bloc dans `versions.tf` vaut pour tout le
-        module, et c'est presque toujours là qu'il vit — pas dans le fichier
-        qu'on est en train de scanner.
-
-        `head_content` prime sur la copie du disque, pour la même raison que la
-        portée : une PR qui déplace une contrainte doit être jugée sur ce
-        qu'elle écrit, pas sur ce qui était là avant.
-        """
+        """Résout les contraintes fournisseur par répertoire ; les contenus du scan priment sur
+        le disque."""
         directory = str(Path(path).parent)
         if directory in self._constraints_by_directory:
             return self._constraints_by_directory[directory]
@@ -96,12 +87,8 @@ class ScopeCache:
         return found
 
     def for_file(self, path: str, head_content: bytes | None) -> EvalContext | None:
-        """La portée du répertoire contenant `path`. `head_content` est le contenu
-        en cours de scan, qui prime sur la copie présente sur le disque.
-
-        Sans `repo_dir` configuré, ceci rend None et chaque référence reste non
-        résolue — le comportement d'avant l'existence des portées.
-        """
+        """Construit et mémorise la portée du répertoire. Le contenu fourni prime sur le disque ;
+        sans repo_dir, retourne None."""
         if not self.repo_dir:
             return None
 
@@ -159,13 +146,8 @@ def run(
     ruleset: list[Rule],
     options: RunOptions | None = None,
 ) -> Result:
-    """Analyse chaque fichier modifié et exécute toutes les règles dessus, en
-    rendant les découvertes combinées après application des directives
-    d'exclusion.
-
-    Une erreur d'analyse sur un fichier est consignée comme sa propre découverte
-    informative plutôt que d'interrompre tout le scan.
-    """
+    """Scanne les fichiers et applique les exclusions. Une erreur HCL devient une découverte et
+    ne bloque pas les autres fichiers."""
     options = options or RunOptions()
 
     findings: list[Finding] = []
@@ -265,23 +247,8 @@ def drop_findings_the_pinned_provider_contradicts(
     constraints_by_file: dict[str, dict[str, str]],
     knowledge_base: KnowledgeBase | None,
 ) -> list[str]:
-    """Retire les accusations que la version épinglée par le dépôt dément, et
-    rend de quoi le dire à l'utilisateur.
-
-    Le cas qui l'a motivé : un dépôt déclare `aws = "~> 3.0"` et écrit
-    `vpc = true` sur un `aws_eip`. C'est valide en 3.x — l'attribut n'a disparu
-    qu'en 6.x — et le scanner le rapportait en « attribut inconnu », severity
-    high, avec un lien vers la documentation 6.59.0. Une accusation confiante et
-    fausse, sur précisément ce qui distingue ce produit de `terraform validate`.
-
-    Se taire plutôt que corriger : nous n'avons pas le schéma de la version
-    qu'ils utilisent, donc nous n'avons rien à dire de leurs attributs. Prétendre
-    le contraire est ce qui vient d'arriver.
-
-    Retire **par fichier**, pas globalement : deux modules d'un même dépôt
-    épinglent souvent des fournisseurs différents, et la contrainte de l'un n'a
-    rien à dire des ressources de l'autre.
-    """
+    """Retire les accusations que la version épinglée par le dépôt dément, et rend de quoi le
+    dire à l'utilisateur."""
     if knowledge_base is None:
         return []
     versions_by_provider = {p.name: p.version for p in knowledge_base.coverage().providers}
@@ -327,26 +294,7 @@ def _provider_the_finding_judges(finding: Finding) -> str:
 
 
 def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
-    """Réévalue la sévérité des découvertes que l'état réel du compte éclaire.
-
-    Appelée seulement quand l'accès en lecture a été accordé (`--cloud-read-access`) :
-    la vérification interroge AWS, et le scanner ne s'authentifie à rien tant
-    qu'on ne le lui a pas demandé. C'est la garde qui rend vraie la phrase de la
-    page d'accueil, pas une optimisation.
-
-    Placée après la boucle sur les fichiers, parce que `findings` doit être
-    complète : au-dessus, aucune règle n'a encore tourné et la liste est vide.
-
-    `cloud_name` et non `resource` : les API cloud ne connaissent pas les
-    adresses Terraform. Une découverte dont le nom réel n'a pas pu être établi
-    est laissée telle quelle — interroger S3 avec `aws_s3_bucket.backups`
-    recevrait « ce compartiment n'existe pas » et ferait baisser la sévérité de
-    chaque compartiment du dépôt.
-
-    Un scan sonde le compte une fois au plus : `available_context()` est
-    appelée ici, jamais depuis la vérification, et seulement s'il y a quelque
-    chose à corroborer.
-    """
+    """Réévalue la sévérité des découvertes que l'état réel du compte éclaire."""
     adjustable = [
         finding
         for finding in findings
@@ -383,20 +331,7 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
 
 
 def attach_doc_urls(findings: list[Finding], knowledge_base: KnowledgeBase | None) -> None:
-    """Remplit le `doc_url` de chaque découverte à partir de son adresse de
-    ressource.
-
-    Fait en une passe sur les résultats plutôt qu'à chacun des deux douzaines
-    d'endroits où une découverte est construite : l'adresse identifie déjà le
-    type sans ambiguïté, donc faire circuler un lien à travers chaque règle
-    ajouterait un paramètre partout pour calculer la même chose. Publique parce
-    que les découvertes fondées sur le plan sont produites hors de `run` et
-    méritent les mêmes liens.
-
-    Les découvertes dont aucun pack chargé ne couvre le type gardent un
-    `doc_url` vide : un lien vers une page qui pourrait ne pas exister est pire
-    que pas de lien.
-    """
+    """Remplit le `doc_url` de chaque découverte à partir de son adresse de ressource."""
     if knowledge_base is None:
         return
     url_by_resource: dict[str, str] = {}

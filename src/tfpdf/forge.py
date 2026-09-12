@@ -1,16 +1,5 @@
-"""À quoi ressemble la publication de résultats de scan sur une forge quand
-elle n'a pas la forme de GitHub.
-
-Port de internal/forge/forge.go.
-
-Le vocabulaire commun — commentaires en ligne, issues de suggestion — et
-l'arithmétique de hunks de diff dont chaque hôte a besoin, parce qu'ils
-partagent tous la même contrainte : un commentaire en ligne ne peut se poser que
-sur une ligne que le diff contient.
-
-Les modules propres à chaque hôte (`githubpr`, `gitlabmr`) implémentent
-`Forge` ; le CLI en choisit un depuis l'environnement CI où il se trouve.
-"""
+"""À quoi ressemble la publication de résultats de scan sur une forge quand elle n'a pas la forme
+de GitHub."""
 
 from __future__ import annotations
 
@@ -20,13 +9,7 @@ from typing import Protocol
 
 @dataclass(slots=True)
 class InlineComment:
-    """Un commentaire à rattacher à une plage de lignes du diff.
-
-    `body` est déjà rendu dans la syntaxe de suggestion propre à l'hôte :
-    GitHub et GitLab ont tous deux des blocs de suggestion applicables en un
-    clic, mais la grammaire du bloc diffère, donc le rendu a lieu avant que ceci
-    ne soit construit.
-    """
+    """Un commentaire à rattacher à une plage de lignes du diff."""
 
     #: File path relative to the repository root.
     path: str
@@ -48,12 +31,7 @@ class InlineComment:
 
 @dataclass(slots=True)
 class SuggestionOutcome:
-    """Rend compte de chaque commentaire confié à `post_suggestions`.
-
-    Rien n'est abandonné en silence : une suggestion qui n'apparaît jamais parce
-    que sa ligne n'est pas dans le diff est, vue de l'extérieur, identique à un
-    scanner qui n'a rien trouvé.
-    """
+    """Rend compte de chaque commentaire confié à `post_suggestions`."""
 
     posted: int = 0
     already_there: int = 0
@@ -77,14 +55,8 @@ class Forge(Protocol):
 
 
 def patch_line_numbers(patch: str) -> set[int]:
-    """Parcourt un patch au format unifié, hunk par hunk, et rend les numéros de
-    lignes d'après changement qu'il couvre.
-
-    Les lignes ajoutées comme les lignes de contexte, puisqu'une découverte sur
-    un en-tête de ressource inchangé est ancrée sur une ligne de contexte. Les
-    lignes supprimées n'ont pas de position dans le nouveau fichier et sont
-    exclues.
-    """
+    """Parcourt un patch au format unifié, hunk par hunk, et rend les numéros de lignes d'après
+    changement qu'il couvre."""
     lines: set[int] = set()
     new_line = 0
 

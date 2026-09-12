@@ -1,17 +1,4 @@
-"""Règles de phase 2 : ce que `terraform plan` dit qu'il va réellement se
-passer.
-
-Porte internal/rules/planengine.go, rule_plan_confirmed_replace.go,
-rule_plan_drift.go, rule_plan_blast_radius.go et rule_plan_cost_impact.go.
-
-Tout ce que font les règles de phase 1 est une lecture de la source. Tout ce que
-font celles-ci est une lecture de la décision de Terraform lui-même, fournie par
-l'utilisateur sous forme de sortie `terraform show -json` — cet outil n'exécute
-jamais Terraform lui-même. Cette
-différence explique que ces découvertes n'aient pas de numéro de ligne : un plan
-n'a aucune position dans une source .tf sur laquelle pointer, elles sont donc
-rattachées au fichier de plan, ligne 1.
-"""
+"""Règles de phase 2 : ce que `terraform plan` dit qu'il va réellement se passer."""
 
 from __future__ import annotations
 
@@ -46,14 +33,7 @@ def run_plan_rules(
     kb: KnowledgeBase | None,
     config: PlanRuleConfig,
 ) -> list[Finding]:
-    """Exécute chaque règle de phase 2 contre un plan `terraform show -json`
-    analysé.
-
-    `plan_path` rattache les découvertes à un pseudo-fichier. `changed_attrs`
-    doit venir du résultat de la passe statique, pour que la règle de dérive
-    puisse distinguer un changement volontaire de la PR d'une dérive
-    inexpliquée.
-    """
+    """Exécute chaque règle de phase 2 contre un plan `terraform show -json` analysé."""
     findings: list[Finding] = []
     findings += ConfirmedReplaceRule().check(plan_path, pf.resource_changes, kb)
     findings += DriftRule().check(plan_path, pf.resource_changes, changed_attrs, kb)
@@ -75,14 +55,8 @@ def run_plan_rules(
 def deduplicate_force_new_against_plan(
     static_findings: list[Finding], plan_findings: list[Finding]
 ) -> list[Finding]:
-    """Retire les découvertes force-new de phase 1 pour toute ressource dont le
-    plan a déjà confirmé le remplacement.
-
-    Les deux règles se déclenchent pour le même problème de fond — « ce
-    changement d'attribut détruit et recrée la ressource » — et une fois qu'un
-    plan l'a confirmé, répéter la supposition heuristique n'est que du bruit
-    par-dessus une certitude.
-    """
+    """Retire les découvertes force-new de phase 1 pour toute ressource dont le plan a déjà
+    confirmé le remplacement."""
     confirmed = {
         bare_resource_address(finding.resource)
         for finding in plan_findings
@@ -102,14 +76,9 @@ def deduplicate_force_new_against_plan(
 
 
 class ConfirmedReplaceRule:
-    """Signale toute ressource que Terraform a réellement décidé de détruire —
-    suppression pure, ou remplacement par suppression puis création — sur un
-    type de ressource critique ou à état.
-
-    Contrairement à la règle force-new de phase 1, qui devine à partir d'une
-    liste curée d'attributs ForceNew, ceci n'est pas une heuristique : c'est ce
-    que Terraform lui-même fera à l'apply.
-    """
+    """Signale toute ressource que Terraform a réellement décidé de détruire — suppression pure,
+    ou remplacement par suppression puis création — sur un type de ressource critique ou à
+    état."""
 
     def check(
         self,
@@ -165,21 +134,8 @@ class ConfirmedReplaceRule:
 
 
 class DriftRule:
-    """Signale une mise à jour de plan où la valeur d'un attribut sensible
-    change alors que le diff .tf de cette PR n'y a jamais touché.
-
-    Cela veut dire que le changement vient d'ailleurs : une valeur par défaut
-    modifiée à la main, une montée de version du fournisseur qui déplace une
-    valeur calculée, ou un état ayant déjà dérivé lors d'un changement hors
-    bande antérieur. Dans tous les cas, l'auteur de la PR doit savoir que son
-    apply fera plus que ce qu'il a écrit.
-
-    La portée est délibérément étroite : uniquement les attributs déjà curés
-    comme ForceNew, c'est-à-dire ceux dont on sait qu'ils comptent, et
-    uniquement les mises à jour sur place — un remplacement ou une destruction
-    est déjà couvert par la règle de remplacement confirmé et ne serait ici que
-    du bruit.
-    """
+    """Signale une mise à jour de plan où la valeur d'un attribut sensible change alors que le
+    diff .tf de cette PR n'y a jamais touché."""
 
     def check(
         self,
@@ -312,27 +268,8 @@ class _ResourceCostDelta:
 
 @dataclass(slots=True)
 class CostImpactRule:
-    """Estime le DELTA de coût mensuel qu'un plan provoquera et le signale
-    quand il franchit un seuil configurable.
-
-    Les coûts viennent des données de tarification curées — des estimations
-    délibérément grossières et indépendantes de la région. Le but est un
-    avertissement précoce en relecture, « cette PR augmente sensiblement la
-    facture », et non un devis exact à la facturation près : c'est à cela que
-    servent Infracost ou le calculateur AWS, après la fusion.
-
-    Modèle du delta, par ressource gérée du plan :
-      * création      +coût(après)
-      * destruction   -coût(avant)
-      * remplacement  coût(après) - coût(avant), généralement 0 sauf si
-        l'attribut moteur de prix a changé, par exemple un instance_type revu
-        à la hausse
-      * mise à jour   coût(après) - coût(avant)
-
-    Les types de ressources absents de la table de tarification contribuent
-    0 $ : les types inconnus sont ignorés plutôt que devinés, comme pour tout
-    autre fichier de données curées de ce projet.
-    """
+    """Estime le delta mensuel : après moins avant, coût négatif pour une suppression. Les
+    ressources inconnues contribuent zéro ; ce n'est pas un devis."""
 
     #: The monthly cost increase (USD) that triggers a finding. Zero or
     #: negative disables the rule.

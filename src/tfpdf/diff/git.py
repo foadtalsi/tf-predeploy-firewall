@@ -1,20 +1,10 @@
-"""La vue « pull request » : les fichiers modifiés entre deux références git.
-
-Port de internal/diff/git.go.
-
-**Ce module décide de ce qui est scanné.** Une sous-sélection ne produit aucune
-erreur — seulement moins de découvertes — ce qui en fait le mode de défaillance
-le plus silencieux du scanner. C'est pourquoi les seize tests de `git_test.go`
-et `local_test.go` sont portés un pour un dans `tests/test_diff.py` : ils
-couvrent les cas tordus — l'index plutôt que la copie de travail, le premier
-commit, les suppressions, `.gitignore`, et `terragrunt.hcl` contre `.tf`.
-"""
+"""La vue « pull request » : les fichiers modifiés entre deux références git."""
 
 from __future__ import annotations
 
 import subprocess
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 #: Répertoires qu'il n'est jamais utile de parcourir lors d'un scan complet.
@@ -34,7 +24,7 @@ class ChangedFile:
     path: str
     head_content: bytes = b""
     #: None quand le fichier n'existait pas dans la révision de base.
-    base_content: bytes | None = field(default=None)
+    base_content: bytes | None = None
 
 
 #: Ce que git refuse de faire sans qu'on le lui permette, et le message qu'il
@@ -44,32 +34,8 @@ _DUBIOUS_OWNERSHIP = b"dubious ownership"
 
 
 def _git(repo_dir: str, *args: str) -> subprocess.CompletedProcess[bytes]:
-    """Exécute git sur `repo_dir`, en désarmant la garde de propriété.
-
-    Git refuse d'ouvrir un dépôt qui appartient à un autre utilisateur. Dans le
-    conteneur d'une GitHub Action, c'est exactement à quoi ressemble le
-    workspace monté : il appartient à l'utilisateur du runner, et le conteneur
-    tourne en root. Sans ce réglage, **aucun** diff n'est calculable et l'outil
-    ne sert à rien.
-
-    Le `Dockerfile` essayait déjà de le régler, et ne le pouvait pas :
-    `git config --global` écrit dans `$HOME/.gitconfig` au moment de la
-    construction de l'image, alors que GitHub réécrit `HOME` à l'exécution
-    (`/github/home`). Le fichier existait, git ne le lisait jamais, et la
-    tentative avait l'air d'une protection. C'est le pire état pour un
-    correctif : présent, commenté, inopérant.
-
-    Posé par `-c` plutôt que dans un fichier, donc : ce que reçoit ce processus
-    ne dépend plus de son environnement, et rien ne subsiste après lui. Cela
-    couvre aussi les usages hors image — un pip install dans un conteneur, un
-    hook pre-commit — que le Dockerfile ne pouvait pas atteindre.
-
-    `*` plutôt qu'un chemin : git résout un dépôt en remontant les répertoires,
-    donc le dossier qu'on lui désigne n'est pas forcément la racine à déclarer,
-    et cette racine n'est connaissable qu'en interrogeant git — ce qu'on
-    n'arrive pas à faire, précisément. La portée reste étroite : ces appels ne
-    font que lire, et l'utilisateur a lui-même désigné le dépôt.
-    """
+    """Exécute Git en lecture avec safe.directory=* pour les dépôts montés dans un conteneur. Le
+    réglage ne persiste pas."""
     return subprocess.run(
         ["git", "-c", "safe.directory=*", "-C", repo_dir, *args],
         capture_output=True,
@@ -89,13 +55,7 @@ def _git_lines(repo_dir: str, *args: str) -> list[str]:
 
 
 def remote_url(repo_dir: str, remote: str = "origin") -> str:
-    """L'URL du dépôt distant `remote`, ou "" s'il n'y en a pas.
-
-    Sert à donner un nom au dépôt scanné quand aucune variable de CI ne le
-    fournit — le cas d'un scan lancé depuis un poste de travail. Le rendu vide
-    couvre tout : pas de dépôt git, aucun distant configuré, git absent du
-    PATH. C'est un renseignement de confort, jamais une condition du scan.
-    """
+    """L'URL du dépôt distant `remote`, ou "" s'il n'y en a pas."""
     process = _git(repo_dir, "remote", "get-url", remote)
     if process.returncode != 0:
         return ""
@@ -103,12 +63,8 @@ def remote_url(repo_dir: str, remote: str = "origin") -> str:
 
 
 def show_file(repo_dir: str, ref: str, path: str) -> bytes | None:
-    """Le contenu de `path` à la référence `ref`, ou None s'il n'y est pas.
-
-    Une `ref` vide lit le blob de l'index (`git show :path`), c'est-à-dire le
-    contenu qu'un commit contiendrait réellement — et non celui de la copie de
-    travail.
-    """
+    """Lit un fichier à une référence, ou l'index si ref est vide. Retourne None si la lecture
+    échoue."""
     p = _git(repo_dir, "show", f"{ref}:{path}")
     if p.returncode != 0:
         return None
@@ -205,12 +161,7 @@ def changed_terraform_files(repo_dir: str, base_ref: str, head_ref: str) -> list
 
 
 def changed_terragrunt_files(repo_dir: str, base_ref: str, head_ref: str) -> list[ChangedFile]:
-    """Tout fichier terragrunt.hcl qui diffère entre les deux références.
-
-    Le format de configuration propre à Terragrunt (`inputs`, `remote_state`, …)
-    n'est pas un fichier de ressources .tf : il lui faut donc son propre motif
-    de chemin git, au lieu d'être ramassé par le glob *.tf.
-    """
+    """Tout fichier terragrunt.hcl qui diffère entre les deux références."""
     _validate_refs(repo_dir, base_ref, head_ref)
 
     files: list[ChangedFile] = []
@@ -241,18 +192,8 @@ def _walk(repo_dir: str, matches: Callable[[Path], bool]) -> list[tuple[str, byt
 
 
 def all_terraform_files(repo_dir: str) -> list[ChangedFile]:
-    """Tout fichier *.tf du dépôt, avec la base égale à la tête — pour un audit
-    de dérive planifié sur du code déjà fusionné, et non pour un diff de PR.
-
-    Poser la base égale à la tête fait que les règles fondées sur le diff
-    (ForceNew) ne trouvent correctement rien de « changé », puisqu'il n'y a
-    aucune PR contre laquelle comparer, tandis que les règles qui ne regardent
-    que le contenu courant — attributs inconnus, motifs de tutoriel,
-    prevent_destroy manquant — tournent à pleine puissance. C'est ce qui
-    rattrape du Terraform qui était propre au moment de la fusion et ne l'est
-    plus, parce que la couverture de règles et de schémas du scanner a grandi
-    depuis.
-    """
+    """Scanne tous les .tf avec base identique à head : aucune modification ForceNew
+    artificielle."""
     return [
         ChangedFile(path=rel, head_content=content, base_content=content)
         for rel, content in _walk(repo_dir, lambda p: p.suffix == ".tf")

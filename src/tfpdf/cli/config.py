@@ -1,14 +1,4 @@
-"""La configuration YAML du scanner, et les surcharges d'environnement
-par-dessus.
-
-Porte la moitié « chargement de configuration » de
-cmd/tf-predeploy-firewall/main.go.
-
-Priorité, du plus faible au plus fort : config.yml du dépôt < politique de
-l'organisation < variable d'environnement. Un opérateur peut donc toujours
-forcer un réglage localement par variable d'environnement, même quand une
-politique d'organisation existe — une échappatoire délibérée, pas un oubli.
-"""
+"""Configuration du scanner. Priorité : fichier local < politique distante < environnement."""
 
 from __future__ import annotations
 
@@ -33,15 +23,7 @@ class ConfigError(ValueError):
 
 @dataclass(slots=True)
 class IgnorePathConfig:
-    """Une entrée d'`ignore_paths` :
-
-    ```yaml
-    ignore_paths:
-      - path: "legacy/**/*.tf"
-        categories: ["missing_lifecycle"]   # optionnel ; omis = toutes
-      - path: "sandbox/**"
-    ```
-    """
+    """Exclusion par motif de chemin ; une liste de catégories vide les couvre toutes."""
 
     path: str = ""
     categories: list[Category | str] = field(default_factory=list)
@@ -99,13 +81,7 @@ def _as_str_list(v: Any) -> list[str]:
 
 
 def load_config(path: str) -> Config:
-    """Lit le fichier de configuration, puis applique les surcharges
-    d'environnement.
-
-    Un fichier absent veut simplement dire « utilise les valeurs par défaut » :
-    les surcharges d'environnement s'appliquent de toute façon, ce qui est
-    pourquoi cette fonction ne sort pas tôt dans ce cas.
-    """
+    """Charge le YAML et les surcharges d'environnement. Un fichier absent conserve les défauts."""
     config = Config()
 
     data: bytes | None
@@ -128,22 +104,16 @@ def load_config(path: str) -> Config:
         if not config.block_threshold:
             config.block_threshold = Severity.HIGH
 
-    _apply_env(config, path)
+    _apply_env(config)
     return config
 
 
 def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
-    """N'écrase que les champs réellement présents dans le document.
-
-    Go obtient cela gratuitement en désérialisant dans une structure
-    pré-remplie ; en Python il faut l'écrire, sans quoi
-    `plan_blast_radius_threshold` perdrait sa valeur par défaut de 10 au profit
-    d'un zéro dans toute configuration qui n'en parle pas.
-    """
+    """N'écrase que les champs réellement présents dans le document."""
     if "block_threshold" in document:
         config.block_threshold = str(document["block_threshold"] or "")
     if "ignore_rules" in document:
-        config.ignore_rules = list(_as_str_list(document["ignore_rules"]))
+        config.ignore_rules = _as_str_list(document["ignore_rules"])
     if document.get("plan_blast_radius_threshold") is not None:
         config.plan_blast_radius_threshold = int(document["plan_blast_radius_threshold"])
     if document.get("cost_impact_threshold_usd") is not None:
@@ -166,13 +136,13 @@ def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
             entries.append(
                 IgnorePathConfig(
                     path=str(raw.get("path", "")),
-                    categories=list(_as_str_list(raw.get("categories"))),
+                    categories=_as_str_list(raw.get("categories")),
                 )
             )
         config.ignore_paths = entries
 
 
-def _apply_env(config: Config, path: str) -> None:
+def _apply_env(config: Config) -> None:
     import os
 
     if env := os.environ.get("SCANNER_BLOCK_THRESHOLD"):
@@ -193,17 +163,10 @@ def _apply_env(config: Config, path: str) -> None:
             raise ConfigError(
                 f"SCANNER_COST_IMPACT_THRESHOLD_USD must be a number, got {env!r}: {exc}"
             ) from exc
-    del path
 
 
 def parse_go_bool(v: str, what: str) -> bool:
-    """Accepte ce qu'accepte le `strconv.ParseBool` de Go, et rien d'autre.
-
-    `SCANNER_SUGGESTIONS` vient d'une entrée de workflow, où « 1 », « T » et
-    « TRUE » sont autant de choses que les gens écrivent. Le `bool(str)` de
-    Python accepterait « false » comme vrai, ce qui est la seule réponse qu'il
-    ne faut surtout pas deviner.
-    """
+    """Accepte les booléens true/false, 1/0, t/f et leurs variantes de casse prises en charge."""
     if v in ("1", "t", "T", "true", "TRUE", "True"):
         return True
     if v in ("0", "f", "F", "false", "FALSE", "False"):
@@ -212,19 +175,8 @@ def parse_go_bool(v: str, what: str) -> bool:
 
 
 def warn_unknown_threshold(threshold: Severity | str) -> None:
-    """Le dit quand le seuil configuré n'est pas une sévérité que cette version
-    connaît.
-
-    Absent de l'original Go, et **seul ajout au comportement du CLI** : Go
-    classe un seuil non reconnu au rang 0, si bien que `hgih` transforme
-    silencieusement le scanner en « bloque sur la moindre découverte ». `HIGH`
-    est attrapé aussi, les valeurs étant en minuscules : la mise en majuscules
-    évidente fait partie des fautes que ceci trouve.
-
-    La comparaison est laissée exactement comme Go la fait — lever une
-    exception transformerait la même faute de frappe en trace d'appel. Seul le
-    silence est corrigé.
-    """
+    """Avertit qu'un seuil inconnu conserve le comportement historique : toute sévérité le
+    franchit."""
     if str(threshold) in tuple(Severity):
         return
     print(
@@ -235,12 +187,7 @@ def warn_unknown_threshold(threshold: Severity | str) -> None:
 
 
 def load_custom_rules(path: str) -> customrules.Config | None:
-    """Lit la section `custom_rules:` du même fichier de configuration YAML.
-
-    Rend None quand le fichier est absent ou ne définit aucune règle
-    personnalisée — c'est une fonctionnalité Growth et plus, que la plupart des
-    dépôts n'utiliseront pas, donc son absence ne doit jamais être une erreur.
-    """
+    """Lit la section `custom_rules:` du même fichier de configuration YAML."""
     try:
         data = Path(path).read_bytes()
     except FileNotFoundError:

@@ -1,21 +1,4 @@
-"""Publication des résultats de scan sur une merge request GitLab.
-
-Port de internal/gitlabmr/gitlabmr.go.
-
-Même forme que `githubpr`, grammaire différente en dessous. Les trois
-différences qui comptent :
-
-  * Un commentaire en ligne a besoin d'un objet de position portant les SHA de
-    diff exacts de la MR (base, start, head), récupérés depuis la MR elle-même
-    — et pas seulement d'un chemin et d'une ligne.
-  * Le bloc de suggestion est relatif à une plage : ```suggestion:-0+2 remplace
-    la ligne commentée plus les deux suivantes, là où le ```suggestion simple
-    de GitHub remplace la plage ancrée du commentaire. Le rendu a lieu dans
-    `report`, qui connaît les deux grammaires.
-  * Chaque discussion est son propre POST ; il n'y a pas d'objet « revue »
-    groupé, donc un échec partiel laisse les commentaires précédents postés.
-    Les marqueurs rendent la reprise idempotente.
-"""
+"""Publication des résultats de scan sur une merge request GitLab."""
 
 from __future__ import annotations
 
@@ -94,13 +77,7 @@ class Client:
     def post_suggestions(
         self, summary: str, comments: list[InlineComment], head_sha: str
     ) -> SuggestionOutcome:
-        """Rattache les commentaires en discussions en ligne.
-
-        `head_sha`, quand il est non vide, est comparé à la tête actuelle de la
-        MR : si la branche a bougé depuis le scan, rien n'est posté plutôt que
-        d'épingler des suggestions sur des lignes qui ne disent plus ce que le
-        scan a vu.
-        """
+        """Rattache les commentaires en discussions en ligne."""
         out = SuggestionOutcome()
         if not comments:
             return out

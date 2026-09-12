@@ -1,16 +1,5 @@
-"""Résout l'étiquette lisible d'une catégorie et sa documentation longue depuis
-le pack de règles, et génère docs/rules.md.
-
-Port de internal/report/ruledocs.go.
-
-L'explication longue de chaque catégorie vit dans le pack de règles, pas ici.
-C'était quatre cents lignes de Markdown dans des littéraux Go, donc améliorer
-une phrase confuse demandait une chaîne d'outils Go et une release. C'est de la
-prose : sa place est dans un fichier de données à côté de la règle.
-
-`category_display` vit ici et non dans `markdown.py` comme en Go : c'est la même
-question que `category_title`, et les séparer créerait un import circulaire.
-"""
+"""Résout l'étiquette lisible d'une catégorie et sa documentation longue depuis le pack de
+règles, et génère docs/rules.md."""
 
 from __future__ import annotations
 
@@ -38,15 +27,7 @@ class RuleHelp:
 
 
 def lookup_rule_help(c: Category | str) -> RuleHelp | None:
-    """La documentation d'une catégorie, ou None.
-
-    Un pack qui échoue à se charger laisse les catégories sans documentation
-    plutôt que d'arrêter le processus : ce module ne fait que rendre, et au
-    moment où quoi que ce soit l'atteint, `tfpdf.rules` a déjà refusé de
-    tourner sur un pack cassé. Les tests vérifient que chaque règle a une
-    explication, si bien qu'une entrée réellement manquante est attrapée là
-    plutôt que livrée.
-    """
+    """La documentation d'une catégorie, ou None."""
     try:
         pack = ruledef.builtin()
     except ruledef.RulePackError:
@@ -58,12 +39,7 @@ def lookup_rule_help(c: Category | str) -> RuleHelp | None:
 
 
 def category_title(c: Category | str) -> str | None:
-    """L'étiquette lisible d'une catégorie, depuis le pack.
-
-    En garder une seconde copie dans le code ferait qu'une règle renommée se
-    lirait d'une façon dans le commentaire de PR et d'une autre sur la page
-    d'alerte vers laquelle il pointe.
-    """
+    """L'étiquette lisible d'une catégorie, depuis le pack."""
     try:
         pack = ruledef.builtin()
     except ruledef.RulePackError:
@@ -75,12 +51,7 @@ def category_title(c: Category | str) -> str | None:
 
 
 def category_display(c: Category | str) -> str:
-    """Étiquette une catégorie pour le commentaire de PR.
-
-    Les règles personnalisées — catégorie « custom:<id-de-règle> », venue de
-    `tfpdf.customrules` — n'ont aucune entrée dans le pack intégré : elles sont
-    rendues « Custom rule: <id> » au lieu de retomber sur une chaîne vide.
-    """
+    """Étiquette une catégorie pour le commentaire de PR."""
     label = category_title(c)
     if label is not None:
         return label
@@ -124,23 +95,7 @@ _DOCS_EPILOGUE = (
 
 
 def render_rule_docs() -> str:
-    """Génère docs/rules.md depuis le pack de règles.
-
-    Le fichier est généré plutôt qu'écrit à la main parce que `helpUri` y
-    pointe depuis chaque envoi SARIF : une catégorie dont la section n'existe
-    pas est un lien mort dans le tableau de bord de sécurité de quelqu'un, et le
-    seul moyen d'être sûr que les deux s'accordent est que l'un produise
-    l'autre. Un test régénère et compare.
-
-    Les titres sont l'identifiant brut de la catégorie, pour que les ancres que
-    construit `rule_help_uri` (#unknown_attribute) soient exactement celles que
-    GitHub génère ; l'étiquette lisible passe en dessous.
-
-    Le préambule nomme toujours la commande de régénération Go. C'est délibéré
-    tant que les deux scanners coexistent : le fichier qu'il produit est comparé
-    octet pour octet à celui de l'arbre Go, et reformuler l'instruction ferait
-    diverger les deux sur une phrase plutôt que sur une règle.
-    """
+    """Génère docs/rules.md depuis le pack de règles."""
     # Deferred because Go has one package here and Python has five modules:
     # sarif imports this one for its help text, so importing it back at module
     # scope would close the circle. The catalogue is the SARIF rule array, so

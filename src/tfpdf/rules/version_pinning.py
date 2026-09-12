@@ -35,22 +35,8 @@ _DECLARED_SOURCE = re.compile(r'source\s*=\s*"([^"]+)"')
 
 
 class UnpinnedVersionRule:
-    """Signale les sources de modules et les exigences de fournisseurs qui
-    flottent au lieu de nommer une version.
-
-    Une dépendance non épinglée rend un apply non reproductible : le plan que
-    quelqu'un a relu et le plan qui s'exécute une heure plus tard peuvent
-    différer parce qu'un tiers a déplacé une branche ou publié une release, sans
-    aucun commit dans ce dépôt pour l'expliquer. C'est une exposition de chaîne
-    d'approvisionnement — qui contrôle cette référence contrôle ce qui s'exécute
-    contre votre compte cloud — et c'est aussi le moyen le plus sûr d'obtenir un
-    plan que personne ne peut reproduire le jour où il tourne mal.
-
-    Sa place à côté des règles anti-hallucination tient à une raison précise :
-    le Terraform généré n'écrit presque jamais de contrainte de version. Un
-    modèle à qui l'on demande « un module VPC » émet une source et passe à la
-    suite.
-    """
+    """Signale les sources de modules et les exigences de fournisseurs qui flottent au lieu de
+    nommer une version."""
 
     def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         findings: list[Finding] = []
@@ -137,15 +123,7 @@ def _is_git_source(value: str) -> bool:
 def _check_required_providers(
     path: str, source: bytes, knowledge_base: KnowledgeBase | None
 ) -> list[Finding]:
-    """Signale les fournisseurs déclarés sans contrainte de version.
-
-    Ceci lit le texte source plutôt que les ressources analysées, parce que
-    `terraform { required_providers { … } }` est un bloc imbriqué dans un bloc
-    qui n'est pas une ressource, et que le parseur ne modélise délibérément pas
-    — ce n'est pas de l'infrastructure. Faire correspondre le texte du bloc est
-    assez étroit pour être sûr, et évite de faire grossir le parseur pour une
-    seule règle.
-    """
+    """Signale les fournisseurs déclarés sans contrainte de version."""
     if not source:
         return []
     text = source.decode("utf-8", errors="replace")
@@ -180,29 +158,7 @@ def _check_required_providers(
 
 
 def _pin_suggestion(name: str, entry: str, knowledge_base: KnowledgeBase | None) -> str:
-    """Le bloc à coller pour épingler ce fournisseur, ou "" quand on ne sait pas.
-
-    Deux inventions vivaient ici, et la première était grave.
-
-    **L'adresse.** Le bloc écrivait `source = "hashicorp/{name}"` sans
-    condition. Sur un dépôt qui déclare son propre fournisseur — Rootly publie
-    `rootlyhq/rootly`, et l'écrit dans l'entrée juste au-dessus — la suggestion
-    remplaçait l'adresse correcte par une adresse qui n'existe pas. Dans un bloc
-    ```suggestion de GitHub, c'est-à-dire derrière un bouton « Commit
-    suggestion ». Envoyer cela à l'équipe qui publie ce fournisseur est le pire
-    résultat possible d'un outil qui se vend sur l'exactitude.
-
-    Une adresse déclarée est donc reprise telle quelle, et **aucune n'est jamais
-    écrite si elle n'était pas déjà là**. Terraform résout un `source` absent en
-    `hashicorp/<nom>` de toute façon ; l'écrire nous-mêmes n'ajouterait rien et
-    ferait passer une convention pour une vérification.
-
-    **La version.** `~> 5.0` était une constante, vraie d'aucun fournisseur en
-    particulier. Elle vient maintenant de la base de connaissances — la seule
-    chose ici qui sache réellement quelle version d'un fournisseur existe. Pour
-    un fournisseur qu'elle ne couvre pas, il n'y a pas de suggestion du tout :
-    la découverte reste, et elle dit ce qui manque sans prétendre le remplir.
-    """
+    """Le bloc à coller pour épingler ce fournisseur, ou "" quand on ne sait pas."""
     if knowledge_base is None:
         return ""
     major = _known_major(name, entry, knowledge_base)
@@ -219,14 +175,7 @@ def _pin_suggestion(name: str, entry: str, knowledge_base: KnowledgeBase | None)
 
 
 def _known_major(name: str, entry: str, knowledge_base: KnowledgeBase) -> str | None:
-    """Le numéro majeur que la base de connaissances porte pour ce fournisseur,
-    ou None.
-
-    L'adresse décide, pas le nom local : `aws = { source = "someone/aws" }` est
-    un autre fournisseur que celui dont nous avons le schéma, et lui proposer
-    notre numéro de version serait la même erreur d'un cran plus discrète. Un
-    `source` absent vaut `hashicorp/<nom>`, ce que Terraform fait lui-même.
-    """
+    """Le numéro majeur que la base de connaissances porte pour ce fournisseur, ou None."""
     declared = _DECLARED_SOURCE.search(entry)
     address = declared.group(1) if declared is not None else f"hashicorp/{name}"
     namespace, _, type_ = address.rpartition("/")

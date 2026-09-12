@@ -1,10 +1,5 @@
-"""Les découvertes produites par le moteur de règles, et chaque forme sous
-laquelle elles sont rendues.
-
-Port de internal/report. Go a ici un seul paquet ; Python a un module par
-surface de sortie, si bien que le graphe d'imports à l'intérieur de ce paquet
-est le seul endroit où ce découpage se voie.
-"""
+"""Les découvertes produites par le moteur de règles, et chaque forme sous laquelle elles sont
+rendues."""
 
 from .codequality import SEVERITY_TO_CODE_QUALITY, render_code_quality
 from .finding import Category, Finding, Fix, Severity

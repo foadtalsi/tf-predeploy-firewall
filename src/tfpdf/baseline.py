@@ -1,34 +1,5 @@
-"""Consigne les découvertes déjà présentes dans un dépôt pour qu'elles ne
-bloquent pas la fusion, tout en bloquant les nouvelles.
-
-Port de internal/baseline/baseline.go.
-
-Sans cela, pointer le scanner sur un parc Terraform mature rapporte des
-centaines de découvertes défendables et collectivement inutiles : la seule
-réponse disponible serait d'abaisser `block_threshold` jusqu'au silence, ce qui
-revient à désinstaller l'outil.
-
-Une référence est un fichier versionné. Les découvertes qu'elle contient
-apparaissent toujours dans le commentaire de PR, dans leur propre section, sans
-bloquer. Toute nouveauté bloque.
-
-La correspondance se fait sur règle + catégorie + ressource + fichier, **pas**
-sur le numéro de ligne : une référence qui casse dès qu'on ajoute une ligne
-au-dessus serait pire que pas de référence.
-
-`rule_name` fait partie de la clé depuis la version 2 du format, et son absence
-était un vrai trou. Plusieurs règles partagent une catégorie : « prevent_destroy
-manquant » et « force_destroy sur un compartiment » sont toutes deux
-`missing_lifecycle`. Sur la même ressource et le même fichier, elles avaient donc
-la même clé — accepter la première acceptait la seconde, en silence.
-
-Ce n'est pas théorique. Sur notre propre infrastructure, la lecture cloud avait
-fait monter `force_destroy` de medium à **critical** en constatant que les deux
-compartiments existaient et n'étaient pas vides ; la découverte est arrivée dans
-le rapport déjà neutralisée par une entrée écrite pour le prevent_destroy
-manquant. Toute la valeur de la vérification était annulée par une dérogation
-accordée pour autre chose.
-"""
+"""Consigne les découvertes déjà présentes dans un dépôt pour qu'elles ne bloquent pas la fusion,
+tout en bloquant les nouvelles."""
 
 from __future__ import annotations
 
@@ -112,27 +83,8 @@ class Baseline:
     legacy: bool = False
 
     def apply(self, findings: list[Finding]) -> list[Finding]:
-        """Marque comme acceptée toute découverte présente dans la référence.
-
-        Réutilise le même mécanisme « accepté mais toujours affiché » que les
-        dérogations : une découverte de la référence est exclue de la décision de
-        blocage et du SARIF, mais ne disparaît jamais silencieusement du rapport.
-
-        Deux appariements, et un seul s'applique à un fichier donné.
-
-        **Version 2, exact.** Le nom de la règle fait partie de la clé. Accepter
-        « prevent_destroy manquant » sur un compartiment n'accepte plus
-        « force_destroy » sur le même compartiment.
-
-        **Version 1, permissif.** Ces entrées n'ont pas de nom de règle, et
-        aucune reconstruction n'est possible : le fichier ne dit pas laquelle
-        des règles d'une catégorie son auteur avait acceptée. Elles apparient
-        donc comme avant, c'est-à-dire trop largement. C'est délibéré : le seul
-        autre choix serait de ne plus les apparier du tout, ce qui rendrait
-        bloquantes des centaines de découvertes déjà acceptées, dans chaque
-        dépôt, à la première exécution après la mise à jour. Le trou reste ouvert
-        jusqu'à un `--write-baseline`, et `legacy` est là pour qu'on le dise.
-        """
+        """Marque les découvertes présentes dans la référence comme acceptées, sans les supprimer
+        du rapport."""
         for finding in findings:
             entry = Entry(
                 category=str(finding.category),
@@ -153,13 +105,8 @@ class Baseline:
         return findings
 
     def stale(self) -> int:
-        """Combien d'entrées de la référence n'ont rien trouvé dans ce scan —
-        découvertes depuis corrigées, ou ressources supprimées.
-
-        Rapporté plutôt qu'élagué automatiquement : retirer des entrées en silence
-        laisserait une référence ré-accepter discrètement une découverte qui
-        reviendrait plus tard. Le nettoyage est un `--write-baseline` délibéré.
-        """
+        """Combien d'entrées de la référence n'ont rien trouvé dans ce scan — découvertes depuis
+        corrigées, ou ressources supprimées."""
         return self.size() - len(self.used)
 
     def size(self) -> int:
@@ -220,14 +167,8 @@ def load(path: str) -> Baseline | None:
 
 
 def write(path: str, findings: list[Finding], generated_at: str) -> None:
-    """Consigne les découvertes données comme nouvelle référence.
-
-    Seules des découvertes réellement rapportables doivent être passées ici :
-    écrire une référence à partir d'un scan sur lequel des dérogations ont été
-    appliquées graverait ces dérogations dans le fichier et les rendrait
-    permanentes, leur faisant survivre à la décision du tableau de bord qui les
-    a créées.
-    """
+    """Écrit les découvertes de référence de façon atomique, avec permissions restreintes et sans
+    messages pouvant contenir des secrets."""
     seen: set[str] = set()
     entries: list[Entry] = []
 

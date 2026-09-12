@@ -1,32 +1,5 @@
-"""L'accès en lecture seule au compte cloud, quand le client en accorde un.
-
-Le scanner par défaut ne s'authentifie à rien : il lit les fichiers .tf du
-dépôt contre un schéma qu'il embarque déjà. Cette propriété reste vraie, et
-c'est le chemin qu'emprunte quiconque n'active pas `--cloud-read-access`.
-
-Ce module ne juge rien et n'interroge rien lui-même. Il fait trois choses, et
-c'est tout ce qui sépare « on a le droit de regarder » de « on regarde » :
-
-1. **Décider si l'accès existe.** Identifiants utilisables ou non, région
-   connue ou non. Sans accès, `tfpdf.rules.engine` ne demande rien à personne.
-2. **Poser la garde de lecture seule.** Un gestionnaire botocore sur la session
-   *par défaut* de boto3 refuse toute opération absente de
-   `_READ_ONLY_OPERATIONS` avant que la requête soit construite. La session par
-   défaut est celle qu'utilise n'importe quel `boto3.client(...)` du
-   processus — y compris ceux que crée `ruledef.severitycheck`, qui est le
-   code qui interroge réellement AWS. C'est ce qui fait que « lecture seule »
-   est une propriété du programme et non une phrase de documentation.
-3. **Le dire.** Une ligne sur stderr nommant le compte atteint et les appels
-   permis, dérivée de la table elle-même, pour que la personne qui a activé
-   l'option sache ce que son scan a le droit de faire.
-
-Rien ici ne lève dans un scan : identifiants absents, permission refusée,
-boto3 pas installé, tout cela rend « pas d'accès », et le scan continue comme
-si l'option n'avait jamais été demandée. La seule exception est
-`WriteAttempted`, qui signale un défaut du scanner et non une condition
-d'exécution — confondre les deux ferait passer « ce code appelle une
-écriture » pour « le client n'a pas donné assez de droits ».
-"""
+"""Accès cloud optionnel, limité à sts:GetCallerIdentity et s3:ListObjectsV2. Aucun contenu de
+bucket n'est lu."""
 
 from __future__ import annotations
 
@@ -59,24 +32,14 @@ class WriteAttempted(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class Access:
-    """La preuve qu'un accès en lecture a été ouvert.
-
-    Ne porte aucune méthode d'interrogation : ce qui interroge le cloud est
-    `ruledef.severitycheck`, et cet objet dit seulement qu'il a le droit de le
-    faire. Le moteur le traite comme un jeton — présent ou absent.
-    """
+    """La preuve qu'un accès en lecture a été ouvert."""
 
     account_id: str
     region: str
 
 
 def _refuse_anything_but_reads(model: Any = None, **_kwargs: Any) -> None:
-    """Gestionnaire `before-parameter-build` : la garde.
-
-    Voit toutes les requêtes de tous les clients issus de la session sur
-    laquelle il est posé, y compris ceux qu'un code futur créerait sans avoir
-    lu ce fichier. C'est ce qui fait que la garantie survit aux modifications.
-    """
+    """Gestionnaire `before-parameter-build` : la garde."""
     if model is None:  # pragma: no cover - botocore le fournit toujours
         return
     service = model.service_model.service_name
@@ -88,12 +51,7 @@ def _refuse_anything_but_reads(model: Any = None, **_kwargs: Any) -> None:
 
 
 def open_access(enabled: bool) -> tuple[Access | None, str]:
-    """Ouvre l'accès en lecture, ou explique pourquoi il n'y en a pas.
-
-    Rend `(None, raison)` dans tous les cas d'échec. La raison est faite pour
-    être imprimée : quelqu'un qui a activé l'option et ne voit rien changer
-    doit apprendre pourquoi sans lire ce fichier.
-    """
+    """Ouvre l'accès en lecture, ou explique pourquoi il n'y en a pas."""
     if not enabled:
         return None, ""
 
@@ -141,12 +99,7 @@ def open_access(enabled: bool) -> tuple[Access | None, str]:
 
 
 def permission_summary() -> str:
-    """La liste des appels que ce scan peut émettre, pour l'imprimer.
-
-    Dérivée de `_READ_ONLY_OPERATIONS` plutôt que réécrite à la main : une
-    opération ajoutée sans mettre le message à jour dirait au client moins que
-    ce que le scanner fait réellement.
-    """
+    """La liste des appels que ce scan peut émettre, pour l'imprimer."""
     return ", ".join(sorted(_operation_names()))
 
 

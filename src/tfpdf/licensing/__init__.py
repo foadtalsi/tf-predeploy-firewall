@@ -1,9 +1,5 @@
-"""Le plan de contrôle optionnel : décompte d'usage, politique
-d'organisation, dérogations, et livraison des packs de règles étendus.
-
-Port de internal/licensing. Entièrement sur adhésion — sans clé d'API
-configurée, rien ici n'est invoqué.
-"""
+"""Le plan de contrôle optionnel : décompte d'usage, politique d'organisation, dérogations, et
+livraison des packs de règles étendus."""
 
 from .client import (
     DEFAULT_API_BASE,

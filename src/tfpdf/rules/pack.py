@@ -1,11 +1,4 @@
-"""Le câblage entre le pack de règles et ce moteur.
-
-Port de internal/rules/pack.go.
-
-Transforme des déclarations en règles exécutables, et répond aux questions que
-les autres modules posent sur les motifs du pack sans en garder une seconde
-copie en Python.
-"""
+"""Le câblage entre le pack de règles et ce moteur."""
 
 from __future__ import annotations
 
@@ -39,14 +32,7 @@ CREDENTIAL_VALUE_GROUP = "credential_value"
 
 
 class BrokenBuildError(RuntimeError):
-    """Le pack intégré est inutilisable.
-
-    Non survivable, et délibérément attrapée nulle part : tout chemin qui
-    « continuerait sans lui » se terminerait par un scanner rapportant une
-    exécution propre sur du Terraform qu'il n'a jamais inspecté. Un scanner qui
-    ne trouve rien parce qu'il est cassé ne doit pas être confondu avec un
-    scanner qui n'a rien trouvé parce qu'il n'y avait rien.
-    """
+    """Pack intégré inutilisable : erreur fatale pour ne pas annoncer un scan réussi sans règles."""
 
 
 @dataclass(slots=True, frozen=True)
@@ -98,12 +84,7 @@ def builtin_pack() -> Pack:
 
 
 def _validate_predicates(p: Pack) -> None:
-    """Rejette un pack nommant un prédicat que cette version n'implémente pas.
-
-    Sauter le nom inconnu à la place laisserait la règle chargée, ne
-    correspondant à rien, et rapportant un succès — exactement le mode de
-    défaillance que tout ce format existe pour éviter.
-    """
+    """Rejette un pack nommant un prédicat que cette version n'implémente pas."""
     confirm, value = known_predicates()
     for rule in p.rules:
         if rule.match is None:
@@ -158,41 +139,18 @@ def _build_rules(p: Pack, opts: Options) -> list[_BuiltRule]:
 
 
 def from_pack(p: Pack, opts: Options) -> list[Rule]:
-    """Construit le jeu de règles exécutables d'un pack.
-
-    Les règles déclaratives sont regroupées d'abord, pour que des alternatives
-    ordonnées soient évaluées par une seule règle et que « la première qui
-    correspond gagne » veuille dire quelque chose ; les règles moteur se
-    résolvent en leur implémentation compilée. L'ordre suit le pack, ce qui est
-    pourquoi le pack se lit de haut en bas dans l'ordre où un lecteur voudrait
-    qu'on lui explique les règles.
-    """
+    """Construit les règles dans l'ordre du pack, en regroupant les alternatives déclaratives
+    (première correspondance gagnante)."""
     return [b.rule for b in _build_rules(p, opts)]
 
 
 def default_rules(opts: Options) -> list[Rule]:
-    """Le jeu de règles intégré, dans l'ordre du pack.
-
-    Les règles elles-mêmes sont des déclarations dans `ruledef/rules.py`, pas
-    du code : ce que chacune cherche, comment sa découverte est formulée et ce
-    que dit la documentation sont tous des données. Ceci ne fait que résoudre
-    ces déclarations en forme exécutable.
-    """
+    """Le jeu de règles intégré, dans l'ordre du pack."""
     return from_pack(builtin_pack(), opts)
 
 
 def rules_for_category(p: Pack, category: str, opts: Options) -> Rule:
-    """Tout ce qu'un pack définit pour une catégorie, en une seule règle.
-
-    Sert à exécuter ou à raisonner sur une catégorie isolée : rapporter ce
-    qu'elle trouverait, et tester ses détecteurs ensemble plutôt qu'une
-    déclaration à la fois.
-
-    Construite par le même chemin qu'un scan complet, pour que le regroupement —
-    et avec lui la règle du premier qui correspond — se comporte à l'identique.
-    Une catégorie évaluée par son propre chemin de code ferait de chaque test
-    la vérification d'autre chose.
-    """
+    """Tout ce qu'un pack définit pour une catégorie, en une seule règle."""
     out = RuleSet(b.rule for b in _build_rules(p, opts) if b.spec.category == category)
     if not out:
         raise RulePackError(f"pack defines no runnable rules for category {category!r}")
@@ -200,14 +158,8 @@ def rules_for_category(p: Pack, category: str, opts: Options) -> Rule:
 
 
 def _compiled_engine(spec: RuleSpec, opts: Options) -> Rule | None:
-    """Résout une règle `engine:` en son implémentation.
-
-    None pour les moteurs qui ne font pas partie d'un scan statique : les règles
-    fondées sur le plan tournent depuis leur propre point d'entrée, contre le
-    JSON de Terraform plutôt que contre de la source, et sont déclarées dans le
-    pack pour être documentées et configurables au même endroit que tout le
-    reste.
-    """
+    """Construit une règle statique ; retourne None pour les règles de plan et les règles
+    désactivées."""
     engine = spec.engine
     if engine == "unknown_attribute":
         return UnknownAttributeRule()
@@ -250,16 +202,8 @@ def _compiled_engine(spec: RuleSpec, opts: Options) -> Rule | None:
 
 
 def is_credential_attr_name(name: str) -> bool:
-    """Dit si `name` ressemble à un attribut porteur d'identifiant, au seul vu
-    de son nom (password, api_key, token, …).
-
-    Exporté aux côtés de `match_credential_value_pattern`, `is_open_cidr` et
-    `looks_like_secret` pour que les scanners hors ressources (`tfpdf.tfvars`,
-    `tfpdf.terragrunt`) appliquent le même standard aux `inputs` de
-    terragrunt.hcl et aux fichiers .tfvars, dont aucun ne passe par une
-    `parser.Resource`. Les quatre lisent le pack intégré, donc il existe
-    exactement une définition de chacun.
-    """
+    """Dit si `name` ressemble à un attribut porteur d'identifiant, au seul vu de son nom
+    (password, api_key, token, …)."""
     pattern = _load_builtin().credential_name
     return pattern is not None and pattern.search(name) is not None
 
