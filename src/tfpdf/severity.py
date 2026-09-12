@@ -30,4 +30,4 @@ def should_block_ignoring_waivers(findings: Iterable[Finding], threshold: Severi
     référence, ce qui n'est presque jamais ce que veut l'appelant — voir la
     docstring du module.
     """
-    return any(f.severity.at_least(threshold) for f in findings)
+    return any(finding.severity.at_least(threshold) for finding in findings)

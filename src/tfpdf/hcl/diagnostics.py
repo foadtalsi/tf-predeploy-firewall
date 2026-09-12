@@ -45,7 +45,7 @@ class Diagnostics(list[Diagnostic]):
     """Une liste de diagnostics, avec les deux helpers que hcl lui donne."""
 
     def has_errors(self) -> bool:
-        return any(d.severity is Severity.ERROR for d in self)
+        return any(diagnostic.severity is Severity.ERROR for diagnostic in self)
 
     def error(self) -> str:
         """Rend comme le fait hcl.Diagnostics.Error() : le premier diagnostic,
@@ -57,10 +57,10 @@ class Diagnostics(list[Diagnostic]):
         return f"{self[0]}, and {len(self) - 1} other diagnostic(s)"
 
     def extended(self, *others: Diagnostics | list[Diagnostic]) -> Diagnostics:
-        out = Diagnostics(self)
-        for o in others:
-            out.extend(o)
-        return out
+        diagnostics = Diagnostics(self)
+        for other_diagnostics in others:
+            diagnostics.extend(other_diagnostics)
+        return diagnostics
 
 
 def error(summary: str, detail: str = "", subject: Range | None = None) -> Diagnostics:

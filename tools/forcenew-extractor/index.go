@@ -49,33 +49,33 @@ type forceNewIndexStats struct {
 // writeForceNewIndex serialises an index. Lists are sorted so that re-running
 // the extractor over an unchanged provider checkout produces an identical
 // file — the same reason Pack.sortAll exists.
-func writeForceNewIndex(path, provider, providerVer string, idx *forceNewIndex) error {
+func writeForceNewIndex(path, provider, providerVersion string, index *forceNewIndex) error {
 	out := forceNewIndexFile{
 		Provider:        provider,
-		ProviderVersion: providerVer,
+		ProviderVersion: providerVersion,
 		TopLevel:        map[string][]string{},
 		Nested:          map[string]map[string][]string{},
 		Stats: forceNewIndexStats{
-			SDKResourcesSeen:     idx.SDKResourcesSeen,
-			SDKResourcesResolved: idx.SDKResourcesResolved,
-			FrameworkSeen:        idx.FrameworkSeen,
-			FrameworkResolved:    idx.FrameworkResolved,
+			SDKResourcesSeen:     index.SDKResourcesSeen,
+			SDKResourcesResolved: index.SDKResourcesResolved,
+			FrameworkSeen:        index.FrameworkSeen,
+			FrameworkResolved:    index.FrameworkResolved,
 		},
 	}
 
-	for rType, attrs := range idx.TopLevel {
-		v := dedupe(append([]string(nil), attrs...))
+	for resourceType, attributes := range index.TopLevel {
+		v := dedupe(append([]string(nil), attributes...))
 		sort.Strings(v)
-		out.TopLevel[rType] = v
+		out.TopLevel[resourceType] = v
 	}
-	for rType, byPath := range idx.Nested {
+	for resourceType, byPath := range index.Nested {
 		m := map[string][]string{}
-		for path, attrs := range byPath {
-			v := dedupe(append([]string(nil), attrs...))
+		for path, attributes := range byPath {
+			v := dedupe(append([]string(nil), attributes...))
 			sort.Strings(v)
 			m[path] = v
 		}
-		out.Nested[rType] = m
+		out.Nested[resourceType] = m
 	}
 
 	f, err := os.Create(path)

@@ -48,21 +48,21 @@ class DeclarativeRule:
         self.specs = specs
         self.scope = scope
 
-    def check(self, in_: FileInput, kb: KnowledgeBase | None) -> list[Finding]:
+    def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         findings: list[Finding] = []
-        for res in in_.head_resources:
+        for resource in file_input.head_resources:
             if self.scope == "resource_name":
-                f = self._check_resource_name(in_, res)
-                if f is not None:
-                    findings.append(f)
+                finding = self._check_resource_name(file_input, resource)
+                if finding is not None:
+                    findings.append(finding)
                 continue
-            for loc in self._locations(res):
-                f = self._check_location(in_, res, loc)
-                if f is not None:
-                    findings.append(f)
+            for location in self._locations(resource):
+                finding = self._check_location(file_input, resource, location)
+                if finding is not None:
+                    findings.append(finding)
         return findings
 
-    def _locations(self, res: Resource) -> list[AttrLocation]:
+    def _locations(self, resource: Resource) -> list[AttrLocation]:
         """Les attributs candidats pour la portée de cette règle.
 
         Triés par nom parce que l'ordre d'un dictionnaire suit l'insertion — qui
@@ -71,90 +71,97 @@ class DeclarativeRule:
         peut comparer deux rapports. L'original Go trie pour la même raison,
         l'itération d'un map y étant randomisée.
         """
-        m = self.specs[0].match
-        assert m is not None  # guaranteed: a declarative rule always has one
-        out: list[AttrLocation] = []
+        matcher = self.specs[0].match
+        assert matcher is not None  # guaranteed: a declarative rule always has one
+        locations: list[AttrLocation] = []
 
-        if m.scope in ("attribute", "any_attribute"):
-            out.extend(
-                AttrLocation(name=name, attribute=res.attributes[name])
-                for name in sorted(res.attributes)
+        if matcher.scope in ("attribute", "any_attribute"):
+            locations.extend(
+                AttrLocation(name=name, attribute=resource.attributes[name])
+                for name in sorted(resource.attributes)
             )
-        if m.scope in ("block_attribute", "any_attribute"):
-            for blk in res.blocks:
-                if m.block_types and blk.type not in m.block_types:
+        if matcher.scope in ("block_attribute", "any_attribute"):
+            for block in resource.blocks:
+                if matcher.block_types and block.type not in matcher.block_types:
                     continue
-                out.extend(
-                    AttrLocation(name=name, attribute=blk.attributes[name], block=blk)
-                    for name in sorted(blk.attributes)
+                locations.extend(
+                    AttrLocation(name=name, attribute=block.attributes[name], block=block)
+                    for name in sorted(block.attributes)
                 )
-        return out
+        return locations
 
-    def _check_location(self, in_: FileInput, res: Resource, loc: AttrLocation) -> Finding | None:
+    def _check_location(
+        self, file_input: FileInput, resource: Resource, location: AttrLocation
+    ) -> Finding | None:
         """Exécute les alternatives du groupe contre un attribut et rend la
         première découverte produite."""
         for spec in self.specs:
-            m = spec.match
-            if m is None or not matches_resource(m, res):
+            matcher = spec.match
+            if matcher is None or not matches_resource(matcher, resource):
                 continue
-            bits, ok = matches_attr(m, loc.name, loc.attribute)
+            bits, ok = matches_attr(matcher, location.name, location.attribute)
             if not ok:
                 continue
-            return self._finding(in_, spec, res, loc, bits)
+            return self._finding(file_input, spec, resource, location, bits)
         return None
 
-    def _check_resource_name(self, in_: FileInput, res: Resource) -> Finding | None:
+    def _check_resource_name(self, file_input: FileInput, resource: Resource) -> Finding | None:
         for spec in self.specs:
-            m = spec.match
-            if m is None or not matches_resource(m, res):
+            matcher = spec.match
+            if matcher is None or not matches_resource(matcher, resource):
                 continue
-            if m.name_re is None or not m.name_re.search(res.name):
+            if matcher.name_re is None or not matcher.name_re.search(resource.name):
                 continue
             return Finding(
-                file=in_.path,
-                line=res.def_range.start.line,
+                file=file_input.path,
+                line=resource.def_range.start.line,
                 category=Category(spec.category),
                 rule_name=spec.id,
-                cloud_name=cloudname.of(res),
+                cloud_name=cloudname.of(resource),
                 severity=Severity(spec.severity),
-                resource=res.address(),
-                message=expand(spec.message, base_vars(res)),
+                resource=resource.address(),
+                message=expand(spec.message, base_vars(resource)),
             )
         return None
 
     def _finding(
-        self, in_: FileInput, spec: Rule, res: Resource, loc: AttrLocation, bits: float
+        self,
+        file_input: FileInput,
+        spec: Rule,
+        resource: Resource,
+        location: AttrLocation,
+        bits: float,
     ) -> Finding:
-        variables = base_vars(res)
-        variables["attr"] = loc.name
-        variables["attr_q"] = go_quote(loc.name)
-        variables["value"] = loc.attribute.raw_value
-        variables["value_q"] = go_quote(loc.attribute.raw_value)
-        variables["length"] = str(byte_len(loc.attribute.raw_value))
+        variables = base_vars(resource)
+        variables["attr"] = location.name
+        variables["attr_q"] = go_quote(location.name)
+        variables["value"] = location.attribute.raw_value
+        variables["value_q"] = go_quote(location.attribute.raw_value)
+        variables["length"] = str(byte_len(location.attribute.raw_value))
         variables["label"] = spec.label
-        variables["via"] = via_suffix(loc.attribute)
+        variables["via"] = via_suffix(location.attribute)
         variables["bits"] = f"{bits:.1f}"
 
         block_type = ""
-        if loc.block is not None:
-            block_type = loc.block.type
+        if location.block is not None:
+            block_type = location.block.type
             variables["block"] = block_type
             variables["location"] = f"(inside {block_type} block) "
         else:
             variables["location"] = ""
-        variables["var"] = credential_var_name(res, block_type, loc.name)
+        variables["var"] = credential_var_name(resource, block_type, location.name)
 
         return Finding(
-            file=in_.path,
-            line=loc.attribute.range.start.line,
+            file=file_input.path,
+            line=location.attribute.range.start.line,
             category=Category(spec.category),
             rule_name=spec.id,
-            cloud_name=cloudname.of(res),
+            cloud_name=cloudname.of(resource),
             severity=Severity(spec.severity),
-            resource=res.address(),
+            resource=resource.address(),
             message=expand(spec.message, variables),
             suggestion=expand(spec.suggestion, variables),
-            fix=build_fix(spec, in_.head_source, loc, variables),
+            fix=build_fix(spec, file_input.head_source, location, variables),
         )
 
 

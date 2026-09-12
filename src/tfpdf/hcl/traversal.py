@@ -79,7 +79,7 @@ class Traversal(list[Step]):
         de savoir quelle variable ouvrir, pas qu'on lui répète tout le chemin.
         """
         parts: list[str] = []
-        for i, step in enumerate(self):
+        for step_index, step in enumerate(self):
             if isinstance(step, TraverseRoot):
                 parts.append(step.name)
             elif isinstance(step, TraverseAttr):
@@ -89,7 +89,7 @@ class Traversal(list[Step]):
                 # rendering `[0]` into a message adds nothing a reader can act
                 # on. Matches firstTraversalName's `default:` branch.
                 pass
-            if i > max_steps - 1:
+            if step_index > max_steps - 1:
                 break
         return "".join(parts)
 
@@ -150,10 +150,10 @@ def _index(collection: Value, step: TraverseIndex) -> Value | None:
     if isinstance(raw, tuple):
         if key.type is not NUMBER:
             return None
-        i = int(key.as_decimal())
-        if i < 0 or i >= len(raw):
+        step_index = int(key.as_decimal())
+        if step_index < 0 or step_index >= len(raw):
             return None
-        element: Value = raw[i]
+        element: Value = raw[step_index]
         return element
     if isinstance(raw, dict):
         if key.type is not STRING:

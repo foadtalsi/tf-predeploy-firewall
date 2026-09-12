@@ -133,12 +133,12 @@ class Baseline:
         dépôt, à la première exécution après la mise à jour. Le trou reste ouvert
         jusqu'à un `--write-baseline`, et `legacy` est là pour qu'on le dise.
         """
-        for f in findings:
+        for finding in findings:
             entry = Entry(
-                category=str(f.category),
-                resource=f.resource,
-                file=f.file,
-                rule_name=f.rule_name,
+                category=str(finding.category),
+                resource=finding.resource,
+                file=finding.file,
+                rule_name=finding.rule_name,
             )
             exact = entry.key()
             if exact in self.by_key:
@@ -148,8 +148,8 @@ class Baseline:
             else:
                 continue
             self.used.add(matched)
-            f.waived = True
-            f.waiver_note = "accepted in baseline"
+            finding.waived = True
+            finding.waiver_note = "accepted in baseline"
         return findings
 
     def stale(self) -> int:
@@ -231,22 +231,22 @@ def write(path: str, findings: list[Finding], generated_at: str) -> None:
     seen: set[str] = set()
     entries: list[Entry] = []
 
-    for f in findings:
-        e = Entry(
-            category=str(f.category),
-            resource=f.resource,
-            file=f.file,
-            rule_name=f.rule_name,
-            message=f.message,
-            line=f.line,
+    for finding in findings:
+        entry = Entry(
+            category=str(finding.category),
+            resource=finding.resource,
+            file=finding.file,
+            rule_name=finding.rule_name,
+            message=finding.message,
+            line=finding.line,
         )
-        if e.key() in seen:
+        if entry.key() in seen:
             continue
-        seen.add(e.key())
-        entries.append(e)
+        seen.add(entry.key())
+        entries.append(entry)
 
     # Stable order so regenerating an unchanged repo produces no diff.
-    entries.sort(key=lambda e: (e.file, e.resource, e.category, e.rule_name))
+    entries.sort(key=lambda entry: (entry.file, entry.resource, entry.category, entry.rule_name))
 
     document = {
         "format_version": FORMAT_VERSION,
@@ -254,18 +254,18 @@ def write(path: str, findings: list[Finding], generated_at: str) -> None:
         "_note": _NOTE,
         "entries": [
             {
-                "category": e.category,
-                "resource": e.resource,
-                "file": e.file,
+                "category": entry.category,
+                "resource": entry.resource,
+                "file": entry.file,
                 # Écrit même vide, contrairement à message et line : son absence
                 # est ce qui distinguait un fichier de version 1, et un lecteur
                 # qui ne le verrait pas sur une entrée de version 2 croirait à un
                 # fichier tronqué.
-                "rule_name": e.rule_name,
-                **({"message": e.message} if e.message else {}),
-                **({"line": e.line} if e.line else {}),
+                "rule_name": entry.rule_name,
+                **({"message": entry.message} if entry.message else {}),
+                **({"line": entry.line} if entry.line else {}),
             }
-            for e in entries
+            for entry in entries
         ],
     }
     Path(path).write_text(json.dumps(document, indent=2) + "\n")

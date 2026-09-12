@@ -136,14 +136,14 @@ class _LoadedPack:
         if raw is None:
             return None
         try:
-            r = _decode_resource(raw)
+            resource = _decode_resource(raw)
         except (TypeError, ValueError, AttributeError):
             # A malformed entry means this type is simply unknown to us. It
             # must not take down a scan that has nothing to do with it.
             self._decoded[r_type] = None
             return None
-        self._decoded[r_type] = r
-        return r
+        self._decoded[r_type] = resource
+        return resource
 
 
 def _decode_resource(raw: Any) -> _PackResource:
@@ -199,9 +199,9 @@ class Coverage:
     def version_of(self, provider: str) -> str:
         """La version du fournisseur que les packs décrivent, ou « » si aucun ne la
         couvre."""
-        for p in self.providers:
-            if p.name == provider:
-                return p.version
+        for provider_coverage in self.providers:
+            if provider_coverage.name == provider:
+                return provider_coverage.version
         return ""
 
 
@@ -228,10 +228,10 @@ class KnowledgeBase:
     # --- lookups ----------------------------------------------------------
 
     def _lookup(self, r_type: str) -> _PackResource | None:
-        for p in reversed(self._packs):
-            r = p.resource(r_type)
-            if r is not None:
-                return r
+        for pack in reversed(self._packs):
+            resource = pack.resource(r_type)
+            if resource is not None:
+                return resource
         return None
 
     def resource_schema(self, r_type: str) -> ResourceSchema | None:
@@ -241,23 +241,25 @@ class KnowledgeBase:
         arguments inconnus les saute entièrement : sous-détecter est toujours
         préférable à signaler du Terraform valide.
         """
-        r = self._lookup(r_type)
-        if r is None or not r.top_level:
+        resource = self._lookup(r_type)
+        if resource is None or not resource.top_level:
             return None
-        return ResourceSchema(top_level=r.top_level, nested_blocks=r.nested_blocks)
+        return ResourceSchema(top_level=resource.top_level, nested_blocks=resource.nested_blocks)
 
     def force_new(self, r_type: str) -> ForceNewSpec | None:
         """Les arguments ForceNew d'un type de ressource."""
-        r = self._lookup(r_type)
-        if r is None or (not r.force_new_top_level and not r.force_new_nested):
+        resource = self._lookup(r_type)
+        if resource is None or (not resource.force_new_top_level and not resource.force_new_nested):
             return None
-        return ForceNewSpec(top_level=r.force_new_top_level, nested_blocks=r.force_new_nested)
+        return ForceNewSpec(
+            top_level=resource.force_new_top_level, nested_blocks=resource.force_new_nested
+        )
 
     def is_critical(self, r_type: str) -> bool:
         """Dit si détruire ce type de ressource perd des données, et donc s'il est
         censé porter lifecycle { prevent_destroy = true }."""
-        r = self._lookup(r_type)
-        return r is not None and r.critical
+        resource = self._lookup(r_type)
+        return resource is not None and resource.critical
 
     def pricing_for(self, r_type: str) -> PricingSpec | None:
         """La spécification de coût mensuel approximatif d'un type de ressource.
@@ -265,26 +267,26 @@ class KnowledgeBase:
         Les types qui n'en ont pas contribuent 0 $ à une estimation, plutôt
         qu'une supposition.
         """
-        r = self._lookup(r_type)
-        if r is None or r.pricing is None:
+        resource = self._lookup(r_type)
+        if resource is None or resource.pricing is None:
             return None
-        return r.pricing
+        return resource.pricing
 
     def coverage(self) -> Coverage:
         seen: set[str] = set()
         versions: dict[str, str] = {}
 
         c = Coverage(extended=len(self._packs) > self._embedded)
-        for p in self._packs:
-            c.packs.append(p.id)
+        for pack in self._packs:
+            c.packs.append(pack.id)
             # Later packs overlay earlier ones, so the last version recorded
             # per provider is the one lookups actually resolve against.
-            versions[p.provider] = p.provider_version
-            seen.update(p.resources)
+            versions[pack.provider] = pack.provider_version
+            seen.update(pack.resources)
 
         c.providers = sorted(
             (ProviderCoverage(name=n, version=v) for n, v in versions.items()),
-            key=lambda p: p.name,
+            key=lambda provider: provider.name,
         )
         c.resource_types = len(seen)
         c.packs.sort()
@@ -298,9 +300,9 @@ class KnowledgeBase:
         réellement — un pack étendu superposé et le pack de base embarqué
         pouvant être construits depuis des versions différentes.
         """
-        for p in reversed(self._packs):
-            if p.resource(r_type) is not None:
-                return p
+        for pack in reversed(self._packs):
+            if pack.resource(r_type) is not None:
+                return pack
         return None
 
     def doc_url(self, r_type: str, data_source: bool = False) -> str:
@@ -376,7 +378,7 @@ def load() -> KnowledgeBase:
     """
     packs: list[_LoadedPack] = []
     data_dir = resources.files(__package__).joinpath("data")
-    names = sorted(p.name for p in data_dir.iterdir() if p.name.endswith(".json.gz"))
+    names = sorted(pack.name for pack in data_dir.iterdir() if pack.name.endswith(".json.gz"))
     for name in names:
         try:
             packs.append(parse_pack(data_dir.joinpath(name).read_bytes()))
@@ -399,10 +401,10 @@ def load_with(*extra: IO[bytes] | bytes) -> tuple[KnowledgeBase, list[Exception]
     casser la CI d'un client.
     """
     errs: list[Exception] = []
-    kb = load()
-    for r in extra:
+    knowledge_base = load()
+    for resource in extra:
         try:
-            kb._packs.append(parse_pack(r))
+            knowledge_base._packs.append(parse_pack(resource))
         except PackError as exc:
             errs.append(exc)
-    return kb, errs
+    return knowledge_base, errs

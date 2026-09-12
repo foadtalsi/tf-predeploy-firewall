@@ -49,8 +49,8 @@ class Policy:
         veut `None` pour cela, pas un objet qui ne surcharge rien.
         """
         return all(
-            getattr(self, f) is None
-            for f in (
+            getattr(self, field_name) is None
+            for field_name in (
                 "block_threshold",
                 "ignore_rules",
                 "plan_blast_radius_threshold",

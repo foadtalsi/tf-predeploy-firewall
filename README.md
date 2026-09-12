@@ -201,3 +201,13 @@ Nothing you install today stops working if you never buy a plan.
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+### Scan history attribution
+
+Paid dashboards provide a Findings page with date, user and severity sorting.
+Usage reports attach the scan initiator from `TFPDF_SCAN_ACTOR`, then
+`GITHUB_TRIGGERING_ACTOR`, `GITHUB_ACTOR`, or `GITLAB_USER_LOGIN` (first non-empty
+value). For local scans, set `TFPDF_SCAN_ACTOR` explicitly. This is a reported
+identity, not verified dashboard authentication or the author of the affected code.
+Older scans without this field display “Not recorded”. Reporting still requires
+`TFPDF_LICENSE_KEY` and a repository identity.

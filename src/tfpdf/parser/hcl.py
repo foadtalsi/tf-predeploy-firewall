@@ -64,9 +64,9 @@ def parse_file_with_context(
 
 
 def _parse_body(filename: str, source: bytes) -> hcl.Body:
-    file, diags = hcl.parse_config(source, filename)
-    if diags.has_errors():
-        raise HCLParseError(diags)
+    file, diagnostics = hcl.parse_config(source, filename)
+    if diagnostics.has_errors():
+        raise HCLParseError(diagnostics)
     return file.body
 
 
@@ -78,56 +78,60 @@ def _block_to_resource(
     name: str,
     context: EvalContext | None,
 ) -> Resource:
-    r = Resource(kind=kind, type=type_name, name=name, file=filename, def_range=block.def_range())
+    resource = Resource(
+        kind=kind, type=type_name, name=name, file=filename, def_range=block.def_range()
+    )
 
     for attr_name, attribute in block.body.attributes.items():
-        r.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
+        resource.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
 
     for nested in block.body.blocks:
         if nested.type == "lifecycle":
-            r.has_lifecycle_block = True
-            r.lifecycle_range = nested.def_range()
-            pd_attr = nested.body.attributes.get("prevent_destroy")
-            if pd_attr is not None:
-                r.prevent_destroy_range = pd_attr.src_range
-                v, diags = pd_attr.expr.value(context)
-                if not diags.has_errors() and v.type is hcl.BOOL and not v.is_null():
-                    r.prevent_destroy_value = v.true()
+            resource.has_lifecycle_block = True
+            resource.lifecycle_range = nested.def_range()
+            prevent_destroy_attribute = nested.body.attributes.get("prevent_destroy")
+            if prevent_destroy_attribute is not None:
+                resource.prevent_destroy_range = prevent_destroy_attribute.src_range
+                value, diagnostics = prevent_destroy_attribute.expr.value(context)
+                if not diagnostics.has_errors() and value.type is hcl.BOOL and not value.is_null():
+                    resource.prevent_destroy_value = value.true()
             continue
-        nb = NestedBlock(type=nested.type, labels=list(nested.labels), range=nested.def_range())
+        nested_block = NestedBlock(
+            type=nested.type, labels=list(nested.labels), range=nested.def_range()
+        )
         for attr_name, attribute in nested.body.attributes.items():
-            nb.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
-        r.blocks.append(nb)
+            nested_block.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
+        resource.blocks.append(nested_block)
 
-    return r
+    return resource
 
 
 def _attr_to_attribute(
     name: str, attribute: hcl.Attribute, context: EvalContext | None
 ) -> Attribute:
-    a = Attribute(name=name, range=attribute.src_range)
+    parsed_attribute = Attribute(name=name, range=attribute.src_range)
 
     # Try the expression on its own first. If that works, the value was written
     # inline and there is no indirection worth reporting.
-    v, diags = attribute.expr.value(None)
-    if not diags.has_errors():
-        a.is_literal = True
-        a.raw_value = cty_value_to_string(v)
-        return a
+    value, diagnostics = attribute.expr.value(None)
+    if not diagnostics.has_errors():
+        parsed_attribute.is_literal = True
+        parsed_attribute.raw_value = cty_value_to_string(value)
+        return parsed_attribute
 
     if context is None:
         # References a variable/resource/function we cannot resolve (no plan,
         # no state). Leave raw_value empty; rules that need a literal simply
         # skip this attribute.
-        return a
+        return parsed_attribute
 
-    v, diags = attribute.expr.value(context)
-    if diags.has_errors() or not v.is_wholly_known():
-        return a
-    a.is_literal = True
-    a.raw_value = cty_value_to_string(v)
-    a.resolved_from = first_traversal_name(attribute.expr)
-    return a
+    value, diagnostics = attribute.expr.value(context)
+    if diagnostics.has_errors() or not value.is_wholly_known():
+        return parsed_attribute
+    parsed_attribute.is_literal = True
+    parsed_attribute.raw_value = cty_value_to_string(value)
+    parsed_attribute.resolved_from = first_traversal_name(attribute.expr)
+    return parsed_attribute
 
 
 def first_traversal_name(expr: Expression) -> str:
@@ -175,5 +179,7 @@ def cty_value_to_string(v: Value) -> str:
     if v.type is hcl.NUMBER:
         return v.as_number_string()
     if v.type.is_list_type() or v.type.is_tuple_type() or v.type.is_set_type():
-        return ",".join(cty_value_to_string(ev) for _, ev in v.element_iterator())
+        return ",".join(
+            cty_value_to_string(element_value) for _, element_value in v.element_iterator()
+        )
     return ""

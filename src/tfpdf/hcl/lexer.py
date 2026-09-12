@@ -156,11 +156,11 @@ class Lexer:
         for _ in range(n):
             if self._at_end():
                 break
-            ch = self.text[self.i]
-            out.append(ch)
+            character = self.text[self.i]
+            out.append(character)
             self.i += 1
-            self.byte += len(ch.encode("utf-8"))
-            if ch == "\n":
+            self.byte += len(character.encode("utf-8"))
+            if character == "\n":
                 self.line += 1
                 self.column = 1
             else:
@@ -184,11 +184,11 @@ class Lexer:
     def tokens(self) -> list[Token]:
         out: list[Token] = []
         while True:
-            tok = self._next_token()
-            if tok.type is T.COMMENT:
+            token = self._next_token()
+            if token.type is T.COMMENT:
                 continue
-            out.append(tok)
-            if tok.type is T.EOF:
+            out.append(token)
+            if token.type is T.EOF:
                 return out
 
     def _next_token(self) -> Token:
@@ -201,9 +201,9 @@ class Lexer:
                 return self._next_template_token()
             if mode is _Mode.HEREDOC:
                 return self._next_heredoc_token()
-            tok = self._next_normal_token()
-            if tok is not _SUPPRESSED:
-                return tok
+            token = self._next_normal_token()
+            if token is not _SUPPRESSED:
+                return token
 
     # --- normal mode ------------------------------------------------------
 
@@ -215,9 +215,9 @@ class Lexer:
         if self._at_end():
             return self._tok(T.EOF, "", start)
 
-        ch = self._peek()
+        character = self._peek()
 
-        if ch == "\n":
+        if character == "\n":
             self._advance()
             if self._bracket_depth > 0:
                 # Inside [] or (), a newline is whitespace: an expression may
@@ -226,12 +226,12 @@ class Lexer:
                 return _SUPPRESSED
             return self._tok(T.NEWLINE, "\n", start)
 
-        if ch == "#" or self._starts_with("//"):
+        if character == "#" or self._starts_with("//"):
             return self._scan_line_comment(start)
         if self._starts_with("/*"):
             return self._scan_block_comment(start)
 
-        if ch == '"':
+        if character == '"':
             self._advance()
             self._stack.append(_Frame(_Mode.TEMPLATE))
             return self._tok(T.OQUOTE, '"', start)
@@ -239,12 +239,12 @@ class Lexer:
         if self._starts_with("<<"):
             return self._scan_heredoc_open(start)
 
-        if ch in _DIGITS:
+        if character in _DIGITS:
             return self._scan_number(start)
-        if ch in _ID_START:
+        if character in _ID_START:
             return self._scan_ident(start)
 
-        return self._scan_operator(start, ch)
+        return self._scan_operator(start, character)
 
     def _scan_line_comment(self, start: Pos) -> Token:
         buffer: list[str] = []
@@ -365,8 +365,8 @@ class Lexer:
         out: list[str] = []
         raw: list[str] = []
         while not self._at_end():
-            c = self._peek()
-            if c == '"' or self._starts_with("${") or self._starts_with("%{"):
+            character = self._peek()
+            if character == '"' or self._starts_with("${") or self._starts_with("%{"):
                 break
             if self._starts_with("$${"):
                 raw.append(self._advance(3))
@@ -376,33 +376,35 @@ class Lexer:
                 raw.append(self._advance(3))
                 out.append("%{")
                 continue
-            if c == "\\":
+            if character == "\\":
                 raw.append(self._advance())
                 out.append(self._scan_escape(start))
                 continue
-            if c == "\n":
+            if character == "\n":
                 self._err(
                     "Invalid multi-line string", start, "Use a heredoc for text spanning lines."
                 )
                 break
-            ch = self._advance()
-            raw.append(ch)
-            out.append(ch)
+            consumed_character = self._advance()
+            raw.append(consumed_character)
+            out.append(consumed_character)
         return self._tok(T.QUOTED_LIT, "".join(out), start, "".join(raw))
 
     def _scan_escape(self, start: Pos) -> str:
         if self._at_end():
             self._err("Unterminated escape sequence", start)
             return ""
-        c = self._advance()
-        if c in _SIMPLE_ESCAPES:
-            return _SIMPLE_ESCAPES[c]
-        if c == "u":
+        character = self._advance()
+        if character in _SIMPLE_ESCAPES:
+            return _SIMPLE_ESCAPES[character]
+        if character == "u":
             return self._scan_unicode_escape(start, 4)
-        if c == "U":
+        if character == "U":
             return self._scan_unicode_escape(start, 8)
-        self._err("Invalid escape sequence", start, f"\\{c} is not a valid escape sequence.")
-        return c
+        self._err(
+            "Invalid escape sequence", start, f"\\{character} is not a valid escape sequence."
+        )
+        return character
 
     def _scan_unicode_escape(self, start: Pos, width: int) -> str:
         digits: list[str] = []
@@ -540,9 +542,9 @@ class Lexer:
                 continue
             if self._starts_with("${") or self._starts_with("%{"):
                 break
-            ch = self._advance()
-            out.append(ch)
-            if ch == "\n":
+            character = self._advance()
+            out.append(character)
+            if character == "\n":
                 frame.at_line_start = True
                 break
         return self._tok(T.QUOTED_LIT, "".join(out), start)
@@ -551,5 +553,5 @@ class Lexer:
 def tokenize(source: bytes | str, filename: str = "") -> tuple[list[Token], Diagnostics]:
     """Découpe tout un fichier en jetons. L'analyseur appelle ceci puis
     travaille sur la liste."""
-    lx = Lexer(source, filename)
-    return lx.tokens(), lx.diags
+    lexer = Lexer(source, filename)
+    return lexer.tokens(), lexer.diags

@@ -66,6 +66,7 @@ class ScanResult:
     finding_count: int = 0
     blocked: bool = False
     findings: list[FindingSummary] = field(default_factory=list)
+    scan_actor: str = ""
 
 
 @dataclass(slots=True)
@@ -92,6 +93,8 @@ class Client:
             "finding_count": result.finding_count,
             "blocked": result.blocked,
         }
+        if result.scan_actor:
+            payload["scan_actor"] = result.scan_actor
         # `omitempty` on the Go side: an empty findings list is left out
         # entirely rather than sent as [].
         if result.findings:

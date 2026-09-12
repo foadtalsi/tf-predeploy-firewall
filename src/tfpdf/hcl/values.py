@@ -139,9 +139,9 @@ class Value:
         if self.is_null():
             return True
         if isinstance(self.raw, tuple):
-            return all(v.is_wholly_known() for v in self.raw)
+            return all(element_value.is_wholly_known() for element_value in self.raw)
         if isinstance(self.raw, dict):
-            return all(v.is_wholly_known() for v in self.raw.values())
+            return all(element_value.is_wholly_known() for element_value in self.raw.values())
         return True
 
     # --- accessors --------------------------------------------------------
@@ -197,11 +197,11 @@ class Value:
         sur fichiers de référence en dépendent.
         """
         if isinstance(self.raw, tuple):
-            for i, v in enumerate(self.raw):
-                yield number_val(i), v
+            for i, element_value in enumerate(self.raw):
+                yield number_val(i), element_value
         elif isinstance(self.raw, dict):
-            for k in sorted(self.raw):
-                yield string_val(k), self.raw[k]
+            for element_key in sorted(self.raw):
+                yield string_val(element_key), self.raw[element_key]
 
     def __str__(self) -> str:
         if self.is_unknown():
@@ -325,7 +325,12 @@ def from_python(obj_value: Any) -> Value:
     if isinstance(obj_value, str):
         return string_val(obj_value)
     if isinstance(obj_value, Mapping):
-        return object_val({str(k): from_python(v) for k, v in obj_value.items()})
+        return object_val(
+            {
+                str(element_key): from_python(element_value)
+                for element_key, element_value in obj_value.items()
+            }
+        )
     if isinstance(obj_value, Sequence):
-        return tuple_val([from_python(v) for v in obj_value])
+        return tuple_val([from_python(element_value) for element_value in obj_value])
     return DYNAMIC_VAL

@@ -30,14 +30,14 @@ class MergeReport:
     inherited: int = 0
 
     def __str__(self) -> str:
-        s = f"{self.inherited} inherited"
+        summary = f"{self.inherited} inherited"
         if self.overridden:
-            s += f", {len(self.overridden)} overridden ({_join(self.overridden)})"
+            summary += f", {len(self.overridden)} overridden ({_join(self.overridden)})"
         if self.added:
-            s += f", {len(self.added)} added ({_join(self.added)})"
+            summary += f", {len(self.added)} added ({_join(self.added)})"
         if self.disabled:
-            s += f", {len(self.disabled)} disabled ({_join(self.disabled)})"
-        return s
+            summary += f", {len(self.disabled)} disabled ({_join(self.disabled)})"
+        return summary
 
 
 def _join(ids: list[str]) -> str:
@@ -65,58 +65,58 @@ def merge(base: Pack | None, overlay: Pack | None) -> tuple[Pack, MergeReport]:
 
     report = MergeReport()
 
-    by_id: dict[str, Rule] = {}
-    for r in overlay.rules:
-        if r.id in by_id:
-            raise RulePackError(f"overlay declares id {r.id!r} twice")
-        by_id[r.id] = r
+    overrides_by_id: dict[str, Rule] = {}
+    for rule in overlay.rules:
+        if rule.id in overrides_by_id:
+            raise RulePackError(f"overlay declares id {rule.id!r} twice")
+        overrides_by_id[rule.id] = rule
 
     merged_rules: list[Rule] = []
     merged_docs: list[CategoryDoc] = []
-    used: set[str] = set()
+    overridden_rule_ids: set[str] = set()
 
-    for r in base.rules:
-        override = by_id.get(r.id)
+    for rule in base.rules:
+        override = overrides_by_id.get(rule.id)
         if override is not None:
-            used.add(r.id)
+            overridden_rule_ids.add(rule.id)
             if override.disabled:
-                report.disabled.append(r.id)
+                report.disabled.append(rule.id)
                 continue
-            report.overridden.append(r.id)
+            report.overridden.append(rule.id)
             merged_rules.append(override)
             continue
         report.inherited += 1
-        merged_rules.append(r)
+        merged_rules.append(rule)
 
-    for r in overlay.rules:
-        if r.id in used:
+    for rule in overlay.rules:
+        if rule.id in overridden_rule_ids:
             continue
-        if r.disabled:
+        if rule.disabled:
             # Disabling something that was never there is the signature of a
             # typo, and a typo here means the rule the author meant to switch
             # off is still running.
             raise RulePackError(
-                f"rule {r.id!r} is marked disabled but no rule with that id exists to "
+                f"rule {rule.id!r} is marked disabled but no rule with that id exists to "
                 "disable — check the spelling against --print-rules"
             )
-        report.added.append(r.id)
-        merged_rules.append(r)
+        report.added.append(rule.id)
+        merged_rules.append(rule)
 
     # Docs merge by category on the same override-or-append terms, so a pack
     # that reworded a rule can reword its explanation too. A rule whose
     # documentation still describes the old behaviour is worse than none.
-    doc_by_cat = {d.category: d for d in overlay.docs}
-    used_doc: set[str] = set()
-    for d in base.docs:
-        override_doc = doc_by_cat.get(d.category)
+    docs_by_category = {category_doc.category: category_doc for category_doc in overlay.docs}
+    overridden_categories: set[str] = set()
+    for category_doc in base.docs:
+        override_doc = docs_by_category.get(category_doc.category)
         if override_doc is not None:
-            used_doc.add(d.category)
+            overridden_categories.add(category_doc.category)
             merged_docs.append(override_doc)
             continue
-        merged_docs.append(d)
-    for d in overlay.docs:
-        if d.category not in used_doc:
-            merged_docs.append(d)
+        merged_docs.append(category_doc)
+    for category_doc in overlay.docs:
+        if category_doc.category not in overridden_categories:
+            merged_docs.append(category_doc)
 
     if not merged_rules:
         raise RulePackError("the merged pack has no rules left — the overlay disabled every one")

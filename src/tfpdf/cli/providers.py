@@ -67,8 +67,8 @@ def resolve_providers(flag_value: str, files: list[ChangedFile]) -> list[str]:
     faux négatif retombe sur les packs embarqués.
     """
     if flag_value != "auto":
-        return [p.strip() for p in flag_value.split(",") if p.strip()]
-    return [p for p in detect_providers(files) if p in FETCHABLE_PROVIDERS]
+        return [provider.strip() for provider in flag_value.split(",") if provider.strip()]
+    return [provider for provider in detect_providers(files) if provider in FETCHABLE_PROVIDERS]
 
 
 def detect_providers(files: list[ChangedFile]) -> list[str]:
@@ -77,9 +77,9 @@ def detect_providers(files: list[ChangedFile]) -> list[str]:
     `resolve_providers` restreint à ce qui est récupérable et que
     `warn_uncovered_providers` compare à ce qui a réellement été chargé."""
     seen: set[str] = set()
-    for f in files:
-        for m in _PROVIDER_PREFIX.finditer(f.head_content):
-            seen.add(m.group(1).decode())
+    for changed_file in files:
+        for match in _PROVIDER_PREFIX.finditer(changed_file.head_content):
+            seen.add(match.group(1).decode())
     return sorted(seen)
 
 
@@ -96,9 +96,11 @@ def warn_uncovered_providers(files: list[ChangedFile], cov: Coverage) -> None:
     moitié d'un dépôt doit dire quelle moitié, sinon « pourquoi n'a-t-il pas
     attrapé ça ? » n'a pas de réponse.
     """
-    covered = {p.name for p in cov.providers}
+    covered = {provider.name for provider in cov.providers}
     uncovered = [
-        p for p in detect_providers(files) if p not in covered and p not in SCHEMALESS_PROVIDERS
+        provider
+        for provider in detect_providers(files)
+        if provider not in covered and provider not in SCHEMALESS_PROVIDERS
     ]
     if not uncovered:
         return

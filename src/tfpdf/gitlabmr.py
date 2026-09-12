@@ -118,28 +118,28 @@ class Client:
 
         posted = 0
         in_batch: set[str] = set()
-        for cm in comments:
-            if cm.marker and (cm.marker in existing or cm.marker in in_batch):
+        for comment in comments:
+            if comment.marker and (comment.marker in existing or comment.marker in in_batch):
                 out.already_there += 1
                 continue
-            in_batch.add(cm.marker)
-            if not lines_in_diff(diff_lines, cm):
+            in_batch.add(comment.marker)
+            if not lines_in_diff(diff_lines, comment):
                 out.outside_diff += 1
                 continue
 
             # The suggestion fence in the body is range-relative to its anchor,
             # so a multi-line fix anchors at its first line; the fence's +N
             # covers the rest.
-            anchor = cm.start_line if cm.start_line > 0 else cm.line
+            anchor = comment.start_line if comment.start_line > 0 else comment.line
             payload: dict[str, Any] = {
-                "body": cm.body,
+                "body": comment.body,
                 "position": {
                     "position_type": "text",
                     "base_sha": refs.base,
                     "start_sha": refs.start,
                     "head_sha": refs.head,
-                    "new_path": cm.path,
-                    "old_path": cm.path,
+                    "new_path": comment.path,
+                    "old_path": comment.path,
                     "new_line": anchor,
                 },
             }
@@ -160,8 +160,8 @@ class Client:
         return out
 
     def _diff_refs(self) -> DiffRefs:
-        mr = get_json(self._mr_path(), self._headers()) or {}
-        refs = mr.get("diff_refs") or {}
+        merge_request = get_json(self._mr_path(), self._headers()) or {}
+        refs = merge_request.get("diff_refs") or {}
         head = str(refs.get("head_sha") or "")
         if not head:
             raise HTTPError("merge request has no diff_refs yet")
@@ -177,8 +177,10 @@ class Client:
             files = (
                 get_json(self._mr_path(f"/diffs?per_page=100&page={page}"), self._headers()) or []
             )
-            for f in files:
-                out[f.get("new_path", "")] = patch_line_numbers(f.get("diff") or "")
+            for changed_file in files:
+                out[changed_file.get("new_path", "")] = patch_line_numbers(
+                    changed_file.get("diff") or ""
+                )
             if len(files) < 100:
                 break
         return out
@@ -206,22 +208,22 @@ def from_env() -> Client:
     être une variable CI/CD limitée à cet outil, puis sous GITLAB_TOKEN.
     """
     token = os.environ.get("TFPDF_GITLAB_TOKEN") or os.environ.get("GITLAB_TOKEN", "")
-    c = Client(
+    client = Client(
         api_base=os.environ.get("CI_API_V4_URL", ""),
         token=token,
         project_id=os.environ.get("CI_PROJECT_ID", ""),
         mr_iid=os.environ.get("CI_MERGE_REQUEST_IID", ""),
     )
-    if not c.api_base or not c.project_id:
+    if not client.api_base or not client.project_id:
         raise GitLabConfigError("not running under GitLab CI (CI_API_V4_URL/CI_PROJECT_ID unset)")
-    if not c.mr_iid:
+    if not client.mr_iid:
         raise GitLabConfigError(
             "no merge request in this pipeline (CI_MERGE_REQUEST_IID unset) — run the "
             "scan in a merge_request pipeline"
         )
-    if not c.token:
+    if not client.token:
         raise GitLabConfigError(
             "no token — set TFPDF_GITLAB_TOKEN (a project access token with the api "
             "scope; CI_JOB_TOKEN cannot post notes)"
         )
-    return c
+    return client

@@ -83,22 +83,24 @@ class Rule:
             except re.error as exc:
                 raise CustomRuleError(f"invalid pattern: {exc}") from exc
 
-    def check(self, path: str, res: Resource) -> list[Finding]:
-        if self.resource_type != "*" and self.resource_type != res.type:
+    def check(self, path: str, resource: Resource) -> list[Finding]:
+        if self.resource_type != "*" and self.resource_type != resource.type:
             return []
 
         if self.block:
             findings: list[Finding] = []
-            for b in res.blocks:
+            for b in resource.blocks:
                 if b.type != self.block:
                     continue
-                f = self._check_attrs(path, res, b.attributes, b.range.start.line)
-                if f is not None:
-                    findings.append(f)
+                finding = self._check_attrs(path, resource, b.attributes, b.range.start.line)
+                if finding is not None:
+                    findings.append(finding)
             return findings
 
-        f = self._check_attrs(path, res, res.attributes, res.def_range.start.line)
-        return [f] if f is not None else []
+        finding = self._check_attrs(
+            path, resource, resource.attributes, resource.def_range.start.line
+        )
+        return [finding] if finding is not None else []
 
     def _check_attrs(
         self,
@@ -164,13 +166,13 @@ class Config:
 
     rules: list[Rule] = field(default_factory=list)
 
-    def check(self, in_: FileInput, kb: KnowledgeBase | None) -> list[Finding]:
+    def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         """Adapte la configuration en une `rules.Rule`, pour qu'elle entre
         directement dans le même moteur que toute règle intégrée."""
         findings: list[Finding] = []
-        for res in in_.head_resources:
+        for resource in file_input.head_resources:
             for r in self.rules:
-                findings.extend(r.check(in_.path, res))
+                findings.extend(r.check(file_input.path, resource))
         return findings
 
     def as_engine_rule(self) -> Config:

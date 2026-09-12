@@ -91,22 +91,22 @@ def scan_terragrunt(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> l
     seul fichier inanalysable ne doit pas coûter les découvertes de tous les
     autres.
     """
-    out: list[Finding] = []
-    for f in changed_terragrunt(repo_dir, mode):
+    findings: list[Finding] = []
+    for changed_file in changed_terragrunt(repo_dir, mode):
         try:
-            out += terragrunt.scan_file(f.path, f.head_content)
+            findings += terragrunt.scan_file(changed_file.path, changed_file.head_content)
         except Exception as exc:
             warn(str(exc))
-    return out
+    return findings
 
 
 def scan_tfvars(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
     """Scanne les fichiers .tfvars et .tfvars.json modifiés, même contrat que
     `scan_terragrunt`."""
-    out: list[Finding] = []
-    for f in changed_tfvars(repo_dir, mode):
+    findings: list[Finding] = []
+    for changed_file in changed_tfvars(repo_dir, mode):
         try:
-            out += tfvars.scan_file(f.path, f.head_content)
+            findings += tfvars.scan_file(changed_file.path, changed_file.head_content)
         except Exception as exc:
             warn(str(exc))
-    return out
+    return findings

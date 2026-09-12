@@ -147,18 +147,18 @@ def parse(data: bytes | str) -> PlanFile:
         raise ValueError("parsing plan JSON: top level is not an object")
 
     changes: list[ResourceChange] = []
-    for rc in document.get("resource_changes") or []:
-        if not isinstance(rc, dict):
+    for resource_change in document.get("resource_changes") or []:
+        if not isinstance(resource_change, dict):
             continue
-        c = _as_dict(rc.get("change"))
+        c = _as_dict(resource_change.get("change"))
         changes.append(
             ResourceChange(
-                address=str(rc.get("address", "")),
-                module_addr=str(rc.get("module_address", "")),
-                mode=str(rc.get("mode", "")),
-                type=str(rc.get("type", "")),
-                name=str(rc.get("name", "")),
-                provider_name=str(rc.get("provider_name", "")),
+                address=str(resource_change.get("address", "")),
+                module_addr=str(resource_change.get("module_address", "")),
+                mode=str(resource_change.get("mode", "")),
+                type=str(resource_change.get("type", "")),
+                name=str(resource_change.get("name", "")),
+                provider_name=str(resource_change.get("provider_name", "")),
                 change=Change(
                     actions=[str(a) for a in (c.get("actions") or [])],
                     before=_as_dict_or_none(c.get("before")),

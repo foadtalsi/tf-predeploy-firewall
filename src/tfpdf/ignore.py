@@ -75,13 +75,13 @@ def apply(
     global_set = {str(c) for c in global_ignore}
 
     out: list[Finding] = []
-    for f in findings:
-        if str(f.category) in global_set:
+    for finding in findings:
+        if str(finding.category) in global_set:
             continue
-        line_map = inline_by_file.get(f.file, {}).get(f.line)
-        if line_map is not None and (_ALL in line_map or str(f.category) in line_map):
+        line_map = inline_by_file.get(finding.file, {}).get(finding.line)
+        if line_map is not None and (_ALL in line_map or str(finding.category) in line_map):
             continue
-        out.append(f)
+        out.append(finding)
     return out
 
 
@@ -160,13 +160,16 @@ def apply_path_rules(findings: Sequence[Finding], rules: Sequence[PathRule]) -> 
         return list(findings)
 
     out: list[Finding] = []
-    for f in findings:
+    for finding in findings:
         # posixpath et non os.path : les chemins viennent de git, qui parle en
         # barres obliques sur toutes les plateformes, et les motifs de config.yml
         # sont écrits de la même façon. Normaliser avec le séparateur de l'hôte
         # empêcherait `legacy/**` de correspondre sous Windows.
-        clean = posixpath.normpath(f.file)
-        if any(r.suppresses(f.category) and glob_to_regexp(r.pattern).search(clean) for r in rules):
+        clean = posixpath.normpath(finding.file)
+        if any(
+            r.suppresses(finding.category) and glob_to_regexp(r.pattern).search(clean)
+            for r in rules
+        ):
             continue
-        out.append(f)
+        out.append(finding)
     return out

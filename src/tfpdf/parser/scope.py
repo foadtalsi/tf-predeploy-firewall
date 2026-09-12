@@ -43,18 +43,18 @@ def build_scope(files_by_path: dict[str, bytes]) -> EvalContext | None:
         for block in file.body.blocks:
             if block.type == "locals":
                 for name, attribute in block.body.attributes.items():
-                    v, d = attribute.expr.value(None)
-                    if not d.has_errors() and v.is_wholly_known():
-                        locals_[name] = v
+                    value, diagnostics = attribute.expr.value(None)
+                    if not diagnostics.has_errors() and value.is_wholly_known():
+                        locals_[name] = value
             elif block.type == "variable" and len(block.labels) == 1:
                 # Only `default` is a value we can know statically. A variable
                 # without one is supplied at plan time, so it stays unknown.
                 default = block.body.attributes.get("default")
                 if default is None:
                     continue
-                v, d = default.expr.value(None)
-                if not d.has_errors() and v.is_wholly_known():
-                    vars_[block.labels[0]] = v
+                value, diagnostics = default.expr.value(None)
+                if not diagnostics.has_errors() and value.is_wholly_known():
+                    vars_[block.labels[0]] = value
 
     if not locals_ and not vars_:
         return None

@@ -39,7 +39,9 @@ class FileInput:
 class Rule(Protocol):
     """Un détecteur de risque unique."""
 
-    def check(self, in_: FileInput, kb: KnowledgeBase | None) -> list[Finding]: ...
+    def check(
+        self, file_input: FileInput, knowledge_base: KnowledgeBase | None
+    ) -> list[Finding]: ...
 
 
 @dataclass(slots=True)
@@ -84,8 +86,8 @@ class RuleSet(list["Rule"]):
     traiter « tout ce que le pack dit des identifiants » comme un détecteur
     unique."""
 
-    def check(self, in_: FileInput, kb: KnowledgeBase | None) -> list[Finding]:
+    def check(self, file_input: FileInput, knowledge_base: KnowledgeBase | None) -> list[Finding]:
         findings: list[Finding] = []
-        for r in self:
-            findings.extend(r.check(in_, kb))
+        for rule in self:
+            findings.extend(rule.check(file_input, knowledge_base))
         return findings

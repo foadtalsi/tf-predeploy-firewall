@@ -79,7 +79,9 @@ def _load_builtin() -> _PackRefs:
     assert open_cidr is not None and open_cidr.match is not None
 
     values = tuple(
-        r for r in pack.group(CREDENTIAL_VALUE_GROUP) if r.match and r.match.value_re is not None
+        rule
+        for rule in pack.group(CREDENTIAL_VALUE_GROUP)
+        if rule.match and rule.match.value_re is not None
     )
 
     return _PackRefs(
@@ -103,17 +105,17 @@ def _validate_predicates(p: Pack) -> None:
     défaillance que tout ce format existe pour éviter.
     """
     confirm, value = known_predicates()
-    for r in p.rules:
-        if r.match is None:
+    for rule in p.rules:
+        if rule.match is None:
             continue
-        if r.match.confirm and r.match.confirm not in CONFIRM_PREDICATES:
+        if rule.match.confirm and rule.match.confirm not in CONFIRM_PREDICATES:
             raise RulePackError(
-                f"rule {r.id!r} names unknown confirm predicate {r.match.confirm!r} "
+                f"rule {rule.id!r} names unknown confirm predicate {rule.match.confirm!r} "
                 f"(available: {', '.join(confirm)})"
             )
-        if r.match.predicate and r.match.predicate not in VALUE_PREDICATES:
+        if rule.match.predicate and rule.match.predicate not in VALUE_PREDICATES:
             raise RulePackError(
-                f"rule {r.id!r} names unknown predicate {r.match.predicate!r} "
+                f"rule {rule.id!r} names unknown predicate {rule.match.predicate!r} "
                 f"(available: {', '.join(value)})"
             )
 
@@ -258,8 +260,8 @@ def is_credential_attr_name(name: str) -> bool:
     `parser.Resource`. Les quatre lisent le pack intégré, donc il existe
     exactement une définition de chacun.
     """
-    re_ = _load_builtin().credential_name
-    return re_ is not None and re_.search(name) is not None
+    pattern = _load_builtin().credential_name
+    return pattern is not None and pattern.search(name) is not None
 
 
 def match_credential_value_pattern(value: str) -> tuple[str, bool]:
@@ -271,14 +273,14 @@ def match_credential_value_pattern(value: str) -> tuple[str, bool]:
     from .entropy import byte_len
 
     for spec in _load_builtin().credential_values:
-        m = spec.match
-        assert m is not None and m.value_re is not None  # filtered at load
-        if m.min_length > 0 and byte_len(value) < m.min_length:
+        matcher = spec.match
+        assert matcher is not None and matcher.value_re is not None  # filtered at load
+        if matcher.min_length > 0 and byte_len(value) < matcher.min_length:
             continue
-        found = m.value_re.search(value)
+        found = matcher.value_re.search(value)
         if found is None or not found.group(0):
             continue
-        if m.confirm and not CONFIRM_PREDICATES[m.confirm](found.group(0)):
+        if matcher.confirm and not CONFIRM_PREDICATES[matcher.confirm](found.group(0)):
             continue
         return spec.label, True
     return "", False

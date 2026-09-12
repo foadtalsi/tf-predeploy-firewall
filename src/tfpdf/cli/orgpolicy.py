@@ -89,12 +89,15 @@ def apply_waivers(
     if not waivers:
         return findings
 
-    by_key = {(w.category, w.resource, w.file_path): w.justification for w in waivers}
-    for f in findings:
-        note = by_key.get((str(f.category), f.resource, f.file))
+    by_key = {
+        (waiver.category, waiver.resource, waiver.file_path): waiver.justification
+        for waiver in waivers
+    }
+    for finding in findings:
+        note = by_key.get((str(finding.category), finding.resource, finding.file))
         if note is not None:
-            f.waived = True
-            f.waiver_note = note
+            finding.waived = True
+            finding.waiver_note = note
     return findings
 
 
@@ -127,14 +130,14 @@ def report_usage(
 
     summaries = [
         licensing.FindingSummary(
-            category=str(f.category),
-            severity=str(f.severity),
-            resource=f.resource,
-            file_path=f.file,
-            line=f.line,
-            message=f.message,
+            category=str(finding.category),
+            severity=str(finding.severity),
+            resource=finding.resource,
+            file_path=finding.file,
+            line=finding.line,
+            message=finding.message,
         )
-        for f in findings
+        for finding in findings
     ]
 
     client = licensing.new_client(license_key, api_base)
@@ -145,6 +148,7 @@ def report_usage(
                 finding_count=len(findings),
                 blocked=blocked,
                 findings=summaries,
+                scan_actor=scan_actor(),
             )
         )
     except Exception as exc:
@@ -154,3 +158,17 @@ def report_usage(
         _warn(reason)
         return True
     return False
+
+
+def scan_actor() -> str:
+    """Identity reported by CI, not a verified dashboard user or commit author."""
+    for variable in (
+        "TFPDF_SCAN_ACTOR",
+        "GITHUB_TRIGGERING_ACTOR",
+        "GITHUB_ACTOR",
+        "GITLAB_USER_LOGIN",
+    ):
+        actor = os.environ.get(variable, "").strip()
+        if actor:
+            return actor[:256]
+    return ""

@@ -26,11 +26,11 @@ def run_rules_dry_run(config_path: str, repo_dir: str) -> int:
     vrai scan, et que c'est ici l'endroit pour l'apprendre.
     """
     try:
-        custom = load_custom_rules(config_path)
+        custom_rules = load_custom_rules(config_path)
     except ConfigError as exc:
         print(f"tf-predeploy-firewall: {exc}", file=sys.stderr)
         return 2
-    if custom is None:
+    if custom_rules is None:
         print(
             f"tf-predeploy-firewall: no custom_rules in {config_path} — nothing to dry-run",
             file=sys.stderr,
@@ -49,28 +49,33 @@ def run_rules_dry_run(config_path: str, repo_dir: str) -> int:
     # applies suppressions later.
     try:
         result = rules.run(
-            files, None, [custom.as_engine_rule()], rules.RunOptions(repo_dir=repo_dir)
+            files, None, [custom_rules.as_engine_rule()], rules.RunOptions(repo_dir=repo_dir)
         )
     except Exception as exc:
         print(f"tf-predeploy-firewall: {exc}", file=sys.stderr)
         return 2
 
-    by_rule: dict[str, list[Finding]] = {}
-    for f in result.findings:
-        rule_id = str(f.category).removeprefix("custom:")
-        by_rule.setdefault(rule_id, []).append(f)
+    findings_by_rule: dict[str, list[Finding]] = {}
+    for finding in result.findings:
+        rule_id = str(finding.category).removeprefix("custom:")
+        findings_by_rule.setdefault(rule_id, []).append(finding)
 
     print(
-        f"dry run: {len(custom.rules)} custom rule(s) against {len(files)} .tf file(s) "
+        f"dry run: {len(custom_rules.rules)} custom rule(s) against {len(files)} .tf file(s) "
         f"in {repo_dir}\n"
     )
-    for r in custom.rules:
-        matches = sorted(by_rule.get(r.id, []), key=lambda m: (m.file, m.line))
+    for custom_rule in custom_rules.rules:
+        matches = sorted(
+            findings_by_rule.get(custom_rule.id, []),
+            key=lambda matched_finding: (matched_finding.file, matched_finding.line),
+        )
         # "matched nothing" is the line an author most needs to see — a rule
         # that silently matches nothing is indistinguishable from a working one
         # until the incident it should have caught.
-        print(f'rule "{r.id}": {len(matches)} match(es)')
-        for m in matches:
-            print(f"  {m.file}:{m.line}  {m.resource}  [{m.severity}] {m.message}")
+        print(f'rule "{custom_rule.id}": {len(matches)} match(es)')
+        for matched_finding in matches:
+            print(
+                f"  {matched_finding.file}:{matched_finding.line}  {matched_finding.resource}  [{matched_finding.severity}] {matched_finding.message}"
+            )
         print()
     return 0

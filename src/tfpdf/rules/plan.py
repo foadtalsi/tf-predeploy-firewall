@@ -84,19 +84,19 @@ def deduplicate_force_new_against_plan(
     par-dessus une certitude.
     """
     confirmed = {
-        bare_resource_address(f.resource)
-        for f in plan_findings
-        if f.category == Category.CONFIRMED_REPLACE
+        bare_resource_address(finding.resource)
+        for finding in plan_findings
+        if finding.category == Category.CONFIRMED_REPLACE
     }
     if not confirmed:
         return static_findings
 
     return [
-        f
-        for f in static_findings
+        finding
+        for finding in static_findings
         if not (
-            f.category == Category.FORCE_NEW_CHANGE
-            and bare_resource_address(f.resource) in confirmed
+            finding.category == Category.FORCE_NEW_CHANGE
+            and bare_resource_address(finding.resource) in confirmed
         )
     ]
 
@@ -115,16 +115,18 @@ class ConfirmedReplaceRule:
         self,
         plan_path: str,
         changes: list[planjson.ResourceChange],
-        kb: KnowledgeBase | None,
+        knowledge_base: KnowledgeBase | None,
     ) -> list[Finding]:
         findings: list[Finding] = []
 
-        for rc in changes:
-            if not rc.is_managed():
+        for resource_change in changes:
+            if not resource_change.is_managed():
                 continue  # data source reads are never destroyed/replaced
-            critical = kb is not None and kb.is_critical(rc.type)
+            critical = knowledge_base is not None and knowledge_base.is_critical(
+                resource_change.type
+            )
 
-            if rc.change.is_destroy_only():
+            if resource_change.change.is_destroy_only():
                 if not critical:
                     continue
                 findings.append(
@@ -134,15 +136,15 @@ class ConfirmedReplaceRule:
                         category=Category.CONFIRMED_REPLACE,
                         rule_name="confirmed_replace",
                         severity=Severity.CRITICAL,
-                        resource=rc.address,
+                        resource=resource_change.address,
                         message=(
-                            f"terraform plan confirms {rc.type} will be DESTROYED with "
+                            f"terraform plan confirms {resource_change.type} will be DESTROYED with "
                             "no replacement — this is a stateful/critical resource type; "
                             "verify this is intentional before merging"
                         ),
                     )
                 )
-            elif rc.change.is_replace():
+            elif resource_change.change.is_replace():
                 findings.append(
                     Finding(
                         file=plan_path,
@@ -150,9 +152,9 @@ class ConfirmedReplaceRule:
                         category=Category.CONFIRMED_REPLACE,
                         rule_name="confirmed_replace",
                         severity=Severity.CRITICAL if critical else Severity.HIGH,
-                        resource=rc.address,
+                        resource=resource_change.address,
                         message=(
-                            f"terraform plan confirms {rc.type} will be destroyed and "
+                            f"terraform plan confirms {resource_change.type} will be destroyed and "
                             "recreated (replace) — data loss risk if this resource holds "
                             "state"
                         ),
@@ -184,26 +186,30 @@ class DriftRule:
         plan_path: str,
         changes: list[planjson.ResourceChange],
         changed_attrs: dict[str, set[ChangedAttrKey]],
-        kb: KnowledgeBase | None,
+        knowledge_base: KnowledgeBase | None,
     ) -> list[Finding]:
         findings: list[Finding] = []
 
-        for rc in changes:
-            if not rc.is_managed() or not rc.change.is_pure_update():
+        for resource_change in changes:
+            if not resource_change.is_managed() or not resource_change.change.is_pure_update():
                 continue
-            spec = kb.force_new(rc.type) if kb is not None else None
+            spec = (
+                knowledge_base.force_new(resource_change.type)
+                if knowledge_base is not None
+                else None
+            )
             if spec is None or not spec.top_level:
                 continue
 
             # `changed_attrs` is keyed by the bare "type.name" address the HCL
             # parser produces; a plan address may carry a module path or an
             # instance key, neither of which the static scan has any concept of.
-            touched_by_pr = changed_attrs.get(bare_resource_address(rc.address))
+            touched_by_pr = changed_attrs.get(bare_resource_address(resource_change.address))
 
             # A nil state on either side reads as "attribute absent", which is
             # what Go's lookup against a nil map returns.
-            state_before = rc.change.before or {}
-            state_after = rc.change.after or {}
+            state_before = resource_change.change.before or {}
+            state_after = resource_change.change.after or {}
 
             for attr_name in spec.top_level:
                 if attr_name not in state_before or attr_name not in state_after:
@@ -215,7 +221,7 @@ class DriftRule:
                     continue  # this PR's diff explains the change; not drift
 
                 before_str, after_str = sprint(before), sprint(after)
-                if rc.change.is_sensitive_attr(attr_name):
+                if resource_change.change.is_sensitive_attr(attr_name):
                     before_str = after_str = "(sensitive value, redacted)"
 
                 findings.append(
@@ -225,10 +231,10 @@ class DriftRule:
                         category=Category.UNEXPECTED_DRIFT,
                         rule_name="unexpected_drift",
                         severity=Severity.MEDIUM,
-                        resource=rc.address,
+                        resource=resource_change.address,
                         message=(
                             f'terraform plan shows "{attr_name}" changing from '
-                            f"{before_str} to {after_str} on {rc.type}, but this PR's "
+                            f"{before_str} to {after_str} on {resource_change.type}, but this PR's "
                             ".tf diff doesn't touch that attribute — the change is "
                             "coming from elsewhere (state drift, a provider default, or "
                             "an out-of-band edit); verify before merging"
@@ -255,15 +261,16 @@ class BlastRadiusRule:
         self,
         plan_path: str,
         changes: list[planjson.ResourceChange],
-        kb: KnowledgeBase | None,
+        knowledge_base: KnowledgeBase | None,
     ) -> list[Finding]:
         if self.threshold <= 0:
             return []
 
         destructive = [
-            rc.address
-            for rc in changes
-            if rc.is_managed() and (rc.change.is_destroy_only() or rc.change.is_replace())
+            resource_change.address
+            for resource_change in changes
+            if resource_change.is_managed()
+            and (resource_change.change.is_destroy_only() or resource_change.change.is_replace())
         ]
 
         if len(destructive) < self.threshold:
@@ -335,7 +342,7 @@ class CostImpactRule:
         self,
         plan_path: str,
         changes: list[planjson.ResourceChange],
-        kb: KnowledgeBase | None,
+        knowledge_base: KnowledgeBase | None,
     ) -> list[Finding]:
         if self.threshold_usd <= 0:
             return []
@@ -343,19 +350,23 @@ class CostImpactRule:
         total = 0.0
         deltas: list[_ResourceCostDelta] = []
 
-        for rc in changes:
-            if not rc.is_managed():
+        for resource_change in changes:
+            if not resource_change.is_managed():
                 continue
-            spec = kb.pricing_for(rc.type) if kb is not None else None
+            spec = (
+                knowledge_base.pricing_for(resource_change.type)
+                if knowledge_base is not None
+                else None
+            )
             if spec is None:
                 continue
 
-            before_cost = _cost_of_state(spec, rc.change.before)
-            after_cost = _cost_of_state(spec, rc.change.after)
+            before_cost = _cost_of_state(spec, resource_change.change.before)
+            after_cost = _cost_of_state(spec, resource_change.change.after)
 
-            if rc.change.is_destroy_only():
+            if resource_change.change.is_destroy_only():
                 delta = -before_cost
-            elif rc.change.is_no_op():
+            elif resource_change.change.is_no_op():
                 continue
             else:
                 # create (before absent -> 0), replace, or update: the generic
@@ -364,7 +375,7 @@ class CostImpactRule:
             if delta == 0:
                 continue
             total += delta
-            deltas.append(_ResourceCostDelta(address=rc.address, delta=delta))
+            deltas.append(_ResourceCostDelta(address=resource_change.address, delta=delta))
 
         if total < self.threshold_usd:
             return []

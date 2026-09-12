@@ -93,21 +93,21 @@ class RelativeTraversalExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        current, diags = self.source.value(context)
-        if diags.has_errors():
-            return cty.DYNAMIC_VAL, diags
+        current, diagnostics = self.source.value(context)
+        if diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, diagnostics
 
         # Walk one step at a time by rooting a synthetic traversal at the value
         # reached so far, so the step semantics live in exactly one place
         # (Traversal.traverse) rather than being reimplemented here.
         for step in self.traversal:
             if isinstance(step, (TraverseAttr, TraverseIndex)):
-                sub = Traversal([TraverseRoot(_REL_ROOT, step.range), step])
+                step_traversal = Traversal([TraverseRoot(_REL_ROOT, step.range), step])
             else:  # pragma: no cover - a root cannot appear mid-traversal
                 return cty.DYNAMIC_VAL, error("Invalid traversal", subject=self.range)
-            current, sub_diags = sub.traverse(EvalContext({_REL_ROOT: current}))
-            if sub_diags.has_errors():
-                return cty.DYNAMIC_VAL, sub_diags
+            current, step_diagnostics = step_traversal.traverse(EvalContext({_REL_ROOT: current}))
+            if step_diagnostics.has_errors():
+                return cty.DYNAMIC_VAL, step_diagnostics
         return current, Diagnostics()
 
     def variables(self) -> list[Traversal]:
@@ -129,46 +129,46 @@ class TemplateExpr(Expression):
         if not self.parts:
             return cty.EMPTY_STRING, Diagnostics()
 
-        diags = Diagnostics()
+        diagnostics = Diagnostics()
         buffer: list[str] = []
         for part in self.parts:
-            v, part_diags = part.value(context)
-            diags.extend(part_diags)
-            if part_diags.has_errors():
-                return cty.DYNAMIC_VAL, diags
-            if v.is_unknown():
-                return cty.unknown_val(cty.STRING), diags
-            if v.is_null():
+            part_value, part_diagnostics = part.value(context)
+            diagnostics.extend(part_diagnostics)
+            if part_diagnostics.has_errors():
+                return cty.DYNAMIC_VAL, diagnostics
+            if part_value.is_unknown():
+                return cty.unknown_val(cty.STRING), diagnostics
+            if part_value.is_null():
                 # HCL renders a null interpolation as an error rather than as
                 # "null"; treating it as unresolvable keeps rules from judging
                 # text nobody wrote.
-                return cty.DYNAMIC_VAL, diags.extended(
+                return cty.DYNAMIC_VAL, diagnostics.extended(
                     error(
                         "Invalid template interpolation value",
                         "The expression is null.",
                         part.range,
                     )
                 )
-            text, ok = cty.to_string(v)
-            if not ok:
-                return cty.DYNAMIC_VAL, diags.extended(
+            text, is_convertible = cty.to_string(part_value)
+            if not is_convertible:
+                return cty.DYNAMIC_VAL, diagnostics.extended(
                     error(
                         "Invalid template interpolation value",
-                        f"Cannot include a {v.type} value in a string template.",
+                        f"Cannot include a {part_value.type} value in a string template.",
                         part.range,
                     )
                 )
             buffer.append(text)
-        return cty.string_val("".join(buffer)), diags
+        return cty.string_val("".join(buffer)), diagnostics
 
     def is_string_literal(self) -> bool:
-        return all(isinstance(p, LiteralValueExpr) for p in self.parts)
+        return all(isinstance(part, LiteralValueExpr) for part in self.parts)
 
     def variables(self) -> list[Traversal]:
-        out: list[Traversal] = []
-        for p in self.parts:
-            out.extend(p.variables())
-        return out
+        traversals: list[Traversal] = []
+        for part in self.parts:
+            traversals.extend(part.variables())
+        return traversals
 
 
 @dataclass(slots=True)
@@ -200,21 +200,21 @@ class TupleConsExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        diags = Diagnostics()
-        out: list[Value] = []
-        for e in self.exprs:
-            v, d = e.value(context)
-            diags.extend(d)
-            if d.has_errors():
-                return cty.DYNAMIC_VAL, diags
-            out.append(v)
-        return cty.tuple_val(out), diags
+        diagnostics = Diagnostics()
+        elements: list[Value] = []
+        for expression in self.exprs:
+            element_value, element_diagnostics = expression.value(context)
+            diagnostics.extend(element_diagnostics)
+            if element_diagnostics.has_errors():
+                return cty.DYNAMIC_VAL, diagnostics
+            elements.append(element_value)
+        return cty.tuple_val(elements), diagnostics
 
     def variables(self) -> list[Traversal]:
-        out: list[Traversal] = []
-        for e in self.exprs:
-            out.extend(e.variables())
-        return out
+        traversals: list[Traversal] = []
+        for expression in self.exprs:
+            traversals.extend(expression.variables())
+        return traversals
 
 
 @dataclass(slots=True)
@@ -229,31 +229,31 @@ class ObjectConsExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        diags = Diagnostics()
-        out: dict[str, Value] = {}
+        diagnostics = Diagnostics()
+        entries: dict[str, Value] = {}
         for item in self.items:
-            kv, kd = item.key.value(context)
-            diags.extend(kd)
-            if kd.has_errors():
-                return cty.DYNAMIC_VAL, diags
-            key_text, ok = cty.to_string(kv)
-            if not ok:
-                return cty.DYNAMIC_VAL, diags.extended(
+            key_value, key_diagnostics = item.key.value(context)
+            diagnostics.extend(key_diagnostics)
+            if key_diagnostics.has_errors():
+                return cty.DYNAMIC_VAL, diagnostics
+            key_text, is_string_key = cty.to_string(key_value)
+            if not is_string_key:
+                return cty.DYNAMIC_VAL, diagnostics.extended(
                     error("Invalid object key", "Object keys must be strings.", item.key.range)
                 )
-            vv, vd = item.value_expr.value(context)
-            diags.extend(vd)
-            if vd.has_errors():
-                return cty.DYNAMIC_VAL, diags
-            out[key_text] = vv
-        return cty.object_val(out), diags
+            element_value, value_diagnostics = item.value_expr.value(context)
+            diagnostics.extend(value_diagnostics)
+            if value_diagnostics.has_errors():
+                return cty.DYNAMIC_VAL, diagnostics
+            entries[key_text] = element_value
+        return cty.object_val(entries), diagnostics
 
     def variables(self) -> list[Traversal]:
-        out: list[Traversal] = []
+        traversals: list[Traversal] = []
         for item in self.items:
-            out.extend(item.key.variables())
-            out.extend(item.value_expr.variables())
-        return out
+            traversals.extend(item.key.variables())
+            traversals.extend(item.value_expr.variables())
+        return traversals
 
 
 @dataclass(slots=True)
@@ -309,17 +309,17 @@ class UnaryOpExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        v, diags = self.operand.value(context)
-        if diags.has_errors() or v.is_unknown() or v.is_null():
-            return cty.DYNAMIC_VAL, diags
+        operand_value, diagnostics = self.operand.value(context)
+        if diagnostics.has_errors() or operand_value.is_unknown() or operand_value.is_null():
+            return cty.DYNAMIC_VAL, diagnostics
         if self.op == "-":
-            if v.type is not cty.NUMBER:
+            if operand_value.type is not cty.NUMBER:
                 return cty.DYNAMIC_VAL, error("Invalid operand", subject=self.range)
-            return cty.number_val(-v.as_decimal()), diags
+            return cty.number_val(-operand_value.as_decimal()), diagnostics
         if self.op == "!":
-            if v.type is not cty.BOOL:
+            if operand_value.type is not cty.BOOL:
                 return cty.DYNAMIC_VAL, error("Invalid operand", subject=self.range)
-            return cty.bool_val(not v.true()), diags
+            return cty.bool_val(not operand_value.true()), diagnostics
         return cty.DYNAMIC_VAL, error(f"Unsupported operator {self.op}", subject=self.range)
 
     def variables(self) -> list[Traversal]:
@@ -342,55 +342,64 @@ class BinaryOpExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        lv, ld = self.lhs.value(context)
-        if ld.has_errors():
-            return cty.DYNAMIC_VAL, ld
-        rv, rd = self.rhs.value(context)
-        if rd.has_errors():
-            return cty.DYNAMIC_VAL, rd
-        diags = ld.extended(rd)
+        left_value, left_diagnostics = self.lhs.value(context)
+        if left_diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, left_diagnostics
+        right_value, right_diagnostics = self.rhs.value(context)
+        if right_diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, right_diagnostics
+        diagnostics = left_diagnostics.extended(right_diagnostics)
 
-        if lv.is_unknown() or rv.is_unknown():
-            return cty.DYNAMIC_VAL, diags
+        if left_value.is_unknown() or right_value.is_unknown():
+            return cty.DYNAMIC_VAL, diagnostics
 
         if self.op == "==":
-            return cty.bool_val(_equal(lv, rv)), diags
+            return cty.bool_val(_equal(left_value, right_value)), diagnostics
         if self.op == "!=":
-            return cty.bool_val(not _equal(lv, rv)), diags
+            return cty.bool_val(not _equal(left_value, right_value)), diagnostics
 
         if self.op in ("&&", "||"):
-            if lv.type is not cty.BOOL or rv.type is not cty.BOOL:
+            if left_value.type is not cty.BOOL or right_value.type is not cty.BOOL:
                 return cty.DYNAMIC_VAL, error("Invalid operand", subject=self.range)
-            result = lv.true() and rv.true() if self.op == "&&" else lv.true() or rv.true()
-            return cty.bool_val(result), diags
+            result = (
+                left_value.true() and right_value.true()
+                if self.op == "&&"
+                else left_value.true() or right_value.true()
+            )
+            return cty.bool_val(result), diagnostics
 
-        if self.op == "+" and lv.type is cty.STRING and rv.type is cty.STRING:
+        if self.op == "+" and left_value.type is cty.STRING and right_value.type is cty.STRING:
             # HCL itself rejects this, but generated Terraform writes it and
             # the value is unambiguous. Concatenating is strictly more
             # informative than refusing, and only ever produces a literal a
             # rule can then judge.
-            return cty.string_val(lv.as_string() + rv.as_string()), diags
+            return cty.string_val(left_value.as_string() + right_value.as_string()), diagnostics
 
         if self.op in _ARITH or self.op in _COMPARE:
-            if lv.type is not cty.NUMBER or rv.type is not cty.NUMBER:
+            if left_value.type is not cty.NUMBER or right_value.type is not cty.NUMBER:
                 return cty.DYNAMIC_VAL, error("Invalid operand", subject=self.range)
-            a, b = lv.as_decimal(), rv.as_decimal()
+            left_number, right_number = left_value.as_decimal(), right_value.as_decimal()
             if self.op in _COMPARE:
-                cmp = {"<": a < b, "<=": a <= b, ">": a > b, ">=": a >= b}[self.op]
-                return cty.bool_val(cmp), diags
-            if self.op in ("/", "%") and b == 0:
+                comparison_result = {
+                    "<": left_number < right_number,
+                    "<=": left_number <= right_number,
+                    ">": left_number > right_number,
+                    ">=": left_number >= right_number,
+                }[self.op]
+                return cty.bool_val(comparison_result), diagnostics
+            if self.op in ("/", "%") and right_number == 0:
                 return cty.DYNAMIC_VAL, error("Division by zero", subject=self.range)
             try:
-                result_num = {
-                    "+": lambda: a + b,
-                    "-": lambda: a - b,
-                    "*": lambda: a * b,
-                    "/": lambda: a / b,
-                    "%": lambda: a % b,
+                numeric_result = {
+                    "+": lambda: left_number + right_number,
+                    "-": lambda: left_number - right_number,
+                    "*": lambda: left_number * right_number,
+                    "/": lambda: left_number / right_number,
+                    "%": lambda: left_number % right_number,
                 }[self.op]()
             except (InvalidOperation, ArithmeticError):
                 return cty.DYNAMIC_VAL, error("Arithmetic error", subject=self.range)
-            return cty.number_val(result_num), diags
+            return cty.number_val(numeric_result), diagnostics
 
         return cty.DYNAMIC_VAL, error(f"Unsupported operator {self.op}", subject=self.range)
 
@@ -398,14 +407,14 @@ class BinaryOpExpr(Expression):
         return self.lhs.variables() + self.rhs.variables()
 
 
-def _equal(a: Value, b: Value) -> bool:
-    if a.is_null() or b.is_null():
-        return a.is_null() and b.is_null()
-    if a.type is cty.NUMBER and b.type is cty.NUMBER:
-        return a.as_decimal() == b.as_decimal()
-    if a.type is not b.type:
+def _equal(left_value: Value, right_value: Value) -> bool:
+    if left_value.is_null() or right_value.is_null():
+        return left_value.is_null() and right_value.is_null()
+    if left_value.type is cty.NUMBER and right_value.type is cty.NUMBER:
+        return left_value.as_decimal() == right_value.as_decimal()
+    if left_value.type is not right_value.type:
         return False
-    return bool(a.raw == b.raw)
+    return bool(left_value.raw == right_value.raw)
 
 
 @dataclass(slots=True)
@@ -416,15 +425,19 @@ class ConditionalExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        cv, diags = self.condition.value(context)
-        if diags.has_errors():
-            return cty.DYNAMIC_VAL, diags
-        if cv.is_unknown() or cv.is_null() or cv.type is not cty.BOOL:
+        condition_value, diagnostics = self.condition.value(context)
+        if diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, diagnostics
+        if (
+            condition_value.is_unknown()
+            or condition_value.is_null()
+            or condition_value.type is not cty.BOOL
+        ):
             # An unresolvable condition means neither branch can be claimed as
             # the value. Reporting one would be a guess, and a guess is how a
             # false positive gets in.
-            return cty.DYNAMIC_VAL, diags
-        branch = self.true_result if cv.true() else self.false_result
+            return cty.DYNAMIC_VAL, diagnostics
+        branch = self.true_result if condition_value.true() else self.false_result
         return branch.value(context)
 
     def variables(self) -> list[Traversal]:
@@ -442,23 +455,27 @@ class IndexExpr(Expression):
     range: Range = field(default_factory=Range)
 
     def value(self, context: EvalContext | None = None) -> tuple[Value, Diagnostics]:
-        cv, cd = self.collection.value(context)
-        if cd.has_errors():
-            return cty.DYNAMIC_VAL, cd
-        kv, kd = self.key.value(context)
-        if kd.has_errors():
-            return cty.DYNAMIC_VAL, kd
-        if cv.is_unknown() or kv.is_unknown() or cv.is_null():
-            return cty.DYNAMIC_VAL, cd.extended(kd)
-        if isinstance(cv.raw, tuple) and kv.type is cty.NUMBER:
-            i = int(kv.as_decimal())
-            if 0 <= i < len(cv.raw):
-                return cv.raw[i], cd.extended(kd)
+        collection_value, collection_diagnostics = self.collection.value(context)
+        if collection_diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, collection_diagnostics
+        key_value, key_diagnostics = self.key.value(context)
+        if key_diagnostics.has_errors():
+            return cty.DYNAMIC_VAL, key_diagnostics
+        if collection_value.is_unknown() or key_value.is_unknown() or collection_value.is_null():
+            return cty.DYNAMIC_VAL, collection_diagnostics.extended(key_diagnostics)
+        if isinstance(collection_value.raw, tuple) and key_value.type is cty.NUMBER:
+            element_index = int(key_value.as_decimal())
+            if 0 <= element_index < len(collection_value.raw):
+                return collection_value.raw[element_index], collection_diagnostics.extended(
+                    key_diagnostics
+                )
             return cty.DYNAMIC_VAL, error("Index out of range", subject=self.range)
-        if isinstance(cv.raw, dict) and kv.type is cty.STRING:
-            key_text = kv.as_string()
-            if key_text in cv.raw:
-                return cv.raw[key_text], cd.extended(kd)
+        if isinstance(collection_value.raw, dict) and key_value.type is cty.STRING:
+            key_text = key_value.as_string()
+            if key_text in collection_value.raw:
+                return collection_value.raw[key_text], collection_diagnostics.extended(
+                    key_diagnostics
+                )
             return cty.DYNAMIC_VAL, error("Missing key", subject=self.range)
         return cty.DYNAMIC_VAL, error("Invalid index", subject=self.range)
 
@@ -506,10 +523,10 @@ class FunctionCallExpr(Expression):
         )
 
     def variables(self) -> list[Traversal]:
-        out: list[Traversal] = []
-        for a in self.args:
-            out.extend(a.variables())
-        return out
+        traversals: list[Traversal] = []
+        for argument in self.args:
+            traversals.extend(argument.variables())
+        return traversals
 
 
 @dataclass(slots=True)
@@ -564,10 +581,10 @@ class Block:
     def def_range(self) -> Range:
         """L'en-tête du bloc — `resource "aws_db_instance" "prod"` — c'est-à-dire
         l'endroit où pointe une découverte portant sur le bloc entier."""
-        out = self.type_range
-        for r in self.label_ranges:
-            out = out.merge(r)
-        return out
+        header_range = self.type_range
+        for label_range in self.label_ranges:
+            header_range = header_range.merge(label_range)
+        return header_range
 
 
 @dataclass(slots=True)
@@ -577,7 +594,7 @@ class Body:
     src_range: Range = field(default_factory=Range)
 
     def blocks_of_type(self, block_type: str) -> list[Block]:
-        return [b for b in self.blocks if b.type == block_type]
+        return [block for block in self.blocks if block.type == block_type]
 
 
 @dataclass(slots=True)

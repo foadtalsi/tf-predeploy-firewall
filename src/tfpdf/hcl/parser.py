@@ -106,10 +106,10 @@ class Parser:
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
     def _next(self) -> Token:
-        tok = self._peek()
-        if tok.type is not T.EOF:
+        token = self._peek()
+        if token.type is not T.EOF:
             self.i += 1
-        return tok
+        return token
 
     def _check(self, *types: T) -> bool:
         return self._peek().type in types
@@ -141,8 +141,8 @@ class Parser:
         start_pos = self._peek().range.start
         while True:
             self._skip_newlines()
-            tok = self._peek()
-            if tok.type is end or tok.type is T.EOF:
+            token = self._peek()
+            if token.type is end or token.type is T.EOF:
                 break
 
             # Où en étions-nous avant de tenter quoi que ce soit ? Comparé en
@@ -163,11 +163,11 @@ class Parser:
             # tourne jusqu'à son délai ».
             before = self.i
 
-            if tok.type is not T.IDENT:
+            if token.type is not T.IDENT:
                 self._error(
                     "Argument or block definition required",
                     "An argument or block definition is required here.",
-                    tok,
+                    token,
                 )
                 self._recover_to_newline()
             else:
@@ -235,13 +235,13 @@ class Parser:
         label_ranges: list[Range] = []
         while True:
             if self._check(T.OQUOTE):
-                text, rng = self._parse_quoted_label()
+                text, source_range = self._parse_quoted_label()
                 labels.append(text)
-                label_ranges.append(rng)
+                label_ranges.append(source_range)
             elif self._check(T.IDENT):
-                tok = self._next()
-                labels.append(tok.text)
-                label_ranges.append(tok.range)
+                token = self._next()
+                labels.append(token.text)
+                label_ranges.append(token.range)
             else:
                 break
 
@@ -281,16 +281,16 @@ class Parser:
         open_q = self._next()  # OQUOTE
         parts: list[str] = []
         while not self._check(T.CQUOTE, T.EOF):
-            tok = self._next()
-            if tok.type is T.QUOTED_LIT:
-                parts.append(tok.text)
-            elif tok.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
+            token = self._next()
+            if token.type is T.QUOTED_LIT:
+                parts.append(token.text)
+            elif token.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
                 depth = 1
                 while depth > 0 and not self._check(T.EOF):
-                    nxt = self._next()
-                    if nxt.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
+                    next_token = self._next()
+                    if next_token.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
                         depth += 1
-                    elif nxt.type is T.TEMPLATE_SEQ_END:
+                    elif next_token.type is T.TEMPLATE_SEQ_END:
                         depth -= 1
         close_q = self._match(T.CQUOTE) or self._peek()
         return "".join(parts), Range(self.filename, open_q.range.start, close_q.range.end)
@@ -305,17 +305,17 @@ class Parser:
         """
         depth = 0
         while True:
-            tok = self._peek()
-            if tok.type is T.EOF:
+            token = self._peek()
+            if token.type is T.EOF:
                 return
-            if tok.type is T.NEWLINE and depth <= 0:
+            if token.type is T.NEWLINE and depth <= 0:
                 self._next()
                 return
-            if tok.type is T.CBRACE and depth <= 0:
+            if token.type is T.CBRACE and depth <= 0:
                 return
-            if tok.type in (T.OBRACE, T.OBRACK, T.OPAREN):
+            if token.type in (T.OBRACE, T.OBRACK, T.OPAREN):
                 depth += 1
-            elif tok.type in (T.CBRACE, T.CBRACK, T.CPAREN):
+            elif token.type in (T.CBRACE, T.CBRACK, T.CPAREN):
                 depth -= 1
             self._next()
 
@@ -348,18 +348,18 @@ class Parser:
     def _parse_binary(self, level: int) -> Expression:
         if level >= len(_BINARY_LEVELS):
             return self._parse_unary()
-        ops = _BINARY_LEVELS[level]
-        lhs = self._parse_binary(level + 1)
-        while self._check(*ops):
+        operators = _BINARY_LEVELS[level]
+        left_expression = self._parse_binary(level + 1)
+        while self._check(*operators):
             op_tok = self._next()
-            rhs = self._parse_binary(level + 1)
-            lhs = BinaryOpExpr(
+            right_expression = self._parse_binary(level + 1)
+            left_expression = BinaryOpExpr(
                 op=_OP_TEXT[op_tok.type],
-                lhs=lhs,
-                rhs=rhs,
-                range=lhs.range.merge(rhs.range),
+                lhs=left_expression,
+                rhs=right_expression,
+                range=left_expression.range.merge(right_expression.range),
             )
-        return lhs
+        return left_expression
 
     def _parse_unary(self) -> Expression:
         if self._check(T.BANG, T.MINUS):
@@ -386,27 +386,27 @@ class Parser:
         if self._check(T.STAR):
             star = self._next()
             return SplatExpr(source=expr, range=expr.range.merge(star.range))
-        tok = self._next()
-        if tok.type not in (T.IDENT, T.NUMBER):
-            self._error("Invalid attribute name", "An attribute name is required after '.'.", tok)
+        token = self._next()
+        if token.type not in (T.IDENT, T.NUMBER):
+            self._error("Invalid attribute name", "An attribute name is required after '.'.", token)
             return expr
         step: Step
-        if tok.type is T.NUMBER:
+        if token.type is T.NUMBER:
             # `list.0` is HCL's legacy index spelling.
-            step = TraverseIndex(cty.number_val(tok.text), tok.range)
+            step = TraverseIndex(cty.number_val(token.text), token.range)
         else:
-            step = TraverseAttr(tok.text, tok.range)
+            step = TraverseAttr(token.text, token.range)
 
         if isinstance(expr, ScopeTraversalExpr):
             expr.traversal.append(step)
-            expr.range = expr.range.merge(tok.range)
+            expr.range = expr.range.merge(token.range)
             return expr
         if isinstance(expr, RelativeTraversalExpr):
             expr.traversal.append(step)
-            expr.range = expr.range.merge(tok.range)
+            expr.range = expr.range.merge(token.range)
             return expr
         return RelativeTraversalExpr(
-            source=expr, traversal=Traversal([step]), range=expr.range.merge(tok.range)
+            source=expr, traversal=Traversal([step]), range=expr.range.merge(token.range)
         )
 
     def _parse_index(self, expr: Expression) -> Expression:
@@ -452,42 +452,42 @@ class Parser:
         )
 
     def _parse_primary(self) -> Expression:
-        tok = self._peek()
+        token = self._peek()
 
-        if tok.type is T.NUMBER:
+        if token.type is T.NUMBER:
             self._next()
-            return LiteralValueExpr(_number_literal(tok, self), tok.range)
+            return LiteralValueExpr(_number_literal(token, self), token.range)
 
-        if tok.type is T.OQUOTE:
+        if token.type is T.OQUOTE:
             return self._parse_quoted_template()
 
-        if tok.type is T.OHEREDOC:
+        if token.type is T.OHEREDOC:
             return self._parse_heredoc()
 
-        if tok.type is T.OBRACK:
+        if token.type is T.OBRACK:
             return self._parse_tuple()
 
-        if tok.type is T.OBRACE:
+        if token.type is T.OBRACE:
             return self._parse_object()
 
-        if tok.type is T.OPAREN:
+        if token.type is T.OPAREN:
             self._next()
             inner = self.parse_expression()
             close = self._match(T.CPAREN)
             if close is None:
                 self._error("Missing close parenthesis", "Expected ')'.", self._peek())
                 close = self._peek()
-            return ParenthesesExpr(inner, tok.range.merge(close.range))
+            return ParenthesesExpr(inner, token.range.merge(close.range))
 
-        if tok.type is T.IDENT:
-            if tok.text in _KEYWORD_VALUES:
+        if token.type is T.IDENT:
+            if token.text in _KEYWORD_VALUES:
                 self._next()
-                return LiteralValueExpr(_KEYWORD_VALUES[tok.text], tok.range)
+                return LiteralValueExpr(_KEYWORD_VALUES[token.text], token.range)
             return self._parse_variable()
 
-        self._error("Invalid expression", "Expected the start of an expression here.", tok)
+        self._error("Invalid expression", "Expected the start of an expression here.", token)
         self._next()
-        return LiteralValueExpr(cty.DYNAMIC_VAL, tok.range)
+        return LiteralValueExpr(cty.DYNAMIC_VAL, token.range)
 
     def _parse_variable(self) -> Expression:
         """Un identifiant, ou un nom de fonction avec espace de noms.
@@ -498,9 +498,9 @@ class Parser:
         que de devenir des étapes de traversée ; les traiter comme des étapes
         rendrait l'appelé irrésoluble et l'expression inanalysable.
         """
-        tok = self._next()
-        name = tok.text
-        end_range = tok.range
+        token = self._next()
+        name = token.text
+        end_range = token.range
         while self._check(T.DOUBLE_COLON):
             self._next()
             part = self._match(T.IDENT)
@@ -514,7 +514,7 @@ class Parser:
             name += "::" + part.text
             end_range = part.range
 
-        full_range = tok.range.merge(end_range)
+        full_range = token.range.merge(end_range)
         return ScopeTraversalExpr(
             traversal=Traversal([TraverseRoot(name, full_range)]), range=full_range
         )
@@ -524,32 +524,32 @@ class Parser:
     def _parse_quoted_template(self) -> Expression:
         open_q = self._next()  # OQUOTE
         parts, close = self._parse_template_parts(T.CQUOTE)
-        rng = Range(self.filename, open_q.range.start, close.range.end)
-        return _template_expr(parts, rng)
+        source_range = Range(self.filename, open_q.range.start, close.range.end)
+        return _template_expr(parts, source_range)
 
     def _parse_heredoc(self) -> Expression:
         open_h = self._next()  # OHEREDOC
         parts, close = self._parse_template_parts(T.CHEREDOC)
-        rng = Range(self.filename, open_h.range.start, close.range.end)
+        source_range = Range(self.filename, open_h.range.start, close.range.end)
         # A heredoc is always a string, even when it holds one interpolation:
         # `<<EOF\n${x}\nEOF` carries the trailing newline, so it cannot pass
         # the wrapped value through the way `"${x}"` does.
-        return TemplateExpr(parts=parts, range=rng)
+        return TemplateExpr(parts=parts, range=source_range)
 
     def _parse_template_parts(self, end: T) -> tuple[list[Expression], Token]:
         parts: list[Expression] = []
         while True:
-            tok = self._peek()
-            if tok.type is end:
+            token = self._peek()
+            if token.type is end:
                 return parts, self._next()
-            if tok.type is T.EOF:
-                self._error("Unterminated template", "Expected the template to be closed.", tok)
-                return parts, tok
-            if tok.type is T.QUOTED_LIT:
+            if token.type is T.EOF:
+                self._error("Unterminated template", "Expected the template to be closed.", token)
+                return parts, token
+            if token.type is T.QUOTED_LIT:
                 self._next()
-                parts.append(LiteralValueExpr(cty.string_val(tok.text), tok.range))
+                parts.append(LiteralValueExpr(cty.string_val(token.text), token.range))
                 continue
-            if tok.type is T.TEMPLATE_INTERP:
+            if token.type is T.TEMPLATE_INTERP:
                 self._next()
                 inner = self.parse_expression()
                 seq_end = self._match(T.TEMPLATE_SEQ_END)
@@ -562,13 +562,13 @@ class Parser:
                     seq_end = self._peek()
                 parts.append(inner)
                 continue
-            if tok.type is T.TEMPLATE_CONTROL:
+            if token.type is T.TEMPLATE_CONTROL:
                 # `%{ if … }` / `%{ for … }`. Directives are consumed so the
                 # rest of the file parses; the template as a whole becomes
                 # unevaluable, which is the honest answer — the output depends
                 # on a condition the scanner cannot resolve.
                 self._skip_template_directive()
-                parts.append(LiteralValueExpr(cty.DYNAMIC_VAL, tok.range))
+                parts.append(LiteralValueExpr(cty.DYNAMIC_VAL, token.range))
                 continue
             # Anything else inside a template is a lexer-level problem already
             # reported; consume it so the loop terminates.
@@ -578,10 +578,10 @@ class Parser:
         self._next()  # %{
         depth = 1
         while depth > 0 and not self._check(T.EOF):
-            tok = self._next()
-            if tok.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
+            token = self._next()
+            if token.type in (T.TEMPLATE_INTERP, T.TEMPLATE_CONTROL):
                 depth += 1
-            elif tok.type is T.TEMPLATE_SEQ_END:
+            elif token.type is T.TEMPLATE_SEQ_END:
                 depth -= 1
 
     # --- collections ------------------------------------------------------
@@ -643,8 +643,8 @@ class Parser:
         return ObjectConsExpr(items=items, range=open_b.range.merge(close.range))
 
     def _is_for_start(self) -> bool:
-        tok = self._peek()
-        return tok.type is T.IDENT and tok.text == "for"
+        token = self._peek()
+        return token.type is T.IDENT and token.text == "for"
 
     def _parse_for(self, open_tok: Token, is_object: bool) -> Expression:
         """Analyse une compréhension `for` juste assez pour la consommer
@@ -766,6 +766,6 @@ def parse_config(
     tokens = lexer.tokens()
     p = Parser(tokens, filename)
     body = p.parse_body(end=T.EOF)
-    diags = Diagnostics(lexer.diags)
-    diags.extend(p.diags)
-    return File(body=body, source=raw, filename=filename), diags
+    diagnostics = Diagnostics(lexer.diags)
+    diagnostics.extend(p.diags)
+    return File(body=body, source=raw, filename=filename), diagnostics

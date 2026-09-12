@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 from ..hcl import Range
 from ..parser import Attribute, Resource
+from ..report.finding import Fix
 
 _NON_IDENT_CHAR = re.compile(r"[^a-zA-Z0-9_]")
 
@@ -141,3 +142,15 @@ def credential_var_name(res: Resource, block_type: str, attr_name: str) -> str:
 
 def sanitize_ident(s: str) -> str:
     return _NON_IDENT_CHAR.sub("_", s.lower())
+
+
+def as_fix(edit: LineEdit | None) -> Fix | None:
+    """Élève une édition de ligne résolue en Fix, en laissant passer None.
+
+    Les aides d'édition rendent None dès que la source ne ressemblait pas à ce
+    qu'elles supposaient, et tous les appelants d'ici réagissent pareil :
+    émettre la découverte avec sa seule suggestion en langage humain.
+    """
+    if edit is None:
+        return None
+    return Fix(start_line=edit.start, end_line=edit.end, lines=edit.lines)

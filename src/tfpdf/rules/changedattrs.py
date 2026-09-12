@@ -44,7 +44,7 @@ def changed_attrs_for_resource(head: Resource | None, base: Resource | None) -> 
 
 
 def _blocks_by_type(blocks: list[NestedBlock]) -> dict[str, NestedBlock]:
-    return {b.type: b for b in blocks}
+    return {block.type: block for block in blocks}
 
 
 def _diff_attr_maps(

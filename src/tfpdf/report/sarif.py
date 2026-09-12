@@ -270,18 +270,18 @@ def render_sarif(findings: list[Finding]) -> bytes:
     """Sérialise les découvertes en un document JSON SARIF 2.1.0 propre à être
     envoyé vers GitHub Code Scanning via actions/upload-sarif."""
     results: list[dict[str, Any]] = []
-    for f in findings:
+    for finding in findings:
         result: dict[str, Any] = {
-            "ruleId": str(f.category),
-            "level": SEVERITY_TO_SARIF_LEVEL.get(f.severity, ""),
-            "message": SarifMessage(f.message).to_json(),
-            "locations": [_location_json(f.file, f.line)],
+            "ruleId": str(finding.category),
+            "level": SEVERITY_TO_SARIF_LEVEL.get(finding.severity, ""),
+            "message": SarifMessage(finding.message).to_json(),
+            "locations": [_location_json(finding.file, finding.line)],
         }
         # The provider documentation link is per-result and cannot go on the
         # rule: a rule is one category across every resource type, while the
         # useful link is to the one type this result is about.
-        if f.doc_url:
-            result["properties"] = {"providerDocs": f.doc_url, "resource": f.resource}
+        if finding.doc_url:
+            result["properties"] = {"providerDocs": finding.doc_url, "resource": finding.resource}
         results.append(result)
 
     log = {

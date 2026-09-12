@@ -43,17 +43,17 @@ def render_code_quality(findings: list[Finding]) -> bytes:
     exemple — ne doivent pas se fondre en une seule ligne du widget.
     """
     issues: list[dict[str, Any]] = []
-    for f in findings:
-        if f.waived:
+    for finding in findings:
+        if finding.waived:
             continue  # accepted findings are decisions, not open issues
-        key = "\x00".join([str(f.category), f.resource, f.file, f.message])
+        key = "\x00".join([str(finding.category), finding.resource, finding.file, finding.message])
         issues.append(
             {
-                "description": f.resource + ": " + f.message,
-                "check_name": str(f.category),
+                "description": finding.resource + ": " + finding.message,
+                "check_name": str(finding.category),
                 "fingerprint": hashlib.sha256(key.encode()).hexdigest(),
-                "severity": SEVERITY_TO_CODE_QUALITY.get(f.severity, ""),
-                "location": {"path": f.file, "lines": {"begin": f.line}},
+                "severity": SEVERITY_TO_CODE_QUALITY.get(finding.severity, ""),
+                "location": {"path": finding.file, "lines": {"begin": finding.line}},
             }
         )
     return marshal_indent(issues)

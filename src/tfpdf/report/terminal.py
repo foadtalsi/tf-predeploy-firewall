@@ -139,9 +139,9 @@ def _headline(
         return paint(_BOLD, "No findings.")
 
     counts = [
-        f"{sum(1 for f in live if f.severity is s)} {s}"
+        f"{sum(1 for finding in live if finding.severity is s)} {s}"
         for s in _ORDER
-        if any(f.severity is s for f in live)
+        if any(finding.severity is s for finding in live)
     ]
     head = f"{len(live)} finding(s) — " + ", ".join(counts)
 
@@ -233,16 +233,16 @@ def _what_differs(group: list[Finding]) -> list[str]:
         return [""]
 
     messages = [" ".join(f.message.split()) for f in group]
-    shortest = min(len(m) for m in messages)
+    shortest = min(len(match) for match in messages)
 
     prefix = 0
-    while prefix < shortest and len({m[prefix] for m in messages}) == 1:
+    while prefix < shortest and len({match[prefix] for match in messages}) == 1:
         prefix += 1
     while prefix > 0 and _inside_a_word(messages[0], prefix):
         prefix -= 1
 
     suffix = 0
-    while suffix < shortest - prefix and len({m[-1 - suffix] for m in messages}) == 1:
+    while suffix < shortest - prefix and len({match[-1 - suffix] for match in messages}) == 1:
         suffix += 1
     while suffix > 0 and _inside_a_word(messages[0], len(messages[0]) - suffix):
         suffix -= 1

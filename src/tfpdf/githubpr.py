@@ -64,9 +64,9 @@ class Client:
             f"/issues/{self.pr_num}/comments?per_page=100"
         )
         comments = get_json(url, self._headers()) or []
-        for cm in comments:
-            if marker in cm.get("body", ""):
-                return int(cm.get("id", 0))
+        for comment in comments:
+            if marker in comment.get("body", ""):
+                return int(comment.get("id", 0))
         return 0
 
     # --- reviewers --------------------------------------------------------
@@ -128,26 +128,26 @@ class Client:
 
         payload: list[dict[str, Any]] = []
         in_batch: set[str] = set()
-        for cm in comments:
+        for comment in comments:
             # Already on the PR from an earlier push, or already in this batch
             # — two rules can reach the same conclusion about the same line.
-            if cm.marker and (cm.marker in existing or cm.marker in in_batch):
+            if comment.marker and (comment.marker in existing or comment.marker in in_batch):
                 out.already_there += 1
                 continue
-            in_batch.add(cm.marker)
-            if not lines_in_diff(diff_lines, cm):
+            in_batch.add(comment.marker)
+            if not lines_in_diff(diff_lines, comment):
                 out.outside_diff += 1
                 continue
-            ac: dict[str, Any] = {
-                "path": cm.path,
-                "line": cm.line,
-                "body": cm.body,
+            anchored_comment: dict[str, Any] = {
+                "path": comment.path,
+                "line": comment.line,
+                "body": comment.body,
                 "side": "RIGHT",
             }
-            if 0 < cm.start_line < cm.line:
-                ac["start_line"] = cm.start_line
-                ac["start_side"] = "RIGHT"
-            payload.append(ac)
+            if 0 < comment.start_line < comment.line:
+                anchored_comment["start_line"] = comment.start_line
+                anchored_comment["start_side"] = "RIGHT"
+            payload.append(anchored_comment)
 
         if not payload:
             return out
@@ -184,8 +184,10 @@ class Client:
                 f"/pulls/{self.pr_num}/files?per_page=100&page={page}"
             )
             files = get_json(url, self._headers()) or []
-            for f in files:
-                out[f.get("filename", "")] = patch_line_numbers(f.get("patch") or "")
+            for changed_file in files:
+                out[changed_file.get("filename", "")] = patch_line_numbers(
+                    changed_file.get("patch") or ""
+                )
             if len(files) < 100:
                 break
         return out
@@ -201,8 +203,8 @@ class Client:
                 f"/pulls/{self.pr_num}/comments?per_page=100&page={page}"
             )
             comments = get_json(url, self._headers()) or []
-            for cm in comments:
-                parts.append(cm.get("body", ""))
+            for comment in comments:
+                parts.append(comment.get("body", ""))
                 parts.append("\n")
             if len(comments) < 100:
                 break

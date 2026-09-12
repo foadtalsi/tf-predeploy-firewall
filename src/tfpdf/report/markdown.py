@@ -20,7 +20,7 @@ SEVERITY_EMOJI = {
 }
 
 
-def _by_file_then_line(f: Finding) -> tuple[str, int, str, str]:
+def _by_file_then_line(finding: Finding) -> tuple[str, int, str, str]:
     """Un ordre **total**, contrairement à celui de Go.
 
     Go trie sur `(fichier, ligne)` seuls avec `sort.Slice`, qui n'est pas
@@ -47,7 +47,7 @@ def _by_file_then_line(f: Finding) -> tuple[str, int, str, str]:
     sa place côté Go également, où le comparateur devrait porter les deux mêmes
     champs.
     """
-    return (f.file, f.line, str(f.category), f.message)
+    return (finding.file, finding.line, str(finding.category), finding.message)
 
 
 def render_markdown(findings: list[Finding], threshold: Severity | str, blocked: bool) -> str:
@@ -60,14 +60,14 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
     quand même dans sa propre section plus bas : en accepter une n'est jamais
     silencieux.
     """
-    b: list[str] = [MARKER + "\n", "## TF Pre-Deploy Firewall\n\n"]
+    sections: list[str] = [MARKER + "\n", "## TF Pre-Deploy Firewall\n\n"]
 
-    active = [f for f in findings if not f.waived]
-    waived = [f for f in findings if f.waived]
+    active = [finding for finding in findings if not finding.waived]
+    waived = [finding for finding in findings if finding.waived]
 
     if not active and not waived:
-        b.append("No risk patterns detected in the changed Terraform files. ✅\n")
-        return "".join(b)
+        sections.append("No risk patterns detected in the changed Terraform files. ✅\n")
+        return "".join(sections)
 
     # Clé totale, contrairement au sort.Slice de Go : deux découvertes sur le
     # même fichier et la même ligne sont départagées par la catégorie puis le
@@ -75,37 +75,37 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
     active.sort(key=_by_file_then_line)
 
     if not active:
-        b.append(
+        sections.append(
             f"✅ No blocking findings — {len(waived)} finding(s) previously "
             "accepted (see below).\n\n"
         )
     elif blocked:
-        b.append(
+        sections.append(
             f"🚫 **Merge blocked** — findings at or above `{highest_severity(active)}` "
             f"severity (threshold: `{threshold}`).\n\n"
         )
     else:
-        b.append(
+        sections.append(
             f"⚠️ {len(active)} finding(s), none reach the `{threshold}` blocking threshold.\n\n"
         )
 
     if active:
-        b.append("| Severity | File | Line | Category | Resource | Detail |\n")
-        b.append("|---|---|---|---|---|---|\n")
-        for f in active:
-            b.append(
-                f"| {SEVERITY_EMOJI.get(f.severity, '')} {f.severity} | `{f.file}` | "
-                f"{f.line} | {category_display(f.category)} | {resource_cell(f)} | "
-                f"{f.message} |\n"
+        sections.append("| Severity | File | Line | Category | Resource | Detail |\n")
+        sections.append("|---|---|---|---|---|---|\n")
+        for finding in active:
+            sections.append(
+                f"| {SEVERITY_EMOJI.get(finding.severity, '')} {finding.severity} | `{finding.file}` | "
+                f"{finding.line} | {category_display(finding.category)} | {resource_cell(finding)} | "
+                f"{finding.message} |\n"
             )
 
-    _render_suggestions(b, active)
-    _render_waivers(b, waived)
+    _render_suggestions(sections, active)
+    _render_waivers(sections, waived)
 
-    return "".join(b)
+    return "".join(sections)
 
 
-def _render_waivers(b: list[str], waived: list[Finding]) -> None:
+def _render_waivers(sections: list[str], waived: list[Finding]) -> None:
     """Liste les découvertes qu'un administrateur a acceptées via le plan de
     contrôle (Starter et plus, GET /v1/waivers).
 
@@ -116,19 +116,21 @@ def _render_waivers(b: list[str], waived: list[Finding]) -> None:
         return
     waived = sorted(waived, key=_by_file_then_line)
 
-    b.append(
+    sections.append(
         f"\n<details><summary>{len(waived)} accepted finding(s) — excluded from "
         "the block decision</summary>\n\n"
     )
-    b.append("| Severity | File | Line | Category | Resource | Detail | Accepted because |\n")
-    b.append("|---|---|---|---|---|---|---|\n")
-    for f in waived:
-        b.append(
-            f"| {SEVERITY_EMOJI.get(f.severity, '')} {f.severity} | `{f.file}` | "
-            f"{f.line} | {category_display(f.category)} | {resource_cell(f)} | "
-            f"{f.message} | {f.waiver_note} |\n"
+    sections.append(
+        "| Severity | File | Line | Category | Resource | Detail | Accepted because |\n"
+    )
+    sections.append("|---|---|---|---|---|---|---|\n")
+    for finding in waived:
+        sections.append(
+            f"| {SEVERITY_EMOJI.get(finding.severity, '')} {finding.severity} | `{finding.file}` | "
+            f"{finding.line} | {category_display(finding.category)} | {resource_cell(finding)} | "
+            f"{finding.message} | {finding.waiver_note} |\n"
         )
-    b.append("\n</details>\n")
+    sections.append("\n</details>\n")
 
 
 def resource_cell(f: Finding) -> str:
@@ -144,29 +146,29 @@ def resource_cell(f: Finding) -> str:
     return f"[`{f.resource}`]({f.doc_url})"
 
 
-def _render_suggestions(b: list[str], sorted_findings: list[Finding]) -> None:
+def _render_suggestions(sections: list[str], sorted_findings: list[Finding]) -> None:
     """Ajoute un bloc repliable « Suggested fixes » par découverte qui en a un.
 
     C'est du HCL à copier-coller, pas un patch calculé : cet outil n'a jamais
     d'accès en écriture au dépôt. Gardé hors du tableau principal, un bloc de
     code multi-lignes ne tenant pas dans une cellule de tableau markdown.
     """
-    if not any(f.suggestion for f in sorted_findings):
+    if not any(finding.suggestion for finding in sorted_findings):
         return
 
-    b.append("\n### Suggested fixes\n\n")
-    for f in sorted_findings:
-        if not f.suggestion:
+    sections.append("\n### Suggested fixes\n\n")
+    for finding in sorted_findings:
+        if not finding.suggestion:
             continue
-        b.append(
-            f"<details><summary><code>{f.resource}</code> ({f.file}:{f.line})</summary>"
-            f"\n\n```hcl\n{f.suggestion}\n```\n\n</details>\n\n"
+        sections.append(
+            f"<details><summary><code>{finding.resource}</code> ({finding.file}:{finding.line})</summary>"
+            f"\n\n```hcl\n{finding.suggestion}\n```\n\n</details>\n\n"
         )
 
 
 def highest_severity(findings: list[Finding]) -> Severity:
     highest = Severity.LOW
-    for f in findings:
-        if f.severity.at_least(highest):
-            highest = f.severity
+    for finding in findings:
+        if finding.severity.at_least(highest):
+            highest = finding.severity
     return highest

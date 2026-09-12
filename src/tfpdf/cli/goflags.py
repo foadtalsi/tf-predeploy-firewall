@@ -31,16 +31,16 @@ def normalize_argv(argv: list[str]) -> list[str]:
     qui suit est un opérande et non un drapeau, et en réécrire un changerait son
     sens.
     """
-    out: list[str] = []
-    for i, tok in enumerate(argv):
-        if tok == "--":
-            out.extend(argv[i:])
+    normalized_arguments: list[str] = []
+    for argument_index, argument in enumerate(argv):
+        if argument == "--":
+            normalized_arguments.extend(argv[argument_index:])
             break
-        m = _SINGLE_DASH_LONG.match(tok)
+        match = _SINGLE_DASH_LONG.match(argument)
         # A one-letter option is left as-is: this CLI has none, and rewriting
         # "-h" would break the one short flag argparse provides itself.
-        if m is not None and len(m.group(1)) > 1:
-            out.append("-" + tok)
+        if match is not None and len(match.group(1)) > 1:
+            normalized_arguments.append("-" + argument)
         else:
-            out.append(tok)
-    return out
+            normalized_arguments.append(argument)
+    return normalized_arguments

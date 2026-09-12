@@ -208,7 +208,7 @@ def run(
             )
             continue
 
-        base_by_addr: dict[str, Resource] = {}
+        base_resources_by_address: dict[str, Resource] = {}
         if changed_file.base_content is not None:
             # The base revision is parsed without a scope: it exists only to
             # answer "did this attribute's value change", and resolving it
@@ -216,7 +216,7 @@ def run(
             # value to an after scope.
             try:
                 for resource in parse_file(changed_file.path, changed_file.base_content):
-                    base_by_addr[resource.address()] = resource
+                    base_resources_by_address[resource.address()] = resource
             except HCLParseError:
                 pass
 
@@ -224,15 +224,17 @@ def run(
             path=changed_file.path,
             head_resources=head_resources,
             head_source=changed_file.head_content,
-            base_resources=base_by_addr,
+            base_resources=base_resources_by_address,
         )
         for rule in ruleset:
             findings.extend(rule.check(file_input, knowledge_base))
 
-        for head in head_resources:
-            base = base_by_addr.get(head.address())
-            if base is not None:
-                changed_attrs[head.address()] = changed_attrs_for_resource(head, base)
+        for head_resource in head_resources:
+            base_resource = base_resources_by_address.get(head_resource.address())
+            if base_resource is not None:
+                changed_attrs[head_resource.address()] = changed_attrs_for_resource(
+                    head_resource, base_resource
+                )
 
     if options.cloud_reader is not None:
         adjust_severity_against_the_cloud(findings)
@@ -241,10 +243,10 @@ def run(
         findings, constraints_by_file, knowledge_base
     )
 
-    kept = ignore.apply(findings, inline_by_file, options.global_ignore)
-    attach_doc_urls(kept, knowledge_base)
+    retained_findings = ignore.apply(findings, inline_by_file, options.global_ignore)
+    attach_doc_urls(retained_findings, knowledge_base)
 
-    return Result(findings=kept, changed_attrs=changed_attrs, notes=notes)
+    return Result(findings=retained_findings, changed_attrs=changed_attrs, notes=notes)
 
 
 #: Les découvertes tirées du SCHÉMA, et elles seules. Ce sont les deux qui
@@ -282,28 +284,28 @@ def drop_findings_the_pinned_provider_contradicts(
     """
     if knowledge_base is None:
         return []
-    version_of = {p.name: p.version for p in knowledge_base.coverage().providers}
-    if not version_of:
+    versions_by_provider = {p.name: p.version for p in knowledge_base.coverage().providers}
+    if not versions_by_provider:
         return []
 
     silenced: dict[tuple[str, str, str], None] = {}
-    kept: list[Finding] = []
+    retained_findings: list[Finding] = []
     for finding in findings:
         provider = _provider_the_finding_judges(finding)
         constraint = constraints_by_file.get(finding.file, {}).get(provider, "")
-        our_version = version_of.get(provider, "")
+        schema_version = versions_by_provider.get(provider, "")
         if (
             finding.rule_name in SCHEMA_DERIVED_RULES
             and constraint
-            and our_version
-            and not providerversion.allows(constraint, our_version)
+            and schema_version
+            and not providerversion.allows(constraint, schema_version)
         ):
-            silenced[(provider, constraint, our_version)] = None
+            silenced[(provider, constraint, schema_version)] = None
             continue
-        kept.append(finding)
+        retained_findings.append(finding)
 
-    if len(kept) != len(findings):
-        findings[:] = kept
+    if len(retained_findings) != len(findings):
+        findings[:] = retained_findings
 
     return [
         f'{provider} is pinned to "{constraint}" here, and the schema this scanner '

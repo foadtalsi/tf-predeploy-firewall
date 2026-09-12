@@ -26,40 +26,40 @@ import (
 // name, so once a (type, schema-map) pair is found, the shared
 // walkSDKSchemaMap does the rest — pluginsdk.Schema carries the same
 // `ForceNew: true` field, and isSchemaSelector accepts both package names.
-func extractForceNewAzurerm(srcRoot string) (*forceNewIndex, error) {
-	serviceRoot := filepath.Join(srcRoot, "internal", "services")
+func extractForceNewAzurerm(sourceRoot string) (*forceNewIndex, error) {
+	serviceRoot := filepath.Join(sourceRoot, "internal", "services")
 	entries, err := os.ReadDir(serviceRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", serviceRoot, err)
 	}
 
-	idx := newForceNewIndex()
+	index := newForceNewIndex()
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		pkg, err := parsePackage(filepath.Join(serviceRoot, e.Name()))
+		servicePackage, err := parsePackage(filepath.Join(serviceRoot, e.Name()))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "forcenew-extractor: skipping %s: %v\n", e.Name(), err)
 			continue
 		}
-		collectAzurermUntyped(pkg, idx)
-		collectAzurermTyped(pkg, idx)
+		collectAzurermUntyped(servicePackage, index)
+		collectAzurermTyped(servicePackage, index)
 	}
-	return idx, nil
+	return index, nil
 }
 
 // collectAzurermUntyped finds every `"azurerm_x": resourceX()` entry in a
 // package's pluginsdk.Resource registration maps and walks the schema each
 // named function returns.
-func collectAzurermUntyped(pkg *packageIndex, idx *forceNewIndex) {
-	for _, f := range pkg.files {
+func collectAzurermUntyped(servicePackage *packageIndex, index *forceNewIndex) {
+	for _, f := range servicePackage.files {
 		ast.Inspect(f, func(n ast.Node) bool {
-			cl, ok := n.(*ast.CompositeLit)
+			literal, ok := n.(*ast.CompositeLit)
 			if !ok {
 				return true
 			}
-			mt, ok := cl.Type.(*ast.MapType)
+			mt, ok := literal.Type.(*ast.MapType)
 			if !ok {
 				return true
 			}
@@ -71,35 +71,35 @@ func collectAzurermUntyped(pkg *packageIndex, idx *forceNewIndex) {
 				return true
 			}
 
-			for _, elt := range cl.Elts {
-				kv, ok := elt.(*ast.KeyValueExpr)
+			for _, element := range literal.Elts {
+				entry, ok := element.(*ast.KeyValueExpr)
 				if !ok {
 					continue
 				}
-				rType, ok := basicString(kv.Key)
+				resourceType, ok := basicString(entry.Key)
 				if !ok {
 					continue
 				}
-				call, ok := kv.Value.(*ast.CallExpr)
+				call, ok := entry.Value.(*ast.CallExpr)
 				if !ok {
 					continue
 				}
-				fnName, ok := call.Fun.(*ast.Ident)
+				functionName, ok := call.Fun.(*ast.Ident)
 				if !ok {
 					continue
 				}
-				fn, ok := pkg.funcs[fnName.Name]
+				function, ok := servicePackage.funcs[functionName.Name]
 				if !ok {
 					continue
 				}
 
-				idx.SDKResourcesSeen++
-				schemaMap := resolveSDKSchemaMap(fn, pkg)
+				index.SDKResourcesSeen++
+				schemaMap := resolveSDKSchemaMap(function, servicePackage)
 				if schemaMap == nil {
 					continue
 				}
-				idx.SDKResourcesResolved++
-				walkSDKSchemaMap(schemaMap, "", rType, pkg, nil, idx)
+				index.SDKResourcesResolved++
+				walkSDKSchemaMap(schemaMap, "", resourceType, servicePackage, nil, index)
 			}
 			return true
 		})
@@ -108,17 +108,17 @@ func collectAzurermUntyped(pkg *packageIndex, idx *forceNewIndex) {
 
 // collectAzurermTyped pairs each receiver type's ResourceType() string with
 // its Arguments() schema map.
-func collectAzurermTyped(pkg *packageIndex, idx *forceNewIndex) {
-	for recv, methods := range pkg.methods {
-		rtMethod, ok := methods["ResourceType"]
+func collectAzurermTyped(servicePackage *packageIndex, index *forceNewIndex) {
+	for receiverType, methods := range servicePackage.methods {
+		resourceTypeMethod, ok := methods["ResourceType"]
 		if !ok {
 			continue
 		}
-		rType := returnedString(rtMethod)
-		if rType == "" {
+		resourceType := returnedString(resourceTypeMethod)
+		if resourceType == "" {
 			continue
 		}
-		_ = recv
+		_ = receiverType
 
 		args, ok := methods["Arguments"]
 		if !ok {
@@ -127,30 +127,30 @@ func collectAzurermTyped(pkg *packageIndex, idx *forceNewIndex) {
 			continue
 		}
 
-		idx.FrameworkSeen++
+		index.FrameworkSeen++
 		schemaMap := findSchemaMapLit(args)
 		if schemaMap == nil {
 			continue
 		}
-		idx.FrameworkResolved++
-		walkSDKSchemaMap(schemaMap, "", rType, pkg, nil, idx)
+		index.FrameworkResolved++
+		walkSDKSchemaMap(schemaMap, "", resourceType, servicePackage, nil, index)
 	}
 }
 
 // returnedString extracts the string a niladic method returns, for
 // `func (r XResource) ResourceType() string { return "azurerm_x" }`.
 // Anything more dynamic returns "" and the resource is counted as a gap.
-func returnedString(fn *ast.FuncDecl) string {
-	if fn.Body == nil {
+func returnedString(function *ast.FuncDecl) string {
+	if function.Body == nil {
 		return ""
 	}
 	var out string
-	ast.Inspect(fn.Body, func(n ast.Node) bool {
-		ret, ok := n.(*ast.ReturnStmt)
-		if !ok || len(ret.Results) != 1 || out != "" {
+	ast.Inspect(function.Body, func(n ast.Node) bool {
+		returnStatement, ok := n.(*ast.ReturnStmt)
+		if !ok || len(returnStatement.Results) != 1 || out != "" {
 			return true
 		}
-		if s, ok := basicString(ret.Results[0]); ok {
+		if s, ok := basicString(returnStatement.Results[0]); ok {
 			out = s
 		}
 		return true
