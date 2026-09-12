@@ -10,7 +10,6 @@ from pathlib import Path
 from .. import (
     baseline,
     cloudread,
-    customrules,
     ignore,
     planjson,
     report,
@@ -19,7 +18,7 @@ from .. import (
     schema,
 )
 from ..report.finding import Finding, Severity
-from ..rules import Options, Rule, sprint
+from ..rules import Rule, sprint
 from ..rules.changedattrs import ChangedAttrKey
 from . import terraformscan
 from .config import Config, ConfigError, load_custom_rules
@@ -57,11 +56,11 @@ def blocked_by(findings: list[Finding], threshold: Severity | str) -> bool:
     return any(finding.severity.at_least(threshold) for finding in findings if not finding.waived)
 
 
-def load_ruleset(path: str, opts: Options) -> list[Rule]:
+def load_ruleset(path: str) -> list[Rule]:
     """Charge les règles intégrées ou un pack externe. Celui-ci les remplace, sauf avec extends:
     builtin."""
     if not path:
-        return rules.default_rules(opts)
+        return rules.default_rules()
 
     try:
         data = Path(path).read_bytes()
@@ -79,14 +78,14 @@ def load_ruleset(path: str, opts: Options) -> list[Rule]:
     if pack.extends == ruledef.EXTENDS_BUILTIN:
         try:
             merged, merge_report = ruledef.merge(rules.builtin_pack(), pack)
-            ruleset = rules.from_pack(merged, opts)
+            ruleset = rules.from_pack(merged)
         except ruledef.RulePackError as exc:
             raise ConfigError(f"{path}: {exc}") from exc
         _warn(f"rule pack {path} extends the built-in rules: {merge_report}")
         return ruleset
 
     try:
-        ruleset = rules.from_pack(pack, opts)
+        ruleset = rules.from_pack(pack)
     except ruledef.RulePackError as exc:
         raise ConfigError(f"{path}: {exc}") from exc
     _warn(
@@ -152,6 +151,11 @@ def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -
     ):
         return 3
 
+    if args.autofix:
+        from .autofix import propose
+
+        propose(args, findings, post_comment)
+
     _publish_reports(args, config, findings, blocked, post_comment)
     return 1 if blocked else 0
 
@@ -193,24 +197,9 @@ def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Fin
     )
     warn_uncovered_providers(changed_files, coverage)
 
-    # The static cost estimator runs only when no plan JSON is supplied — the
-    # plan-based cost rule sees counts, for_each and computed values, so when
-    # both could run, the better-informed one runs alone rather than billing the
-    # same PR twice with numbers that may disagree.
-    rule_options = Options()
-    if not arguments.plan_json:
-        rule_options.cost_threshold_usd = config.cost_impact_threshold_usd
-    ruleset = load_ruleset(arguments.rules, rule_options)
+    ruleset = load_ruleset(arguments.rules)
 
-    if config.custom_rules_yaml_override:
-        try:
-            custom_rule_set: customrules.Config | None = customrules.load(
-                config.custom_rules_yaml_override
-            )
-        except customrules.CustomRuleError as exc:
-            raise ConfigError(f"custom rules from org policy: {exc}") from exc
-    else:
-        custom_rule_set = load_custom_rules(arguments.config)
+    custom_rule_set = load_custom_rules(arguments.config)
     if custom_rule_set is not None:
         ruleset = [*ruleset, custom_rule_set.as_engine_rule()]
 
@@ -281,7 +270,6 @@ def _merge_plan_findings(
         knowledge_base,
         rules.PlanRuleConfig(
             blast_radius_threshold=config.plan_blast_radius_threshold,
-            cost_impact_threshold_usd=config.cost_impact_threshold_usd,
             global_ignore=list(config.ignore_rules),
         ),
     )
@@ -367,7 +355,7 @@ def _publish_reports(
             post_to_pr(body)
         except Exception as exc:
             _warn(f"failed to post PR comment: {exc}")
-        if config.suggestions:
+        if config.suggestions or arguments.autofix:
             post_suggestions(findings)
         request_second_reviewer_if_critical(findings, config)
 

@@ -28,6 +28,9 @@ jobs:
           block-threshold: high
           github-token: ${{ secrets.GITHUB_TOKEN }}
           sarif-output: tf-firewall.sarif
+          # Opt in with an active Growth license. Review and commit suggestions in the PR.
+          autofix: "true"
+          license-key: ${{ secrets.TFPDF_LICENSE_KEY }}
 
       # Upload findings to GitHub Code Scanning for inline PR annotations.
       # Runs even when the scan step fails (blocked PR) so findings are visible.

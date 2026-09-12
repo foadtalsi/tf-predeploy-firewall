@@ -15,7 +15,7 @@ from tfpdf import cloudname
 from tfpdf.diff import ChangedFile
 from tfpdf.parser import parse_file
 from tfpdf.report.finding import Severity
-from tfpdf.rules import Options, RunOptions, default_rules, run
+from tfpdf.rules import RunOptions, default_rules, run
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
 
@@ -103,9 +103,7 @@ def test_a_finding_carries_both_the_address_and_the_real_name(kb: KnowledgeBase)
   force_destroy = true
 }
 """
-    findings = run(
-        [ChangedFile(path="s3.tf", head_content=source)], kb, default_rules(Options())
-    ).findings
+    findings = run([ChangedFile(path="s3.tf", head_content=source)], kb, default_rules()).findings
     force_destroy = next(f for f in findings if f.rule_name == "s3_force_destroy")
 
     assert force_destroy.resource == "aws_s3_bucket.backups"
@@ -130,7 +128,7 @@ def test_the_severity_check_is_not_called_without_the_opt_in(
   force_destroy = true
 }
 """
-    result = run([ChangedFile(path="s3.tf", head_content=source)], kb, default_rules(Options()))
+    result = run([ChangedFile(path="s3.tf", head_content=source)], kb, default_rules())
 
     assert calls == []
     assert (
@@ -164,7 +162,7 @@ def test_with_the_opt_in_the_check_receives_the_real_bucket_name(
     result = run(
         [ChangedFile(path="s3.tf", head_content=source)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(cloud_reader=object()),
     )
 
@@ -196,7 +194,7 @@ def test_a_bucket_whose_name_is_a_variable_is_never_looked_up(
     result = run(
         [ChangedFile(path="s3.tf", head_content=source)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(cloud_reader=object()),
     )
 
@@ -251,7 +249,7 @@ def test_the_account_is_probed_once_however_many_buckets_there_are(
     run(
         [ChangedFile(path="s3.tf", head_content=THREE_BUCKETS)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(cloud_reader=object()),
     )
 
@@ -276,7 +274,7 @@ def test_nothing_to_corroborate_means_no_probe_at_all(
     run(
         [ChangedFile(path="s3.tf", head_content=source)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(cloud_reader=object()),
     )
 
@@ -298,7 +296,7 @@ def test_a_context_that_cannot_be_opened_stops_before_the_checks(
     result = run(
         [ChangedFile(path="s3.tf", head_content=THREE_BUCKETS)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(cloud_reader=object()),
     )
 

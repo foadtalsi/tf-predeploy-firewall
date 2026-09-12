@@ -1,4 +1,4 @@
-"""Le plan de contrôle optionnel : décompte d'usage, politique d'organisation, dérogations, et
+"""Le plan de contrôle optionnel : décompte d'usage, dérogations, et
 livraison des packs de règles étendus."""
 
 from .client import (
@@ -9,7 +9,6 @@ from .client import (
     ScanResult,
     new_client,
 )
-from .policy import Policy, policy_from_json
 from .rulepacks import (
     PACK_CACHE_TTL_SECONDS,
     PACK_FETCH_TIMEOUT,
@@ -32,7 +31,6 @@ __all__ = [
     "FindingSummary",
     "LicensingError",
     "NoPackAvailableError",
-    "Policy",
     "RulePack",
     "ScanResult",
     "Waiver",
@@ -41,7 +39,6 @@ __all__ = [
     "new_client",
     "pack_cache_dir",
     "pack_file_name",
-    "policy_from_json",
     "read_cached_pack",
     "waivers_from_json",
     "write_cached_pack",

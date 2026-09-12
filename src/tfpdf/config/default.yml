@@ -9,7 +9,7 @@ block_threshold: high
 # Valid values: unknown_attribute, unpinned_version, tutorial_pattern,
 # force_new_change, missing_lifecycle, public_exposure, encryption_disabled,
 # permissive_iam, audit_disabled,
-# confirmed_replace, unexpected_drift, large_blast_radius, cost_impact
+# confirmed_replace, unexpected_drift, large_blast_radius
 # Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
 ignore_rules: []
 
@@ -17,11 +17,6 @@ ignore_rules: []
 # Number of destroy/replace actions in a single plan that triggers a
 # large_blast_radius finding. Set to 0 to disable.
 plan_blast_radius_threshold: 10
-
-# Estimated monthly USD cost increase (from the curated pricing data) that
-# triggers a cost_impact finding. Set to 0 to disable. This is a rough,
-# region-agnostic on-demand estimate — an early warning, not a billing quote.
-cost_impact_threshold_usd: 0
 
 # Custom detection rules (policy-as-code) — a declarative DSL, not a
 # scripting language: no eval/exec surface, by design. See "Custom rules"

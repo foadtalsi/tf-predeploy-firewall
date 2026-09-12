@@ -20,7 +20,6 @@ from .forges import (
     repo_full_name,
 )
 from .goflags import normalize_argv
-from .orgpolicy import apply_org_policy
 from .pipeline import _die, execute_scan
 from .pipeline import blocked_by as blocked_by
 from .pipeline import load_knowledge_base as load_knowledge_base
@@ -62,22 +61,9 @@ def main(argv: list[str] | None = None) -> int:
         return _die(str(exc))
 
     if arguments.rules_dry_run:
-        # Deliberately before apply_org_policy: an author iterating on the LOCAL
-        # file needs to test that file, not the org override that would replace
-        # it in a real scan.
         return run_rules_dry_run(arguments.config, arguments.repo_dir)
 
-    # Résolu une seule fois, ici, et non à chacun des trois appels au plan de
-    # contrôle : politique, dérogations et usage doivent nommer le MÊME dépôt.
-    # S'ils divergeaient, un scan pourrait recevoir la politique de « acme/infra »
-    # et être compté sous un autre nom, qui apparaîtrait comme un second dépôt
-    # dans le tableau de bord et consommerait un second dépôt du plan.
     arguments.repo_name = repo_full_name(arguments.repo_dir, arguments.repo_name)
-
-    if arguments.license_key:
-        apply_org_policy(
-            config, arguments.license_key, arguments.license_api_base, arguments.repo_name
-        )
     warn_unknown_threshold(config.block_threshold)
 
     try:

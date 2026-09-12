@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 from urllib.parse import quote
 
 from .._httpjson import request_raw
-from .policy import Policy, policy_from_json
 from .rulepacks import RulePack, fetch_rule_pack
 from .waivers import Waiver, waivers_from_json
 
@@ -105,29 +104,6 @@ class Client:
         if not isinstance(document, dict):
             raise LicensingError("parsing licensing response: not an object")
         return bool(document.get("allowed", False)), str(document.get("reason", ""))
-
-    # --- policy -----------------------------------------------------------
-
-    def get_policy(self, repo_full_name: str) -> Policy | None:
-        """Lit la politique fusionnée pour ce dépôt, ou celle de l'organisation si le dépôt est
-        vide. Retourne None sans surcharge."""
-        url = self.api_base + "/v1/policy"
-        if repo_full_name:
-            url += "?repo=" + quote(repo_full_name, safe="")
-
-        response = request_raw("GET", url, self._headers(), timeout=self.timeout)
-        if response.status == 401:
-            raise LicensingError("invalid or revoked API key")
-        if response.status != 200:
-            raise LicensingError(f"licensing service returned {response.status}")
-
-        try:
-            document = json.loads(response.body) if response.body else {}
-        except json.JSONDecodeError as exc:
-            raise LicensingError(f"parsing policy response: {exc}") from exc
-
-        policy = policy_from_json(document)
-        return None if policy.is_empty() else policy
 
     # --- waivers ----------------------------------------------------------
 

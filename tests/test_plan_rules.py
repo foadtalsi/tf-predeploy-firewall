@@ -14,7 +14,6 @@ from tfpdf.rules import (
     BlastRadiusRule,
     ChangedAttrKey,
     ConfirmedReplaceRule,
-    CostImpactRule,
     DriftRule,
     deduplicate_force_new_against_plan,
 )
@@ -49,9 +48,6 @@ def edge_case_plan() -> planjson.PlanFile:
 #   aws_iam_role.app       no-op                       -> $0
 #   data.aws_ami.al2023    data source read            -> skipped
 # Total delta: 280 + 62.5 - 32 = 310.5
-@pytest.fixture(scope="module")
-def cost_plan() -> planjson.PlanFile:
-    return planjson.load(str(PLANS / "cost_impact_plan.json"))
 
 
 def test_confirmed_replace_rule(kb: schema.KnowledgeBase, sample_plan: planjson.PlanFile) -> None:
@@ -224,112 +220,7 @@ def test_deduplicate_force_new_against_plan_no_op_without_confirmed_replace() ->
     assert len(deduplicate_force_new_against_plan(static_findings, [])) == 1
 
 
-def test_cost_impact_rule_disabled(kb: schema.KnowledgeBase, cost_plan: planjson.PlanFile) -> None:
-    assert CostImpactRule(threshold_usd=0).check("plan.json", cost_plan.resource_changes, kb) == []
-
-
-def test_cost_impact_rule_below_threshold(
-    kb: schema.KnowledgeBase, cost_plan: planjson.PlanFile
-) -> None:
-    # Total delta is 310.5; a threshold above that must not trigger.
-    assert (
-        CostImpactRule(threshold_usd=1000).check("plan.json", cost_plan.resource_changes, kb) == []
-    )
-
-
-def test_cost_impact_rule_above_threshold(
-    kb: schema.KnowledgeBase, cost_plan: planjson.PlanFile
-) -> None:
-    findings = CostImpactRule(threshold_usd=100).check("plan.json", cost_plan.resource_changes, kb)
-    assert len(findings) == 1, findings
-    assert findings[0].category is Category.COST_IMPACT
-    assert "aws_instance.web" in findings[0].message
-    assert "aws_instance.upsized" in findings[0].message
-
-
-def test_cost_impact_rule_severity_escalates_at_five_x_threshold(
-    kb: schema.KnowledgeBase, cost_plan: planjson.PlanFile
-) -> None:
-    # Total delta 310.5 >= 5*50 (250) => high.
-    high = CostImpactRule(threshold_usd=50).check("plan.json", cost_plan.resource_changes, kb)
-    assert len(high) == 1 and high[0].severity is Severity.HIGH
-
-    # Total delta 310.5 < 5*100 (500) => medium.
-    medium = CostImpactRule(threshold_usd=100).check("plan.json", cost_plan.resource_changes, kb)
-    assert len(medium) == 1 and medium[0].severity is Severity.MEDIUM
-
-
-def test_cost_impact_rule_skips_data_sources_and_no_ops(
-    kb: schema.KnowledgeBase, cost_plan: planjson.PlanFile
-) -> None:
-    findings = CostImpactRule(threshold_usd=1).check("plan.json", cost_plan.resource_changes, kb)
-    assert len(findings) == 1, findings
-    assert "aws_iam_role.app" not in findings[0].message
-    assert "aws_ami" not in findings[0].message
-
-
-def test_cost_impact_rule_unpriced_resource_type_contributes_zero(
-    kb: schema.KnowledgeBase,
-) -> None:
-    changes = [
-        planjson.ResourceChange(
-            address="aws_cloudfront_distribution.cdn",
-            mode="managed",
-            type="aws_cloudfront_distribution",
-            change=planjson.Change(actions=["create"], before=None, after={"enabled": True}),
-        )
-    ]
-    assert CostImpactRule(threshold_usd=1).check("plan.json", changes, kb) == []
-
-
 # --- pinned beyond the Go suite ---------------------------------------------
-
-
-def test_a_created_flat_rate_resource_is_charged_its_full_cost(
-    kb: schema.KnowledgeBase,
-) -> None:
-    """Une création a `"before": null`, ce qui n'est pas un objet vide.
-
-    Go modélise les deux états par des maps nullables et facture 0 $ pour le
-    côté qui n'existe pas. Décoder `null` en `{}` — le Python évident —
-    chercherait l'attribut de tarification dans un dictionnaire vide, retomberait
-    sur le coût de base fixe des *deux* côtés, et calculerait un écart nul : un
-    plan qui crée une passerelle NAT ne rapporterait aucun impact de coût. Rien
-    dans la suite Go ne couvre ceci, parce qu'en Go cela ne peut pas arriver.
-
-    Analysé depuis du vrai JSON plutôt que construit à la main : le décodage est
-    l'étape qui perdait la distinction, donc un test qui construirait l'objet
-    directement passerait dans les deux cas.
-    """
-    pf = planjson.parse(
-        """
-        {"format_version": "1.2", "resource_changes": [
-          {"address": "aws_nat_gateway.new", "mode": "managed",
-           "type": "aws_nat_gateway", "name": "new",
-           "change": {"actions": ["create"], "before": null, "after": {}}}
-        ]}
-        """
-    )
-    assert pf.resource_changes[0].change.before is None, "null must survive the decode"
-
-    findings = CostImpactRule(threshold_usd=1).check("plan.json", pf.resource_changes, kb)
-    assert len(findings) == 1, "creating a flat-rate resource must cost its base rate"
-    assert "aws_nat_gateway.new" in findings[0].message
-
-
-def test_the_cost_total_is_rounded_the_way_go_rounds_it() -> None:
-    """`%.0f` sur une valeur qui se termine par .5.
-
-    Le `decimal.shouldRoundUp` de Go arrondit une égalité exacte vers le pair, et
-    le `format` de Python aussi — les deux s'accordent, ce qui est la raison pour
-    laquelle aucun helper n'existe pour cela. Les totaux de plan tombent souvent
-    sur .5 (celui de la fixture vaut 310,5), donc l'accord est épinglé plutôt que
-    supposé.
-    """
-    assert f"{310.5:.0f}" == "310"
-    assert f"{249.5:.0f}" == "250"
-    assert f"{2.5:.0f}" == "2"
-    assert f"{3.5:.0f}" == "4"
 
 
 def test_drift_compares_numbers_the_way_go_decodes_them(

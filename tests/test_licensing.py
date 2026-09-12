@@ -132,67 +132,6 @@ def test_record_scan_server_error() -> None:
 # --- policy.go ---------------------------------------------------------------
 
 
-def test_get_policy_no_policy_set() -> None:
-    """Le plan de contrôle rend un objet vide quand aucune politique
-    n'existe."""
-    with StubServer(lambda r: Response(body={})) as srv:
-        assert new_client("test-key", srv.url).get_policy("") is None
-
-
-def test_get_policy_with_overrides() -> None:
-    custom_rules = (
-        "custom_rules:\n  - id: no-iam-users\n    resource_type: aws_iam_user\n"
-        "    severity: medium\n    message: x\n"
-    )
-
-    def handler(r: Request) -> Response:
-        assert r.headers["Authorization"] == "Bearer test-key"
-        return Response(
-            body={
-                "block_threshold": "critical",
-                "ignore_rules": ["tutorial_pattern"],
-                "plan_blast_radius_threshold": 5,
-                "custom_rules_yaml": custom_rules,
-            }
-        )
-
-    with StubServer(handler) as srv:
-        policy = new_client("test-key", srv.url).get_policy("")
-
-    assert policy is not None
-    assert policy.block_threshold == "critical"
-    assert policy.ignore_rules == ["tutorial_pattern"]
-    assert policy.plan_blast_radius_threshold == 5
-    assert policy.custom_rules_yaml is not None
-    assert "no-iam-users" in policy.custom_rules_yaml
-
-
-def test_get_policy_sends_repo_query_param() -> None:
-    """Protège la capacité du plan de contrôle à fusionner une surcharge propre
-    à un dépôt par-dessus la politique de l'organisation : il ne peut le faire
-    que si le CLI lui dit réellement quel dépôt scanne."""
-    with StubServer(lambda r: Response(body={})) as srv:
-        new_client("test-key", srv.url).get_policy("acme/infra")
-        assert srv.requests[0].query["repo"] == ["acme/infra"]
-
-
-def test_get_policy_unauthorized() -> None:
-    with StubServer(lambda r: Response(status=401, body={})) as srv, pytest.raises(LicensingError):
-        new_client("bad-key", srv.url).get_policy("")
-
-
-def test_an_explicitly_empty_override_is_not_the_same_as_no_override() -> None:
-    """`ignore_rules: []` est une instruction — « remplace la liste locale par
-    rien ». Une clé absente n'en est pas une. Go les distingue par une tranche
-    nulle ; le port doit garder cela, sinon une politique qui vide délibérément
-    la liste d'ignorés locale se lirait comme aucune politique du tout et la
-    laisserait en place."""
-    with StubServer(lambda r: Response(body={"ignore_rules": []})) as srv:
-        policy = new_client("k", srv.url).get_policy("")
-    assert policy is not None, "an explicit empty list is still a policy"
-    assert policy.ignore_rules == []
-
-
 # --- waivers.go --------------------------------------------------------------
 
 

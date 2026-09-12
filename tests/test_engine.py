@@ -16,7 +16,7 @@ import pytest
 from tfpdf import ignore
 from tfpdf.diff import ChangedFile
 from tfpdf.report.finding import Category, Finding, Severity
-from tfpdf.rules import Options, RunOptions, default_rules, run
+from tfpdf.rules import RunOptions, default_rules, run
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
 
@@ -42,7 +42,7 @@ def test_run_detects_force_new_across_revisions(kb: KnowledgeBase) -> None:
     result = run(
         [ChangedFile(path="rds.tf", head_content=head, base_content=base)],
         kb,
-        default_rules(Options()),
+        default_rules(),
     )
 
     force_new = [f for f in result.findings if f.category is Category.FORCE_NEW_CHANGE]
@@ -60,7 +60,7 @@ def test_run_reports_no_force_new_for_a_new_file(kb: KnowledgeBase) -> None:
     result = run(
         [ChangedFile(path="rds.tf", head_content=head, base_content=None)],
         kb,
-        default_rules(Options()),
+        default_rules(),
     )
     assert Category.FORCE_NEW_CHANGE not in _categories(result.findings)
 
@@ -74,7 +74,7 @@ def test_run_records_changed_attrs(kb: KnowledgeBase) -> None:
     result = run(
         [ChangedFile(path="rds.tf", head_content=head, base_content=base)],
         kb,
-        default_rules(Options()),
+        default_rules(),
     )
     assert result.changed_attrs, "a modified resource must record its changed attributes"
     for keys in result.changed_attrs.values():
@@ -87,7 +87,7 @@ def test_run_reports_a_parse_error_as_a_finding(kb: KnowledgeBase) -> None:
     result = run(
         [ChangedFile(path="broken.tf", head_content=b'resource "aws_instance" "x" {')],
         kb,
-        default_rules(Options()),
+        default_rules(),
     )
     assert len(result.findings) == 1
     assert result.findings[0].resource == "-"
@@ -98,7 +98,7 @@ def test_run_attaches_doc_urls(kb: KnowledgeBase) -> None:
     """Une découverte qui dit qu'un argument n'existe pas doit lier la liste
     des arguments, sinon l'affirmation ne peut pas être vérifiée."""
     head = (FIXTURES / "unknown_attribute.tf").read_bytes()
-    result = run([ChangedFile(path="main.tf", head_content=head)], kb, default_rules(Options()))
+    result = run([ChangedFile(path="main.tf", head_content=head)], kb, default_rules())
 
     unknown = [f for f in result.findings if f.category is Category.UNKNOWN_ATTRIBUTE]
     assert unknown
@@ -111,13 +111,13 @@ def test_run_applies_global_ignore(kb: KnowledgeBase) -> None:
     head = (FIXTURES / "unknown_attribute.tf").read_bytes()
     files = [ChangedFile(path="main.tf", head_content=head)]
 
-    with_all = run(files, kb, default_rules(Options()))
+    with_all = run(files, kb, default_rules())
     assert Category.UNKNOWN_ATTRIBUTE in _categories(with_all.findings)
 
     suppressed = run(
         files,
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(global_ignore=[Category.UNKNOWN_ATTRIBUTE]),
     )
     assert Category.UNKNOWN_ATTRIBUTE not in _categories(suppressed.findings)
@@ -134,15 +134,13 @@ resource "aws_db_instance" "prod" {
   password = "hunter2"
 }
 """
-    findings = run(
-        [ChangedFile(path="main.tf", head_content=source)], kb, default_rules(Options())
-    ).findings
+    findings = run([ChangedFile(path="main.tf", head_content=source)], kb, default_rules()).findings
     assert Category.TUTORIAL_PATTERN not in _categories(findings)
 
     # Without the directive, the same file reports the credential.
     without = source.replace(b"  # tf-firewall-ignore: tutorial_pattern\n", b"")
     findings = run(
-        [ChangedFile(path="main.tf", head_content=without)], kb, default_rules(Options())
+        [ChangedFile(path="main.tf", head_content=without)], kb, default_rules()
     ).findings
     assert Category.TUTORIAL_PATTERN in _categories(findings)
 
@@ -158,9 +156,7 @@ resource "aws_db_instance" "prod" {
   password   = var.db_password
 }
 """
-    findings = run(
-        [ChangedFile(path="main.tf", head_content=source)], kb, default_rules(Options())
-    ).findings
+    findings = run([ChangedFile(path="main.tf", head_content=source)], kb, default_rules()).findings
     resolved = [f for f in findings if "via var.db_password" in f.message]
     assert not resolved
 
@@ -181,7 +177,7 @@ resource "aws_db_instance" "prod" {
     findings = run(
         [ChangedFile(path="main.tf", head_content=source)],
         kb,
-        default_rules(Options()),
+        default_rules(),
         RunOptions(repo_dir=str(tmp_path)),
     ).findings
     assert any("via var.db_password" in f.message for f in findings)
@@ -276,7 +272,7 @@ def _force_destroy_findings(kb: KnowledgeBase, source: bytes) -> list[Finding]:
     result = run(
         [ChangedFile(path="s3.tf", head_content=source, base_content=None)],
         kb,
-        default_rules(Options()),
+        default_rules(),
     )
     return [f for f in result.findings if "force_destroy" in f.message]
 

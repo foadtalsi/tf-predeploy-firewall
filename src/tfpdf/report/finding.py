@@ -59,7 +59,6 @@ class Category(StrEnum):
     CONFIRMED_REPLACE = "confirmed_replace"
     UNEXPECTED_DRIFT = "unexpected_drift"
     LARGE_BLAST_RADIUS = "large_blast_radius"
-    COST_IMPACT = "cost_impact"
 
 
 @dataclass(slots=True)

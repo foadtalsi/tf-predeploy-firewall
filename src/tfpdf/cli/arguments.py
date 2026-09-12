@@ -110,8 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--repo-name",
         default=_env_or("TFPDF_REPO_NAME", ""),
-        help='the "owner/repo" this scan is reported under, for usage, waivers and org '
-        "policy. Only read with a license key. Normally resolved on its own — from "
+        help='the "owner/repo" this scan is reported under, for usage, waivers and '
+        "history. Only read with a license key. Normally resolved on its own — from "
         "GITHUB_REPOSITORY or CI_PROJECT_PATH on CI, and from the origin remote "
         "otherwise — so pass this only when neither is right.",
     )
@@ -171,6 +171,9 @@ def build_parser() -> argparse.ArgumentParser:
         False,
         "print the built-in rule pack to stdout and exit — the starting point for a "
         '--rules file, and the honest answer to "what exactly does this thing look for?"',
+    )
+    flag_bool(
+        "--autofix", False, "send Terraform to Bedrock for reviewable corrections (Growth plan)"
     )
     flag_bool("--version", False, "print the version and exit")
     return parser

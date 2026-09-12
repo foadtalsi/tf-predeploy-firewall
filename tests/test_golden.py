@@ -20,7 +20,7 @@ import pytest
 
 from tfpdf.parser import build_scope, parse_file_with_context
 from tfpdf.report.finding import Finding
-from tfpdf.rules import FileInput, Options, builtin_pack, default_rules, rules_for_category
+from tfpdf.rules import FileInput, builtin_pack, default_rules, rules_for_category
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
 
@@ -96,7 +96,7 @@ def test_golden_tutorial_pattern(kb: KnowledgeBase) -> None:
     une branche ou remanie un message doit le dire à voix haute en réécrivant ce
     fichier.
     """
-    rule = rules_for_category(builtin_pack(), "tutorial_pattern", Options())
+    rule = rules_for_category(builtin_pack(), "tutorial_pattern")
 
     got: list[str] = []
     for name in (
@@ -127,7 +127,7 @@ def test_golden_insecure_config(kb: KnowledgeBase) -> None:
     censées être exactement celles que produisent les autres catégories
     (missing_lifecycle sur les types porteurs d'état) et rien de ce groupe-ci.
     """
-    ruleset = default_rules(Options())
+    ruleset = default_rules()
 
     got: list[str] = []
     for name in ("insecure_config.tf", "insecure_config_clean.tf"):

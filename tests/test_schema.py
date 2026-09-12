@@ -197,21 +197,6 @@ def test_load_allowed_attrs_not_empty(kb: schema.KnowledgeBase) -> None:
     assert not empty, f"empty top-level argument list: {empty[:10]}"
 
 
-def test_load_pricing(kb: schema.KnowledgeBase) -> None:
-    # Attribute-driven: an EC2 instance priced by instance_type.
-    ec2 = kb.pricing_for("aws_instance")
-    assert ec2 is not None
-    assert ec2.monthly_cost("m5.xlarge") == 140
-    # Unknown size falls back to default, not zero.
-    assert ec2.monthly_cost("some-future-size") == ec2.default
-    assert ec2.default != 0
-
-    # Flat base: NAT gateway has no attribute.
-    nat = kb.pricing_for("aws_nat_gateway")
-    assert nat is not None
-    assert nat.monthly_cost("") == 32
-
-
 def test_coverage_base_pack_only(kb: schema.KnowledgeBase) -> None:
     c = kb.coverage()
     assert not c.extended, "a base-only load must not report extended coverage"

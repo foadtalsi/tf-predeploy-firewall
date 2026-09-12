@@ -15,7 +15,7 @@ import pytest
 from tfpdf import providerversion
 from tfpdf.diff import ChangedFile
 from tfpdf.report.finding import Finding
-from tfpdf.rules import Options, default_rules, run
+from tfpdf.rules import default_rules, run
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
 
@@ -34,7 +34,7 @@ def _scan(kb: KnowledgeBase, source: str, path: str = "main.tf", **extra: str) -
     """
     files = [ChangedFile(path=path, head_content=source.encode())]
     files += [ChangedFile(path=p, head_content=c.encode()) for p, c in extra.items()]
-    return run(files, kb, default_rules(Options())).findings
+    return run(files, kb, default_rules()).findings
 
 
 # --- Rootly : la suggestion inventait l'adresse du fournisseur ---------------
@@ -173,7 +173,7 @@ def test_the_scan_says_which_provider_it_stayed_silent_about(kb: KnowledgeBase) 
         ChangedFile(path="main.tf", head_content=EIP.encode()),
         ChangedFile(path="versions.tf", head_content=PINNED_3.encode()),
     ]
-    notes = run(files, kb, default_rules(Options())).notes
+    notes = run(files, kb, default_rules()).notes
     assert len(notes) == 1
     assert "~> 3.0" in notes[0] and "aws" in notes[0]
 

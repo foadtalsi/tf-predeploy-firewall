@@ -21,7 +21,7 @@ from tfpdf.cli.forges import (
     request_second_reviewer_if_critical,
 )
 from tfpdf.cli.main import _env_or
-from tfpdf.cli.orgpolicy import apply_org_policy, apply_waivers
+from tfpdf.cli.orgpolicy import apply_waivers
 from tfpdf.cli.providers import resolve_providers, warn_uncovered_providers
 from tfpdf.diff import ChangedFile
 from tfpdf.report.finding import Category, Finding, Fix, Severity
@@ -304,69 +304,6 @@ def _no_ambient_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "CI_PROJECT_PATH",
     ):
         monkeypatch.delenv(var, raising=False)
-
-
-def test_apply_org_policy_overrides_local_config() -> None:
-    body = {
-        "block_threshold": "critical",
-        "ignore_rules": ["tutorial_pattern"],
-        "plan_blast_radius_threshold": 3,
-    }
-    with StubServer(lambda r: Response(body=body)) as srv:
-        config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-        apply_org_policy(config, "test-key", srv.url)
-
-    assert config.block_threshold == "critical"
-    assert config.plan_blast_radius_threshold == 3
-    assert config.ignore_rules == ["tutorial_pattern"]
-
-
-def test_apply_org_policy_env_var_wins_over_policy(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SCANNER_BLOCK_THRESHOLD", "low")
-    with StubServer(lambda r: Response(body={"block_threshold": "critical"})) as srv:
-        config = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(config, "test-key", srv.url)
-    assert config.block_threshold == Severity.HIGH, (
-        "env precedence leaves the threshold untouched by policy"
-    )
-
-
-def test_apply_org_policy_no_policy_leaves_config_untouched() -> None:
-    with StubServer(lambda r: Response(body={})) as srv:
-        config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-        apply_org_policy(config, "test-key", srv.url)
-    assert config.block_threshold == Severity.HIGH
-    assert config.plan_blast_radius_threshold == 10
-
-
-def test_apply_org_policy_fails_open_on_network_error() -> None:
-    config = Config(block_threshold=Severity.HIGH, plan_blast_radius_threshold=10)
-    apply_org_policy(config, "test-key", "http://127.0.0.1:1")  # nothing listening
-    assert config.block_threshold == Severity.HIGH
-    assert config.plan_blast_radius_threshold == 10
-
-
-def test_apply_org_policy_reviewer_lists_override_local_config() -> None:
-    body = {
-        "require_second_reviewer_users": ["alice"],
-        "require_second_reviewer_teams": ["security-team"],
-    }
-    with StubServer(lambda r: Response(body=body)) as srv:
-        config = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(config, "test-key", srv.url)
-    assert config.require_second_reviewer_users == ["alice"]
-    assert config.require_second_reviewer_teams == ["security-team"]
-
-
-def test_apply_org_policy_custom_rules_yaml_overrides_local_config() -> None:
-    custom = (
-        "custom_rules:\n  - id: no-iam-users\n    resource_type: aws_iam_user\n"
-        "    severity: medium\n    message: x\n"
-    )
-    with StubServer(lambda r: Response(body={"custom_rules_yaml": custom})) as srv:
-        config = Config(block_threshold=Severity.HIGH)
-        apply_org_policy(config, "test-key", srv.url)
-    assert config.custom_rules_yaml_override == custom
 
 
 # --- waivers_test.go --------------------------------------------------------

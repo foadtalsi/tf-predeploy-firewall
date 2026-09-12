@@ -36,7 +36,7 @@ plan sees a destroy.
 
 ## Install
 
-Both paths run the same engine on the same 34 rules. Pick whichever you already
+Both paths run the same engine on the same 32 rules. Pick whichever you already
 have.
 
 ### GitHub Actions
@@ -88,7 +88,7 @@ an edit rather than a rotation.
 
 ## What it checks
 
-Thirteen categories, 34 rules. The full reference — what each detects, why it
+Twelve categories, 32 rules. The full reference — what each detects, why it
 interrupts a merge, and how to disagree with it — is in
 [`docs/rules.md`](docs/rules.md).
 
@@ -174,7 +174,7 @@ Each is off unless you ask for it.
 | `--cloud-read-access` | Uses the job's existing credentials to read whether the resources a finding is about already exist and how much they hold, so severity reflects the real account. Read-only and narrowly so — see [`docs/cloud-read-access.md`](docs/cloud-read-access.md). |
 | `--sarif-output <file>` | SARIF 2.1.0 for GitHub Code Scanning. |
 | `--codequality-output <file>` | GitLab Code Quality report, rendered in the merge request widget with no token. |
-| `--license-key` | A paid plan: the full 2,840-type provider knowledge base, the dashboard, central policy, waivers, history. |
+| `--license-key` | A paid plan: the full 2,840-type provider knowledge base, the dashboard, waivers, history. |
 
 ## Exit codes
 
@@ -192,7 +192,7 @@ AWS and Azure resource types — the ones most repositories use most, generated
 from `terraform providers schema -json` rather than curated by hand.
 
 A plan swaps them for all 2,840 types across both providers, and adds the
-operational half: dashboard, centrally-managed policy, per-finding waivers with
+operational half: dashboard, per-finding waivers with
 a written justification, history, SSO. Most repositories never need it, and we
 would rather you find that out than be told it.
 
@@ -211,3 +211,42 @@ value). For local scans, set `TFPDF_SCAN_ACTOR` explicitly. This is a reported
 identity, not verified dashboard authentication or the author of the affected code.
 Older scans without this field display “Not recorded”. Reporting still requires
 `TFPDF_LICENSE_KEY` and a repository identity.
+
+### Bedrock auto-fix (Growth)
+
+Opt in with `--autofix` to send affected `.tf` files and their findings to the cloud service.
+An active Growth subscription is checked by the server; other plans cannot use Bedrock.
+
+```sh
+export TFPDF_LICENSE_KEY="your-api-key"
+tf-predeploy-firewall --uncommitted --autofix
+```
+
+The CLI shows a diff and asks `Apply this correction? [y/N]` for each file.
+Without a terminal it only previews corrections. It never stages or commits files,
+and refuses to overwrite a file that differs from the version used for the proposal.
+After acceptance, review and rerun the scan (and stage changes again for `--staged`).
+The current scan keeps its original verdict; accepting generated code does not waive findings.
+
+In GitHub Actions, add these inputs to the scanner step:
+
+```yaml
+with:
+  license-key: ${{ secrets.TFPDF_LICENSE_KEY }}
+  autofix: "true"
+```
+
+Keep `pull-requests: write` and `actions/checkout` with `fetch-depth: 0`, as in
+[the example workflow](.github/workflows/example-usage.yml). The action scans the PR head
+and posts review suggestions: read the code, then use **Commit suggestion** to accept it.
+Corrections outside the PR diff remain available in the summary for manual application.
+Fork PRs without access to the license secret run the scan without Bedrock corrections.
+
+There is one proposal per affected `.tf` file, covering its unwaived findings.
+Existing deterministic suggestions remain available when Bedrock fails. Empty, malformed
+or truncated model responses are rejected. Large files may exceed the service limits
+(64 KiB request, 2,048 generated tokens); failures leave the files and scan verdict unchanged.
+Terraform validation and a new scan are still required after reviewing generated code.
+
+The cloud Lambda and `/v1/autofix` route must be deployed, and the CLI/action version
+must contain this feature. An older `@v1` release will not recognize the new input.

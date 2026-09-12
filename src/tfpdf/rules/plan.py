@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 from .. import ignore, planjson
 from ..report.finding import Category, Finding, Severity
-from ..schema import KnowledgeBase, PricingSpec
+from ..schema import KnowledgeBase
 from .changedattrs import ChangedAttrKey, bare_resource_address
 from .engine import attach_doc_urls
 from .goformat import sprint
@@ -19,9 +19,6 @@ class PlanRuleConfig:
     #: The number of destroy/replace actions that triggers the blast-radius
     #: rule. Zero disables it.
     blast_radius_threshold: int = 0
-    #: The estimated monthly cost increase (USD) that triggers the cost rule.
-    #: Zero disables it.
-    cost_impact_threshold_usd: float = 0.0
     #: Suppresses these categories, same as the static scan.
     global_ignore: list[Category | str] = field(default_factory=list)
 
@@ -38,9 +35,6 @@ def run_plan_rules(
     findings += ConfirmedReplaceRule().check(plan_path, pf.resource_changes, kb)
     findings += DriftRule().check(plan_path, pf.resource_changes, changed_attrs, kb)
     findings += BlastRadiusRule(threshold=config.blast_radius_threshold).check(
-        plan_path, pf.resource_changes, kb
-    )
-    findings += CostImpactRule(threshold_usd=config.cost_impact_threshold_usd).check(
         plan_path, pf.resource_changes, kb
     )
 
@@ -256,108 +250,3 @@ def _join_truncated(items: list[str], limit: int) -> str:
     if len(items) <= limit:
         return ", ".join(items)
     return f"{', '.join(items[:limit])}, and {len(items) - limit} more"
-
-
-@dataclass(slots=True, frozen=True)
-class _ResourceCostDelta:
-    """La contribution d'une ressource, conservée pour le message."""
-
-    address: str
-    delta: float
-
-
-@dataclass(slots=True)
-class CostImpactRule:
-    """Estime le delta mensuel : après moins avant, coût négatif pour une suppression. Les
-    ressources inconnues contribuent zéro ; ce n'est pas un devis."""
-
-    #: The monthly cost increase (USD) that triggers a finding. Zero or
-    #: negative disables the rule.
-    threshold_usd: float = 0.0
-
-    def check(
-        self,
-        plan_path: str,
-        changes: list[planjson.ResourceChange],
-        knowledge_base: KnowledgeBase | None,
-    ) -> list[Finding]:
-        if self.threshold_usd <= 0:
-            return []
-
-        total = 0.0
-        deltas: list[_ResourceCostDelta] = []
-
-        for resource_change in changes:
-            if not resource_change.is_managed():
-                continue
-            spec = (
-                knowledge_base.pricing_for(resource_change.type)
-                if knowledge_base is not None
-                else None
-            )
-            if spec is None:
-                continue
-
-            before_cost = _cost_of_state(spec, resource_change.change.before)
-            after_cost = _cost_of_state(spec, resource_change.change.after)
-
-            if resource_change.change.is_destroy_only():
-                delta = -before_cost
-            elif resource_change.change.is_no_op():
-                continue
-            else:
-                # create (before absent -> 0), replace, or update: the generic
-                # after-minus-before form covers all three.
-                delta = after_cost - before_cost
-            if delta == 0:
-                continue
-            total += delta
-            deltas.append(_ResourceCostDelta(address=resource_change.address, delta=delta))
-
-        if total < self.threshold_usd:
-            return []
-
-        severity = Severity.HIGH if total >= self.threshold_usd * 5 else Severity.MEDIUM
-
-        return [
-            Finding(
-                file=plan_path,
-                line=1,
-                category=Category.COST_IMPACT,
-                rule_name="plan_cost_impact",
-                severity=severity,
-                resource=f"+${total:.0f}/month (estimated)",
-                message=(
-                    f"this plan increases the estimated AWS bill by ~${total:.0f}/month "
-                    f"(threshold: ${self.threshold_usd:.0f}) — rough on-demand estimate, "
-                    "not a quote. Top contributors: " + _top_contributors(deltas, 5)
-                ),
-            )
-        ]
-
-
-def _cost_of_state(spec: PricingSpec, state: dict[str, object] | None) -> float:
-    """Estime le coût mensuel d'un côté — avant ou après — d'un changement. Un
-    état absent, c'est-à-dire une ressource qui n'existe pas de ce côté, vaut
-    0 $."""
-    if state is None:
-        return 0.0
-    attr_value = ""
-    if spec.attribute:
-        v = state.get(spec.attribute)
-        if isinstance(v, str):
-            attr_value = v
-    return spec.monthly_cost(attr_value)
-
-
-def _top_contributors(deltas: list[_ResourceCostDelta], n: int) -> str:
-    """Met en forme les n plus grosses contributions positives, pour que le
-    relecteur voie immédiatement CE QUI coûte cher."""
-    parts: list[str] = []
-    for d in sorted(deltas, key=lambda d: d.delta, reverse=True):
-        if d.delta <= 0 or len(parts) >= n:
-            break
-        parts.append(f"{d.address} (+${d.delta:.0f})")
-    if not parts:
-        return "(none individually significant)"
-    return ", ".join(parts)

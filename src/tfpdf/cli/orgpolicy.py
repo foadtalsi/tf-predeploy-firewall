@@ -1,4 +1,4 @@
-"""Politique distante, dérogations et compte rendu d'usage du scanner."""
+"""Dérogations et compte rendu d'usage du scanner."""
 
 from __future__ import annotations
 
@@ -7,48 +7,10 @@ import sys
 
 from .. import licensing
 from ..report.finding import Finding
-from .config import Config
 
 
 def _warn(message: str) -> None:
     print("tf-predeploy-firewall: " + message, file=sys.stderr)
-
-
-def apply_org_policy(
-    config: Config, license_key: str, api_base: str, repo_full_name: str = ""
-) -> None:
-    """Applique la politique distante ; les variables d'environnement restent prioritaires. Une
-    panne conserve la configuration locale."""
-    client = licensing.new_client(license_key, api_base)
-    try:
-        policy = client.get_policy(repo_full_name)
-    except Exception as exc:
-        _warn(f"fetching org policy failed, using local config ({exc})")
-        return
-    if policy is None:
-        return
-
-    if policy.block_threshold is not None and not os.environ.get("SCANNER_BLOCK_THRESHOLD"):
-        config.block_threshold = policy.block_threshold
-    if policy.ignore_rules:
-        # Centralized policy replaces the repo-local ignore list rather than
-        # merging with it — the whole point of a team policy is that a single
-        # repo's config.yml can't quietly opt out of it.
-        config.ignore_rules = list(policy.ignore_rules)
-    if policy.plan_blast_radius_threshold is not None and not os.environ.get(
-        "SCANNER_PLAN_BLAST_RADIUS_THRESHOLD"
-    ):
-        config.plan_blast_radius_threshold = policy.plan_blast_radius_threshold
-    if policy.cost_impact_threshold_usd is not None and not os.environ.get(
-        "SCANNER_COST_IMPACT_THRESHOLD_USD"
-    ):
-        config.cost_impact_threshold_usd = policy.cost_impact_threshold_usd
-    if policy.custom_rules_yaml is not None:
-        config.custom_rules_yaml_override = policy.custom_rules_yaml
-    if policy.require_second_reviewer_users:
-        config.require_second_reviewer_users = list(policy.require_second_reviewer_users)
-    if policy.require_second_reviewer_teams:
-        config.require_second_reviewer_teams = list(policy.require_second_reviewer_teams)
 
 
 def apply_waivers(

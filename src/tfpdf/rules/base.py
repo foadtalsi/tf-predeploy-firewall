@@ -66,14 +66,8 @@ class RunOptions:
     cloud_reader: object | None = None
 
 
-@dataclass(slots=True)
 class Options:
-    """Les réglages qu'un moteur compilé prend de la configuration plutôt que
-    du pack, parce que ce sont des choix propres à un dépôt."""
-
-    #: The estimated monthly increase that makes a cost finding. Zero leaves
-    #: the static cost rule out of the set entirely.
-    cost_threshold_usd: float = 0.0
+    """Compatibilité des intégrations qui appellent default_rules(Options())."""
 
 
 class RuleSet(list["Rule"]):

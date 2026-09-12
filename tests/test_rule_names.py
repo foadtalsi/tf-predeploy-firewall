@@ -20,7 +20,7 @@ import pytest
 from tfpdf import ruledef
 from tfpdf.diff import ChangedFile
 from tfpdf.report.finding import Finding
-from tfpdf.rules import Options, default_rules, run
+from tfpdf.rules import default_rules, run
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
 
@@ -140,7 +140,7 @@ def test_no_finding_from_a_real_scan_comes_out_anonymous(kb: KnowledgeBase) -> N
     ]
     assert changed, "le corpus doit contenir des fichiers"
 
-    findings = run(changed, kb, default_rules(Options())).findings
+    findings = run(changed, kb, default_rules()).findings
     assert findings, "le corpus doit produire des découvertes"
 
     anonymous = [f"{f.file}:{f.line} {f.category}" for f in findings if not f.rule_name]
@@ -151,5 +151,5 @@ def _scan(source: bytes) -> list[Finding]:
     return run(
         [ChangedFile(path="s3.tf", head_content=source)],
         load_schema(),
-        default_rules(Options()),
+        default_rules(),
     ).findings

@@ -1,5 +1,5 @@
 """Charge les packs de règles : la surface d'arguments valides de chaque type de ressource, ses
-arguments ForceNew, s'il est porteur d'état, et son prix approximatif — sans plan, sans état
+arguments ForceNew, s'il est porteur d'état — sans plan, sans état
 et sans identifiants."""
 
 from __future__ import annotations
@@ -53,31 +53,6 @@ class ResourceSchema:
 
 
 @dataclass(slots=True)
-class PricingSpec:
-    """Le coût mensuel approximatif curé pour un type de ressource."""
-
-    #: Flat monthly cost regardless of arguments.
-    base: float = 0.0
-    #: Argument whose value drives cost, if any.
-    attribute: str = ""
-    #: Argument value -> monthly cost.
-    by_attribute: dict[str, float] = field(default_factory=dict)
-    #: Used when `attribute` is set but the value is not in `by_attribute`.
-    default: float = 0.0
-
-    def monthly_cost(self, attr_value: str) -> float:
-        """Le coût mensuel estimé en dollars, pour une valeur d'argument donnée.
-
-        Le coût de base et le coût piloté par l'attribut s'additionnent, ce qui
-        couvre une ressource ayant à la fois un forfait et un prix à la taille.
-        """
-        cost = self.base
-        if self.attribute:
-            cost += self.by_attribute.get(attr_value, self.default)
-        return cost
-
-
-@dataclass(slots=True)
 class _PackResource:
     """L'entrée d'un type de ressource telle qu'elle apparaît sur disque."""
 
@@ -86,7 +61,6 @@ class _PackResource:
     force_new_top_level: list[str] = field(default_factory=list)
     force_new_nested: dict[str, list[str]] = field(default_factory=dict)
     critical: bool = False
-    pricing: PricingSpec | None = None
 
 
 class _LoadedPack:
@@ -123,24 +97,12 @@ class _LoadedPack:
 def _decode_resource(raw: Any) -> _PackResource:
     if not isinstance(raw, dict):
         raise TypeError("resource entry is not an object")
-    pricing_raw = raw.get("pricing")
-    pricing = None
-    if isinstance(pricing_raw, dict):
-        pricing = PricingSpec(
-            base=float(pricing_raw.get("base", 0.0) or 0.0),
-            attribute=str(pricing_raw.get("attribute", "") or ""),
-            by_attribute={
-                str(k): float(v) for k, v in (pricing_raw.get("by_attribute") or {}).items()
-            },
-            default=float(pricing_raw.get("default", 0.0) or 0.0),
-        )
     return _PackResource(
         top_level=list(raw.get("top_level") or []),
         nested_blocks={k: list(v) for k, v in (raw.get("nested_blocks") or {}).items()},
         force_new_top_level=list(raw.get("force_new_top_level") or []),
         force_new_nested={k: list(v) for k, v in (raw.get("force_new_nested") or {}).items()},
         critical=bool(raw.get("critical", False)),
-        pricing=pricing,
     )
 
 
@@ -223,17 +185,6 @@ class KnowledgeBase:
         censé porter lifecycle { prevent_destroy = true }."""
         resource = self._lookup(r_type)
         return resource is not None and resource.critical
-
-    def pricing_for(self, r_type: str) -> PricingSpec | None:
-        """La spécification de coût mensuel approximatif d'un type de ressource.
-
-        Les types qui n'en ont pas contribuent 0 $ à une estimation, plutôt
-        qu'une supposition.
-        """
-        resource = self._lookup(r_type)
-        if resource is None or resource.pricing is None:
-            return None
-        return resource.pricing
 
     def coverage(self) -> Coverage:
         seen: set[str] = set()

@@ -190,17 +190,6 @@ SARIF_RULES: list[SarifRule] = [
             tags=["terraform", "plan", "blast-radius"], severity="warning"
         ),
     ),
-    SarifRule(
-        id=Category.COST_IMPACT,
-        name="CostImpact",
-        short_description=SarifMessage(
-            "terraform plan increases the estimated monthly AWS bill by more than "
-            "the configured threshold"
-        ),
-        properties=SarifRuleProperties(
-            tags=["terraform", "plan", "finops", "cost"], severity="warning"
-        ),
-    ),
 ]
 
 

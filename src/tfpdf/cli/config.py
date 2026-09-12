@@ -1,4 +1,4 @@
-"""Configuration du scanner. Priorité : fichier local < politique distante < environnement."""
+"""Configuration du scanner. Priorité : fichier local < environnement."""
 
 from __future__ import annotations
 
@@ -35,7 +35,6 @@ class Config:
     block_threshold: Severity | str = Severity.HIGH
     ignore_rules: list[Category | str] = field(default_factory=list)
     plan_blast_radius_threshold: int = 10
-    cost_impact_threshold_usd: float = 0.0
 
     #: Supprime les découvertes sous tout un motif de fichier ou de répertoire
     #: (`**` accepté), éventuellement restreint à certaines catégories — le
@@ -59,13 +58,6 @@ class Config:
     #: mettre faux pour les dépôts qui préfèrent garder tout le rapport dans un
     #: seul commentaire.
     suggestions: bool = True
-
-    #: Jamais lu depuis le fichier YAML local — uniquement rempli par
-    #: `apply_org_policy` à partir de la politique gérée centralement par le
-    #: plan de contrôle. Quand il est posé, il remplace entièrement les
-    #: custom_rules de la configuration locale, selon le même précédent « la
-    #: politique centrale l'emporte » qu'`ignore_rules`.
-    custom_rules_yaml_override: str = ""
 
     def ignore_path_rules(self) -> list[ignore.PathRule]:
         return [
@@ -116,8 +108,6 @@ def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
         config.ignore_rules = _as_str_list(document["ignore_rules"])
     if document.get("plan_blast_radius_threshold") is not None:
         config.plan_blast_radius_threshold = int(document["plan_blast_radius_threshold"])
-    if document.get("cost_impact_threshold_usd") is not None:
-        config.cost_impact_threshold_usd = float(document["cost_impact_threshold_usd"])
     if document.get("suggestions") is not None:
         config.suggestions = bool(document["suggestions"])
     if "require_second_reviewer_users" in document:
@@ -156,13 +146,6 @@ def _apply_env(config: Config) -> None:
             ) from exc
     if env := os.environ.get("SCANNER_SUGGESTIONS"):
         config.suggestions = parse_go_bool(env, "SCANNER_SUGGESTIONS")
-    if env := os.environ.get("SCANNER_COST_IMPACT_THRESHOLD_USD"):
-        try:
-            config.cost_impact_threshold_usd = float(env)
-        except ValueError as exc:
-            raise ConfigError(
-                f"SCANNER_COST_IMPACT_THRESHOLD_USD must be a number, got {env!r}: {exc}"
-            ) from exc
 
 
 def parse_go_bool(v: str, what: str) -> bool:

@@ -15,7 +15,6 @@ from .detectors import (
     ForceNewChangeRule,
     IAMWildcardRule,
     MissingLifecycleRule,
-    StaticCostRule,
     UnknownAttributeRule,
     UnpinnedVersionRule,
 )
@@ -112,7 +111,7 @@ class _BuiltRule:
     spec: RuleSpec
 
 
-def _build_rules(p: Pack, opts: Options) -> list[_BuiltRule]:
+def _build_rules(p: Pack) -> list[_BuiltRule]:
     out: list[_BuiltRule] = []
     emitted: set[str] = set()
 
@@ -132,32 +131,32 @@ def _build_rules(p: Pack, opts: Options) -> list[_BuiltRule]:
                 _BuiltRule(rule=DeclarativeRule(specs=[spec], scope=spec.match.scope), spec=spec)
             )
         else:
-            rule = _compiled_engine(spec, opts)
+            rule = _compiled_engine(spec)
             if rule is not None:
                 out.append(_BuiltRule(rule=rule, spec=spec))
     return out
 
 
-def from_pack(p: Pack, opts: Options) -> list[Rule]:
+def from_pack(p: Pack) -> list[Rule]:
     """Construit les règles dans l'ordre du pack, en regroupant les alternatives déclaratives
     (première correspondance gagnante)."""
-    return [b.rule for b in _build_rules(p, opts)]
+    return [b.rule for b in _build_rules(p)]
 
 
-def default_rules(opts: Options) -> list[Rule]:
+def default_rules(opts: Options | None = None) -> list[Rule]:
     """Le jeu de règles intégré, dans l'ordre du pack."""
-    return from_pack(builtin_pack(), opts)
+    return from_pack(builtin_pack())
 
 
-def rules_for_category(p: Pack, category: str, opts: Options) -> Rule:
+def rules_for_category(p: Pack, category: str) -> Rule:
     """Tout ce qu'un pack définit pour une catégorie, en une seule règle."""
-    out = RuleSet(b.rule for b in _build_rules(p, opts) if b.spec.category == category)
+    out = RuleSet(b.rule for b in _build_rules(p) if b.spec.category == category)
     if not out:
         raise RulePackError(f"pack defines no runnable rules for category {category!r}")
     return out
 
 
-def _compiled_engine(spec: RuleSpec, opts: Options) -> Rule | None:
+def _compiled_engine(spec: RuleSpec) -> Rule | None:
     """Construit une règle statique ; retourne None pour les règles de plan et les règles
     désactivées."""
     engine = spec.engine
@@ -172,26 +171,10 @@ def _compiled_engine(spec: RuleSpec, opts: Options) -> Rule | None:
     if engine == "iam_wildcard":
         return IAMWildcardRule()
 
-    if engine == "static_cost":
-        threshold = opts.cost_threshold_usd
-        if threshold == 0:
-            raw = spec.params.get("threshold_usd")
-            if raw is not None:
-                try:
-                    threshold = float(raw)
-                except ValueError as exc:
-                    raise RulePackError(
-                        f"rule {spec.id!r}: threshold_usd {raw!r} is not a number: {exc}"
-                    ) from exc
-        if threshold <= 0:
-            return None
-        return StaticCostRule(threshold_usd=threshold)
-
     if engine in (
         "confirmed_replace",
         "unexpected_drift",
         "large_blast_radius",
-        "plan_cost_impact",
     ):
         return None
 

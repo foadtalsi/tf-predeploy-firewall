@@ -3,6 +3,14 @@ description: "Scans changed Terraform files in a PR for AI-hallucination and ris
 author: "foadtalsi"
 
 inputs:
+  autofix:
+    description: "Send Terraform to Bedrock and propose corrections for human acceptance (Growth plan)."
+    required: false
+    default: "false"
+  head-ref:
+    description: "Commit scanned and used for inline suggestions."
+    required: false
+    default: ${{ github.event.pull_request.head.sha || github.sha }}
   base-ref:
     description: "Git ref to diff against (the PR base branch)."
     required: false
@@ -24,7 +32,7 @@ inputs:
       Phase 2 (optional): path to the output of `terraform show -json <planfile>`,
       run earlier in your own job with your own cloud credentials. This action never
       runs terraform — it only reads this file, if given, to add confirmed-replace,
-      unexpected-drift, large-blast-radius, and cost-impact findings on top of the
+      unexpected-drift and large-blast-radius findings on top of the
       static .tf scan. Leave empty to run phase 1 only.
     required: false
     default: ""
@@ -48,10 +56,6 @@ inputs:
     default: "false"
   plan-blast-radius-threshold:
     description: "Number of destroy/replace actions in the plan that triggers a large-blast-radius finding. Overrides config/default.yml. Only used with plan-json."
-    required: false
-    default: ""
-  cost-impact-threshold-usd:
-    description: "Estimated monthly USD cost increase that triggers a cost-impact finding. Overrides config/default.yml. Set to 0 to disable. Only used with plan-json."
     required: false
     default: ""
   license-key:
@@ -107,6 +111,9 @@ runs:
   using: "docker"
   image: "Dockerfile"
   args:
+    - "--autofix=${{ inputs.autofix }}"
+    - "--head-ref"
+    - "${{ inputs.head-ref }}"
     - "--base-ref"
     - "origin/${{ inputs.base-ref }}"
     - "--sarif-output"
@@ -121,7 +128,6 @@ runs:
     GITHUB_TOKEN: ${{ inputs.github-token }}
     SCANNER_BLOCK_THRESHOLD: ${{ inputs.block-threshold }}
     SCANNER_PLAN_BLAST_RADIUS_THRESHOLD: ${{ inputs.plan-blast-radius-threshold }}
-    SCANNER_COST_IMPACT_THRESHOLD_USD: ${{ inputs.cost-impact-threshold-usd }}
     SCANNER_SUGGESTIONS: ${{ inputs.suggestions }}
     TFPDF_LICENSE_KEY: ${{ inputs.license-key }}
     TFPDF_PROVIDERS: ${{ inputs.providers }}

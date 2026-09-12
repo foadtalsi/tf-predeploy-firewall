@@ -349,13 +349,6 @@ RULES: list[Rule] = [
         engine="unpinned_version",
     ),
     # Needs per-type pricing and arithmetic against the base revision.
-    Rule(
-        id="static_cost",
-        category="cost_impact",
-        severity="medium",
-        engine="static_cost",
-        params={"threshold_usd": "0"},
-    ),
     # ---------------------------------------------------------------------
     # insecure_config — a guard someone explicitly switched off.
     #
@@ -717,12 +710,6 @@ RULES: list[Rule] = [
         severity="medium",
         engine="large_blast_radius",
     ),
-    Rule(
-        id="plan_cost_impact",
-        category="cost_impact",
-        severity="medium",
-        engine="plan_cost_impact",
-    ),
 ]
 
 
@@ -1042,44 +1029,6 @@ DOCS: list[CategoryDoc] = [
             "\n"
             "Tearing down a whole environment is a legitimate large plan. Raise\n"
             "`plan_blast_radius_threshold` for a repo where that is routine."
-        ),
-    ),
-    CategoryDoc(
-        category="cost_impact",
-        title="Estimated cost impact",
-        full_description="The change increases the estimated monthly bill by more than the configured threshold. Estimates are coarse and on-demand-only.",
-        markdown=(
-            "## What this means\n"
-            "\n"
-            "Summing the coarse per-type prices in the rule pack, this change raises the\n"
-            "estimated monthly cost by more than `cost_impact_threshold_usd`.\n"
-            "\n"
-            "With a plan JSON supplied, the estimate reads Terraform's own diff (counts\n"
-            "and for_each included). Without one, a static estimate reads the `.tf`\n"
-            "source directly — new resources of priced types, and changes to the\n"
-            "attribute that drives a type's price — with no multipliers, since inventing\n"
-            "a fleet size would be worse than understating one. When a plan is supplied,\n"
-            "only the plan-based estimate runs; the same PR is never billed twice by two\n"
-            "estimators that could disagree.\n"
-            "\n"
-            "## Why it matters\n"
-            "\n"
-            "Cost mistakes in Terraform are silent and recurring. A wrong instance size or\n"
-            "a forgotten NAT gateway bills every hour until somebody reads an invoice, and\n"
-            "the diff that introduced it looked like one word.\n"
-            "\n"
-            "## How to fix it\n"
-            "\n"
-            "Check the resource types and sizes the finding names. The most common causes\n"
-            "are an oversized instance class copied from an example, a NAT gateway where a\n"
-            "gateway endpoint would do, and provisioned capacity left at a default.\n"
-            "\n"
-            "## Accuracy\n"
-            "\n"
-            "These are **estimates**, deliberately coarse: on-demand list prices, no\n"
-            "reserved instances, no savings plans, no data transfer, no per-request\n"
-            "charges. Treat a finding as a prompt to look, not as a quote. Set\n"
-            "`cost_impact_threshold_usd: 0` to switch the category off."
         ),
     ),
     CategoryDoc(

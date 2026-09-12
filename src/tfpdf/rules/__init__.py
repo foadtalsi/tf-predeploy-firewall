@@ -11,7 +11,6 @@ from .detectors import (
     ForceNewChangeRule,
     IAMWildcardRule,
     MissingLifecycleRule,
-    StaticCostRule,
     UnknownAttributeRule,
     UnpinnedVersionRule,
 )
@@ -31,7 +30,6 @@ from .pack import (
 from .plan import (
     BlastRadiusRule,
     ConfirmedReplaceRule,
-    CostImpactRule,
     DriftRule,
     PlanRuleConfig,
     deduplicate_force_new_against_plan,
@@ -43,7 +41,6 @@ __all__ = [
     "BrokenBuildError",
     "ChangedAttrKey",
     "ConfirmedReplaceRule",
-    "CostImpactRule",
     "DeclarativeRule",
     "DriftRule",
     "FileInput",
@@ -57,7 +54,6 @@ __all__ = [
     "RuleSet",
     "RunOptions",
     "ScopeCache",
-    "StaticCostRule",
     "UnknownAttributeRule",
     "UnpinnedVersionRule",
     "attach_doc_urls",
