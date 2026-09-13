@@ -26,7 +26,7 @@ For `skip_final_snapshot` on `aws_db_instance` and `aws_rds_cluster`:
 | Observation | Resulting severity |
 |---|---|
 | RDS returns `DBInstanceNotFound` or `DBClusterNotFoundFault` | `low` |
-| The database exists | `critical` |
+| The database exists | `high` |
 | Access is unavailable or the lookup cannot be interpreted | Original static severity |
 
 A database that does not exist yet has nothing to lose; an existing one destroyed

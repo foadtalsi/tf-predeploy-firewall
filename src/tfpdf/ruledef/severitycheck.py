@@ -52,7 +52,7 @@ def s3_force_destroy_severity_check(severity: str, bucket: str) -> str:
 
 
 def skip_final_snapshot_severity_check(severity: str, resource_type: str, identifier: str) -> str:
-    """Return low for a missing database, critical for an existing one, or the original severity"""
+    """Return low for a missing database, high for an existing one, or the original severity"""
     # A missing client must preserve severity, including when a check runs without a prior
     # probe.
     if not AWS_OK or rds is None:
@@ -73,4 +73,4 @@ def skip_final_snapshot_severity_check(severity: str, resource_type: str, identi
         return severity
 
     # The database exists: destroying it without a final snapshot loses its data for good.
-    return "critical"
+    return "high"

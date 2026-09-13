@@ -41,7 +41,7 @@ def test_a_db_instance_this_pr_creates_is_low(rds: Stubber) -> None:
     assert severity == "low"
 
 
-def test_an_existing_db_instance_is_critical(rds: Stubber) -> None:
+def test_an_existing_db_instance_is_high(rds: Stubber) -> None:
     """A live database destroyed without a final snapshot is gone for good."""
     rds.add_response(
         "describe_db_instances",
@@ -53,7 +53,7 @@ def test_an_existing_db_instance_is_critical(rds: Stubber) -> None:
         "medium", "aws_db_instance", "prod-db"
     )
 
-    assert severity == "critical"
+    assert severity == "high"
 
 
 def test_a_cluster_this_pr_creates_is_low(rds: Stubber) -> None:
@@ -71,7 +71,7 @@ def test_a_cluster_this_pr_creates_is_low(rds: Stubber) -> None:
     assert severity == "low"
 
 
-def test_an_existing_cluster_is_critical(rds: Stubber) -> None:
+def test_an_existing_cluster_is_high(rds: Stubber) -> None:
     rds.add_response(
         "describe_db_clusters",
         {"DBClusters": [{"DBClusterIdentifier": "prod-cluster"}]},
@@ -82,7 +82,7 @@ def test_an_existing_cluster_is_critical(rds: Stubber) -> None:
         "medium", "aws_rds_cluster", "prod-cluster"
     )
 
-    assert severity == "critical"
+    assert severity == "high"
 
 
 def test_a_refused_lookup_keeps_the_static_severity(rds: Stubber) -> None:
