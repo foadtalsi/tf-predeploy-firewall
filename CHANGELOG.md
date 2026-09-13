@@ -3,13 +3,25 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
-## [Unreleased]
+## [v1.3.0] — 2026-09-13
 
 ### Added
 
+- AI auto-fix for active Growth plans: `--autofix` / Action `autofix`, off by
+  default. With a license key, the scanner sends the affected Terraform files and
+  their unwaived findings to the hosted service, where Amazon Bedrock proposes one
+  correction per file. The CLI shows a diff and asks before writing (preview only
+  without a terminal); the Action posts proposals as review suggestions to accept
+  with **Commit suggestion**. Nothing is staged or committed, and a failed or
+  malformed proposal leaves files unchanged. See the [usage guide](docs/usage.md).
+- Action input `head-ref`: the commit scanned and used for inline suggestions.
+  Defaults to the pull request head.
+- Hosted scan reports include the scan initiator, taken from `TFPDF_SCAN_ACTOR`,
+  `GITHUB_TRIGGERING_ACTOR`, `GITHUB_ACTOR`, or `GITLAB_USER_LOGIN`. This is reported
+  metadata, not proof of authorship.
 - `--cloud-read-access` also adjusts `skip_final_snapshot` findings on
   `aws_db_instance` and `aws_rds_cluster`: a database that does not exist yet becomes
-  `low`, an existing one `critical`. The guard now also permits
+  `low`, an existing one `high`. The guard now also permits
   `rds:DescribeDBInstances` and `rds:DescribeDBClusters`; add them to the role policy
   to use this check. Without them, these findings keep their static severity.
 
@@ -17,6 +29,17 @@ release; see the [usage guide](docs/usage.md) for current behavior.
 
 - Reorganized the English documentation around installation, usage, architecture,
   and contribution. Shortened and translated source and test explanations.
+
+### Removed
+
+- Cost estimates: the `static_cost` and `plan_cost_impact` rules, the bundled pricing
+  tables, and the Action input `cost-impact-threshold-usd`. An old
+  `cost_impact_threshold_usd` config key or `SCANNER_COST_IMPACT_THRESHOLD_USD`
+  variable is ignored; GitHub warns about the unknown input until it is removed from
+  the workflow.
+- Centrally managed organization policy. Scans with a license key no longer fetch a
+  policy from the hosted service; the local configuration applies.
+- The `tfpdf-genpack` command is no longer installed with the scanner.
 
 ### Fixed
 

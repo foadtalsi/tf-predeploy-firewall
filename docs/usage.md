@@ -121,7 +121,7 @@ Add this to `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/foadtalsi/tf-predeploy-firewall
-    rev: v1.2.4
+    rev: v1.3.0
     hooks:
       - id: tf-predeploy-firewall
 ```
