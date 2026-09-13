@@ -277,7 +277,7 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
     adjustable = [
         finding
         for finding in findings
-        if finding.rule_name == "s3_force_destroy" and finding.cloud_name
+        if finding.rule_name in ("s3_force_destroy", "skip_final_snapshot") and finding.cloud_name
     ]
     if not adjustable:
         # Do not open a cloud session when no finding can use it.
@@ -291,13 +291,20 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
         return
 
     for finding in adjustable:
-        # Convert returned strings to Severity to keep sorting and threshold comparisons
-        # consistent.
-        finding.severity = Severity(
-            severitycheck.s3_force_destroy_severity_check(
+        if finding.rule_name == "s3_force_destroy":
+            severity = severitycheck.s3_force_destroy_severity_check(
                 severity=finding.severity, bucket=finding.cloud_name
             )
-        )
+        else:
+            # The address is "type.name"; the type decides which RDS call applies.
+            severity = severitycheck.skip_final_snapshot_severity_check(
+                severity=finding.severity,
+                resource_type=finding.resource.split(".")[0],
+                identifier=finding.cloud_name,
+            )
+        # Convert returned strings to Severity to keep sorting and threshold comparisons
+        # consistent.
+        finding.severity = Severity(severity)
 
 
 def attach_doc_urls(findings: list[Finding], knowledge_base: KnowledgeBase | None) -> None:

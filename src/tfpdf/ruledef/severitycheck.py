@@ -3,16 +3,18 @@ from botocore.exceptions import ClientError
 
 # Optional cloud observations used to adjust finding severity.
 s3 = None
+rds = None
 AWS_OK = None
 
 
 # Probe once per scan and cache AWS_OK. Before a probe, checks preserve the static severity.
 def available_context() -> bool:
-    """Probe AWS once and cache the S3 client; return whether access is available."""
-    global s3, AWS_OK
+    """Probe AWS once and cache the S3 and RDS clients; return whether access is available"""
+    global s3, rds, AWS_OK
     try:
         boto3.client("sts").get_caller_identity()
         s3 = boto3.client("s3")
+        rds = boto3.client("rds")
         AWS_OK = True
     except Exception:
         AWS_OK = False
@@ -20,7 +22,7 @@ def available_context() -> bool:
 
 
 def s3_force_destroy_severity_check(severity: str, bucket: str) -> str:
-    """Return low for an absent/empty bucket, critical for objects, or the original severity."""
+    """Return low for an absent/empty bucket, critical for objects, or the original severity"""
     # A missing client must preserve severity, including when a check runs without a prior
     # probe.
     if not AWS_OK or s3 is None:
@@ -47,3 +49,28 @@ def s3_force_destroy_severity_check(severity: str, bucket: str) -> str:
         return "critical"
 
     return severity
+
+
+def skip_final_snapshot_severity_check(severity: str, resource_type: str, identifier: str) -> str:
+    """Return low for a missing database, critical for an existing one, or the original severity"""
+    # A missing client must preserve severity, including when a check runs without a prior
+    # probe.
+    if not AWS_OK or rds is None:
+        return severity
+
+    try:
+        if resource_type == "aws_db_instance":
+            rds.describe_db_instances(DBInstanceIdentifier=identifier)
+        elif resource_type == "aws_rds_cluster":
+            rds.describe_db_clusters(DBClusterIdentifier=identifier)
+        else:
+            return severity
+    except ClientError as error:
+        code = error.response["Error"]["Code"]
+        if code in ("DBInstanceNotFound", "DBClusterNotFoundFault"):
+            # This PR creates the database, so a destroy has nothing to lose yet.
+            return "low"
+        return severity
+
+    # The database exists: destroying it without a final snapshot loses its data for good.
+    return "critical"

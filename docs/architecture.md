@@ -88,8 +88,9 @@ GitLab. A license key enables hosted scan metadata, waivers, and pack downloads;
 auto-fix additionally sends affected Terraform source when explicitly requested.
 The Bedrock Lambda and subscription checks live in the separate cloud backend.
 
-AWS read access is a separate opt-in. Its allowlist permits only STS identity and
-S3 object listing; [the AWS guide](cloud-read-access.md) explains setup and failure
+AWS read access is a separate opt-in. Its allowlist permits only STS identity, S3
+object listing, and RDS instance and cluster descriptions;
+[the AWS guide](cloud-read-access.md) explains setup and failure
 behavior. Network failures in optional services do not discard the local report.
 
 ## Tests as examples

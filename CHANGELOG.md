@@ -5,6 +5,14 @@ release; see the [usage guide](docs/usage.md) for current behavior.
 
 ## [Unreleased]
 
+### Added
+
+- `--cloud-read-access` also adjusts `skip_final_snapshot` findings on
+  `aws_db_instance` and `aws_rds_cluster`: a database that does not exist yet becomes
+  `low`, an existing one `critical`. The guard now also permits
+  `rds:DescribeDBInstances` and `rds:DescribeDBClusters`; add them to the role policy
+  to use this check. Without them, these findings keep their static severity.
+
 ### Changed
 
 - Reorganized the English documentation around installation, usage, architecture,

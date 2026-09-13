@@ -83,9 +83,12 @@ def test_the_guard_covers_a_client_the_severity_check_makes_itself(
     finally:
         monkeypatch.undo()
     assert severitycheck.s3 is not None
+    assert severitycheck.rds is not None
 
     with pytest.raises(WriteAttempted, match="s3:DeleteObject"):
         severitycheck.s3.delete_object(Bucket="peu-importe", Key="k")
+    with pytest.raises(WriteAttempted, match="rds:DeleteDBCluster"):
+        severitycheck.rds.delete_db_cluster(DBClusterIdentifier="peu-importe")
 
     # Also check the module's own client on the same session.
     with pytest.raises(WriteAttempted, match="s3:CreateBucket"):
@@ -101,6 +104,24 @@ def test_the_call_the_severity_check_actually_makes_is_allowed(granted: Access) 
     with Stubber(client) as stub:
         stub.add_response("list_objects_v2", {"KeyCount": 0})
         client.list_objects_v2(Bucket="b", MaxKeys=1)
+
+
+def test_the_database_lookups_are_allowed_and_a_database_write_is_not(
+    granted: Access,
+) -> None:
+    """The skip_final_snapshot check describes databases; it must never be able to change one."""
+    import boto3
+    from botocore.stub import Stubber
+
+    client = boto3.client("rds")
+    with Stubber(client) as stub:
+        stub.add_response("describe_db_instances", {"DBInstances": []})
+        stub.add_response("describe_db_clusters", {"DBClusters": []})
+        client.describe_db_instances(DBInstanceIdentifier="db")
+        client.describe_db_clusters(DBClusterIdentifier="cluster")
+
+    with pytest.raises(WriteAttempted, match="rds:DeleteDBInstance"):
+        client.delete_db_instance(DBInstanceIdentifier="db", SkipFinalSnapshot=True)
 
 
 # --- open_access ------------------------------------------------------------
@@ -156,5 +177,10 @@ def test_the_note_lists_what_the_scan_may_call(monkeypatch: pytest.MonkeyPatch) 
     )
     _, note = open_access(True)
     assert permission_summary() in note
-    for expected in ("sts:GetCallerIdentity", "s3:ListObjectsV2"):
+    for expected in (
+        "sts:GetCallerIdentity",
+        "s3:ListObjectsV2",
+        "rds:DescribeDBInstances",
+        "rds:DescribeDBClusters",
+    ):
         assert expected in note

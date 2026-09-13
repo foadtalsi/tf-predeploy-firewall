@@ -106,9 +106,9 @@ def build_parser() -> argparse.ArgumentParser:
         "finding is about already exist, and how much they hold, so severity reflects "
         "the real account instead of the source alone. Off by default, and the whole "
         "scanner works without it. Only ever reads (sts:GetCallerIdentity, "
-        "s3:ListObjectsV2 — see docs/cloud-read-access.md for the IAM policy); missing "
-        "or refused credentials leave every severity untouched rather than failing the "
-        "scan.",
+        "s3:ListObjectsV2, rds:DescribeDBInstances, rds:DescribeDBClusters — see "
+        "docs/cloud-read-access.md for the IAM policy); missing or refused "
+        "credentials leave every severity untouched rather than failing the scan.",
     )
     parser.add_argument(
         "--license-key",

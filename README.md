@@ -123,8 +123,10 @@ fixes require explicit opt-in and an active **Growth** plan; users accept the pr
 code in the CLI or GitHub. The cloud backend is a separate project.
 
 [AWS read-only access](docs/cloud-read-access.md) is independent of paid plans. It
-can adjust S3 findings using bucket existence and contents metadata without reading
-object contents. Neither integration is required to run or contribute to the core.
+can adjust S3 `force_destroy` and RDS `skip_final_snapshot` findings using whether
+the resource exists, and for buckets whether they hold objects, without reading
+object contents or connecting to a database. Neither integration is required to run
+or contribute to the core.
 
 ## Read and contribute to the code
 

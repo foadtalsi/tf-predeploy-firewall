@@ -1,5 +1,5 @@
-"""Optional AWS access limited to sts:GetCallerIdentity and s3:ListObjectsV2; never read object
-contents.
+"""Optional AWS access limited to the read-only calls in _READ_ONLY_OPERATIONS; never read object
+contents or connect to a database.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 _READ_ONLY_OPERATIONS: dict[str, frozenset[str]] = {
     "sts": frozenset({"GetCallerIdentity"}),
     "s3": frozenset({"ListObjectsV2"}),
+    "rds": frozenset({"DescribeDBInstances", "DescribeDBClusters"}),
 }
 
 

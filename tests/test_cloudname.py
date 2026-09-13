@@ -229,6 +229,79 @@ def test_the_account_is_probed_once_however_many_buckets_there_are(
     assert len(probes) == 1
 
 
+DATABASES = b"""resource "aws_db_instance" "main" {
+  identifier          = "prod-db"
+  skip_final_snapshot = true
+}
+
+resource "aws_rds_cluster" "main" {
+  cluster_identifier  = "prod-cluster"
+  skip_final_snapshot = true
+}
+"""
+
+
+def test_with_the_opt_in_a_database_is_looked_up_by_its_real_identifier(
+    kb: KnowledgeBase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pass the resource type and the real identifier, not the Terraform address, to RDS."""
+    received: list[tuple[str, str]] = []
+
+    def check(severity: Severity, resource_type: str, identifier: str) -> str:
+        received.append((resource_type, identifier))
+        return "critical"
+
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", lambda: True)
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.skip_final_snapshot_severity_check", check)
+
+    result = run(
+        [ChangedFile(path="rds.tf", head_content=DATABASES)],
+        kb,
+        default_rules(),
+        RunOptions(cloud_reader=object()),
+    )
+
+    assert sorted(received) == [("aws_db_instance", "prod-db"), ("aws_rds_cluster", "prod-cluster")]
+    snapshots = [f for f in result.findings if f.rule_name == "skip_final_snapshot"]
+    assert len(snapshots) == 2
+    assert all(f.severity is Severity.CRITICAL for f in snapshots)
+
+
+def test_buckets_and_databases_share_one_probe(
+    kb: KnowledgeBase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Each finding goes to its own check, after a single probe for the whole scan."""
+    probes: list[int] = []
+    buckets: list[str] = []
+    databases: list[str] = []
+    monkeypatch.setattr(
+        "tfpdf.ruledef.severitycheck.available_context",
+        lambda: probes.append(1) or True,
+    )
+    monkeypatch.setattr(
+        "tfpdf.ruledef.severitycheck.s3_force_destroy_severity_check",
+        lambda severity, bucket: buckets.append(bucket) or "low",
+    )
+    monkeypatch.setattr(
+        "tfpdf.ruledef.severitycheck.skip_final_snapshot_severity_check",
+        lambda severity, resource_type, identifier: databases.append(identifier) or "low",
+    )
+
+    run(
+        [
+            ChangedFile(path="s3.tf", head_content=THREE_BUCKETS),
+            ChangedFile(path="rds.tf", head_content=DATABASES),
+        ],
+        kb,
+        default_rules(),
+        RunOptions(cloud_reader=object()),
+    )
+
+    assert sorted(buckets) == ["bucket-one", "bucket-three", "bucket-two"]
+    assert sorted(databases) == ["prod-cluster", "prod-db"]
+    assert len(probes) == 1
+
+
 def test_nothing_to_corroborate_means_no_probe_at_all(
     kb: KnowledgeBase, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -276,7 +349,10 @@ def test_a_context_that_cannot_be_opened_stops_before_the_checks(
     )
 
 
-def test_the_check_itself_never_probes(kb: KnowledgeBase) -> None:
+@pytest.mark.parametrize(
+    "check_name", ["s3_force_destroy_severity_check", "skip_final_snapshot_severity_check"]
+)
+def test_the_check_itself_never_probes(kb: KnowledgeBase, check_name: str) -> None:
     """Individual severity checks must reuse the engine's cached access result."""
     import ast
     import inspect
@@ -285,9 +361,7 @@ def test_the_check_itself_never_probes(kb: KnowledgeBase) -> None:
     from tfpdf.ruledef import severitycheck
 
     # Inspect the AST so comments mentioning the function do not count as calls.
-    tree = ast.parse(
-        textwrap.dedent(inspect.getsource(severitycheck.s3_force_destroy_severity_check))
-    )
+    tree = ast.parse(textwrap.dedent(inspect.getsource(getattr(severitycheck, check_name))))
     called = {
         node.func.id
         for node in ast.walk(tree)

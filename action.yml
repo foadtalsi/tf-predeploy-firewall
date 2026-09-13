@@ -43,11 +43,13 @@ inputs:
       reflects the real infrastructure rather than the source alone — `force_destroy`
       on a bucket this PR invents and `force_destroy` on the bucket holding your
       backups are identical HCL, and this is the only thing that tells them apart.
-      Read-only, and narrowly so: the scan may call sts:GetCallerIdentity and
-      s3:ListObjectsV2 and nothing else — a guard on boto3's default session refuses
-      any other operation before the request is built. It is never granted
-      s3:GetObject, so it can see that a bucket is not empty and cannot read what is
-      in it. Credentials come from the job (use aws-actions/configure-aws-credentials
+      Read-only, and narrowly so: the scan may call sts:GetCallerIdentity,
+      s3:ListObjectsV2, rds:DescribeDBInstances and rds:DescribeDBClusters and
+      nothing else — a guard on boto3's default session refuses any other operation
+      before the request is built. It is never granted s3:GetObject, so it can see
+      that a bucket is not empty and cannot read what is in it, and it never connects
+      to a database, only asks whether one exists. Credentials come from the job (use
+      aws-actions/configure-aws-credentials
       with OIDC, before this step); missing or refused ones leave every severity
       untouched instead of failing the scan. The IAM policy to copy is in
       docs/cloud-read-access.md. Leave this off and the scanner authenticates to
