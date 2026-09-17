@@ -3,6 +3,14 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
+## [Unreleased]
+
+### Changed
+
+- AI auto-fix is available on active Starter plans too. The hosted service allows 25
+  requests a month on Starter and 1,000 on Growth, one per file; the CLI message,
+  flag help, Action input and usage guide say so.
+
 ## [v1.3.0] — 2026-09-13
 
 ### Added

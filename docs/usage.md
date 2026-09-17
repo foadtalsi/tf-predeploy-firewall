@@ -153,7 +153,7 @@ The reported scan initiator is the first nonempty value in `TFPDF_SCAN_ACTOR`,
 `TFPDF_SCAN_ACTOR` for local scans. This is reported metadata, not authenticated proof
 of who authored the code. Paid dashboards can sort findings by date, user, and severity.
 
-## Bedrock auto-fix: Growth only
+## Bedrock auto-fix: Starter and Growth
 
 This feature requires a CLI or Action revision containing auto-fix support and the
 hosted `/v1/autofix` endpoint. Older `@v1` releases may not include it.
@@ -163,7 +163,9 @@ export TFPDF_LICENSE_KEY="your-api-key"
 tf-predeploy-firewall --uncommitted --autofix
 ```
 
-The server checks for an active Growth subscription. Enabling auto-fix sends affected
+The server checks for an active Starter or Growth subscription and counts one request
+per file: 25 a month on Starter, 1,000 on Growth. Past that limit, the server answers
+429 and the scan continues without auto-fix. Enabling auto-fix sends affected
 Terraform files and their unwaived findings to the hosted service for Bedrock processing.
 There is one proposal per file. The CLI displays a diff and asks for confirmation;
 without a terminal, it only previews. It does not stage or commit files, and it refuses

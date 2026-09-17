@@ -182,7 +182,9 @@ def build_parser() -> argparse.ArgumentParser:
         '--rules file, and the honest answer to "what exactly does this thing look for?"',
     )
     flag_bool(
-        "--autofix", False, "send Terraform to Bedrock for reviewable corrections (Growth plan)"
+        "--autofix",
+        False,
+        "send Terraform to Bedrock for reviewable corrections (Starter and Growth plans)",
     )
     flag_bool("--version", False, "print the version and exit")
     return parser

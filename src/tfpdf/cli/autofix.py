@@ -91,7 +91,7 @@ def accept_local(path: Path, source: bytes, corrected: str) -> None:
 def propose(args: argparse.Namespace, findings: list[Finding], post_comment: bool) -> None:
     """Propose one fix per file. Pull request fixes are accepted through the code host."""
     if not args.license_key:
-        print("Auto-fix requires an active Growth license key.", file=sys.stderr)
+        print("Auto-fix requires an active Starter or Growth license key.", file=sys.stderr)
         return
     sources = {
         f.path: f.head_content

@@ -119,8 +119,8 @@ For narrower exclusions, configuration, reports, and pre-commit setup, read the
 
 The local scanner works independently of the hosted service. A license key enables
 extended provider coverage, scan history, and dashboard waivers. Bedrock-generated
-fixes require explicit opt-in and an active **Growth** plan; users accept the proposed
-code in the CLI or GitHub. The cloud backend is a separate project.
+fixes require explicit opt-in and an active **Starter** or **Growth** plan; users
+accept the proposed code in the CLI or GitHub. The cloud backend is a separate project.
 
 [AWS read-only access](docs/cloud-read-access.md) is independent of paid plans. It
 can adjust S3 `force_destroy` and RDS `skip_final_snapshot` findings using whether

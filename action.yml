@@ -4,7 +4,7 @@ author: "foadtalsi"
 
 inputs:
   autofix:
-    description: "Send Terraform to Bedrock and propose corrections for human acceptance (Growth plan)."
+    description: "Send Terraform to Bedrock and propose corrections for human acceptance (Starter and Growth plans)."
     required: false
     default: "false"
   head-ref:
