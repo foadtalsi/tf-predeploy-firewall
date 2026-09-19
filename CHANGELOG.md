@@ -3,7 +3,7 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
-## [Unreleased]
+## [v1.3.1] — 2026-09-19
 
 ### Changed
 
