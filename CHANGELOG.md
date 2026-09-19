@@ -10,6 +10,16 @@ release; see the [usage guide](docs/usage.md) for current behavior.
 - AI auto-fix is available on active Starter plans too. The hosted service allows 25
   requests a month on Starter and 1,000 on Growth, one per file; the CLI message,
   flag help, Action input and usage guide say so.
+- Refreshed the embedded provider packs: AWS 6.59.0 to 6.65.0, Azure 4.81.0 to 5.6.0.
+  They still cover 39 AWS and 41 Azure resource types. Arguments added by those
+  releases stop being reported as unknown attributes, which blocked pull requests on
+  valid Terraform; `azurerm` 5 also removed resource types, so a repository pinned to
+  `azurerm` 4 keeps its schema findings only while its constraint allows 5.
+
+### Fixed
+
+- The warning about providers with no rule pack no longer says cost is among the
+  checks they miss. Cost estimates were removed in v1.3.0.
 
 ## [v1.3.0] — 2026-09-13
 

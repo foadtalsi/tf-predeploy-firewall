@@ -81,7 +81,7 @@ def warn_uncovered_providers(files: list[ChangedFile], cov: Coverage) -> None:
     print(
         f"tf-predeploy-firewall: no rule pack for {', '.join(uncovered)} — those "
         "resources were still checked for hardcoded credentials, open CIDRs and your "
-        "custom rules, but NOT for unknown arguments, destroy/recreate traps, missing "
-        "prevent_destroy, or cost",
+        "custom rules, but NOT for unknown arguments, destroy/recreate traps or missing "
+        "prevent_destroy",
         file=sys.stderr,
     )
