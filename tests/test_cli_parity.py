@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -128,6 +129,25 @@ def both(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
     return out
 
 
+#: The provider version a pack stamps into every documentation link, and into the
+#: line the scan prints on stderr.
+#:
+#: The oracle is a binary built from cf0bdd3, carrying the packs of its own era, so
+#: refreshing a pack moves this number on the Python side alone. It says nothing
+#: about a finding — same rule, same resource, same line, same wording — and
+#: comparing it would make a pack refresh permanently impossible, which is the one
+#: thing that must stay possible: a pack that stops following its provider reports
+#: valid Terraform as hallucinated, at severity high, and blocks pull requests.
+_DOC_URL_VERSION = re.compile(r"(registry\.terraform\.io/providers/[^/\s]+/[^/\s]+)/\d+\.\d+\.\d+/")
+_PACK_BANNER_VERSION = re.compile(r"\b(aws|azurerm) \d+\.\d+\.\d+\b")
+
+
+def _mask_pack_versions(payload: str) -> str:
+    """Blank the provider version out of doc links and the stderr banner, nothing else."""
+    masked = _DOC_URL_VERSION.sub(r"\1/<pack>/", payload)
+    return _PACK_BANNER_VERSION.sub(r"\1 <pack>", masked)
+
+
 #: Rules this scanner retired on purpose while the Go oracle still lists them.
 #:
 #: `cost_impact` was removed in a7d5552 together with the cost estimates. It was
@@ -137,7 +157,7 @@ def both(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
 RETIRED_SARIF_RULES = frozenset({"cost_impact"})
 
 
-def _without_retired_rules(sarif: bytes) -> dict[str, object]:
+def _without_retired_rules(sarif: str) -> dict[str, object]:
     """The Go oracle's SARIF without the rules this scanner retired on purpose."""
     document = json.loads(sarif)
     for run in document["runs"]:
@@ -150,12 +170,13 @@ def _without_retired_rules(sarif: bytes) -> dict[str, object]:
 
 @pytest.mark.parametrize("artefact", ["sarif.json", "cq.json", "err"])
 def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) -> None:
-    """Compare SARIF, Code Quality, and coverage output against the Go oracle byte for byte, except
-    for SARIF rules this scanner retired on purpose. Match the oracle's stamped version to the
-    installed Python package.
+    """Compare SARIF, Code Quality, and coverage output against the Go oracle byte for byte,
+    except for SARIF rules this scanner retired on purpose and the provider version each pack
+    stamps into documentation links. Match the oracle's stamped version to the installed Python
+    package.
     """
-    go = (both / f"go.{artefact}").read_bytes()
-    py = (both / f"py.{artefact}").read_bytes()
+    go = _mask_pack_versions((both / f"go.{artefact}").read_text(encoding="utf-8"))
+    py = _mask_pack_versions((both / f"py.{artefact}").read_text(encoding="utf-8"))
     if artefact == "sarif.json":
         # Retired rules are the one deliberate difference from the Go oracle. Every other rule,
         # every result and every ruleIndex must still match.
@@ -170,7 +191,7 @@ def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) ->
 
 def _rows(path: Path) -> list[tuple[str, ...]]:
     out: list[tuple[str, ...]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in _mask_pack_versions(path.read_text(encoding="utf-8")).splitlines():
         if not line.startswith("| ") or "|---" in line:
             continue
         cells = tuple(c.strip() for c in line.strip().strip("|").split("|"))
@@ -222,8 +243,10 @@ def test_full_repo_scan_agrees_over_the_go_fixture_corpus(
     py_code = _run(_PY_ENTRY, core, out, "py", "--full-repo-scan")
     assert go_code == py_code
 
-    assert (out / "go.sarif.json").read_bytes() == (out / "py.sarif.json").read_bytes()
-    assert (out / "go.cq.json").read_bytes() == (out / "py.cq.json").read_bytes()
+    for artefact in ("sarif.json", "cq.json"):
+        assert _mask_pack_versions((out / f"go.{artefact}").read_text(encoding="utf-8")) == (
+            _mask_pack_versions((out / f"py.{artefact}").read_text(encoding="utf-8"))
+        )
 
     go, py = _rows(out / "go.md"), _rows(out / "py.md")
     assert len(go) > 50, "expected the fixture corpus to produce a substantial report"
