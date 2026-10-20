@@ -1,0 +1,62 @@
+description: >
+  Credential formats in arguments whose names do not reveal them, one group of alternatives where
+  the most specific format wins, and values that resemble a format without being a credential.
+expect:
+  - {rule: credential_value_aws_access_key, target: aws_instance.access_key_in_user_data}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.access_key_value}
+  - {rule: credential_value_aws_access_key, target: aws_lambda_function.access_key_description}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.secret_key_value}
+  - {rule: credential_value_aws_secret_key, target: aws_instance.secret_key_in_user_data}
+  - {rule: credential_value_aws_secret_key, target: aws_codebuild_project.secret_key_description}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_rsa}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_ec}
+  - {rule: credential_value_pem, target: aws_instance.pem_openssh}
+  - {rule: credential_value_jwt, target: aws_lambda_function.jwt_description}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_value}
+  - {rule: credential_value_jwt, target: aws_codebuild_project.jwt_description}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_classic}
+  - {rule: credential_value_github_token, target: aws_codebuild_project.github_description}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_fine_grained}
+  - {rule: credential_value_hex, target: aws_ssm_parameter.hex_value}
+  - {rule: credential_value_hex, target: aws_lambda_function.hex_description}
+  - {rule: credential_value_hex, target: aws_codebuild_project.hex_description}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_value}
+  - {rule: credential_value_entropy, target: aws_lambda_function.entropy_description}
+  - {rule: credential_value_entropy, target: aws_codebuild_project.entropy_description}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.aws_access_key_extra_4}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.aws_access_key_extra_5}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.aws_secret_key_extra_4}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.aws_secret_key_extra_5}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_extra_4}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_extra_5}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_extra_4}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_extra_5}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_token_extra_4}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_token_extra_5}
+  - {rule: credential_value_hex, target: aws_ssm_parameter.hex_extra_4}
+  - {rule: credential_value_hex, target: aws_ssm_parameter.hex_extra_5}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_extra_4}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_extra_5}
+must_not_report:
+  - {rule: credential_value_aws_access_key, target: aws_lambda_function.access_key_mentioned}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.access_key_lowercase}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.access_key_reference}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.secret_key_path}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.secret_key_uppercase_run}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.secret_key_reference}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_public_key}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_certificate}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_from_file}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_prefix_only}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_in_sentence}
+  - {rule: credential_value_jwt, target: aws_ssm_parameter.jwt_reference}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_short}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_oauth_prefix}
+  - {rule: credential_value_github_token, target: aws_ssm_parameter.github_reference}
+  - {rule: credential_value_hex, target: aws_ssm_parameter.hex_repeated}
+  - {rule: credential_value_hex, target: aws_ssm_parameter.hex_too_short}
+  - {rule: credential_value_hex, target: aws_s3_object.hex_etag}
+  - {rule: credential_value_hex, target: aws_lambda_function.hex_source_code_hash}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_sentence}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_url}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_arn}

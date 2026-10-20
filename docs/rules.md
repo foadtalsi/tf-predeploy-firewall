@@ -561,4 +561,81 @@ Tearing down a whole environment is a legitimate large plan. Raise
 
 ---
 
+## incomplete_analysis
+
+**File not analysed**
+
+A changed file the scanner could not read, so no rule ran on it — a syntax error, a construct this parser rejects, or a format it does not analyse.
+
+### What this means
+
+The scanner could not analyse this file, or part of it:
+
+- `unparsable_file` (high): the file does not parse. No rule ran on it.
+- `unparsable_base_file` (low): the new version was checked, but the
+  previous one does not parse, so changes that force a replacement were not
+  detected.
+- `unsupported_file_format` (medium): Terraform JSON syntax (`.tf.json`),
+  which this scanner does not analyse.
+
+### Why it matters
+
+A file nobody checked is not a file without risk. If an unreadable file were
+simply skipped, one syntax error — or one construct this parser does not
+handle — would hide every other problem in it, and the scan would still
+pass. A file that does not parse blocks at the default threshold: if
+Terraform rejects it too, nothing is lost; if Terraform accepts it, the
+scanner has a parser defect, and blocking is what makes it visible.
+
+### How to fix it
+
+Run `terraform validate`. If it reports the same error, fix the syntax. If
+Terraform accepts the file, please open an issue with the smallest snippet
+that reproduces the error: it is a defect in this scanner.
+
+### If you disagree
+
+Exclude generated or vendored files with `ignore_paths:`, scoped to
+`incomplete_analysis` so the other categories still apply to them, or put
+`# tf-firewall-ignore: incomplete_analysis` on the reported line. Avoid
+`ignore_rules` for this category: it would let every unreadable file pass.
+
+---
+
+## unresolved_value
+
+**Setting not evaluated**
+
+A security setting whose value depends on something the scanner cannot resolve, so the rule that judges it did not run.
+
+### What this means
+
+A setting that a guard rule judges — `publicly_accessible`,
+`storage_encrypted`, `skip_final_snapshot`, `force_destroy` and the like —
+is an expression the scanner cannot evaluate, typically a variable with no
+default. The finding names the rules that did not run.
+
+### Why it matters
+
+Guard rules only judge values that were written down, because guessing at an
+expression produces false positives. Their silence on an unresolved value
+means "not checked", not "safe": the risky value can still arrive from a
+`.tfvars` file, a module caller or the command line. This rule is
+experimental: it is reported and never blocks.
+
+### How to fix it
+
+Give the variable a safe default, or add a `validation` block that rejects
+the unsafe value, so the risk is ruled out where the variable is declared.
+The scanner reads variable defaults and locals; it does not read the values
+a `.tfvars` file or a module caller assigns.
+
+### If you disagree
+
+A reusable module whose callers own every setting will report these on each
+change. Exclude its directory with `ignore_paths:` scoped to
+`unresolved_value`, or add the category to `ignore_rules`.
+
+---
+
 Custom rules defined in your own config get the category `custom:<id>` and are documented by whatever `message:` you give them.

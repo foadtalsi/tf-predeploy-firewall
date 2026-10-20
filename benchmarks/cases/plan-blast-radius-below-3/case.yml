@@ -1,0 +1,6 @@
+description: >
+  A plan destroying 5 resources, below the default threshold, alongside ten no-op actions
+  that destroy nothing.
+must_not_report:
+  - {rule: large_blast_radius, target: 5 resources}
+  - {rule: large_blast_radius, target: 15 resources}

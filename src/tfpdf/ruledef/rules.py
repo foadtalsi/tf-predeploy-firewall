@@ -21,8 +21,12 @@ _CREDENTIAL_NAME_BODY = (
 CREDENTIAL_ATTRIBUTE_NAMES = "(?i)" + _CREDENTIAL_NAME_BODY
 
 # Public attributes can contain high-entropy text without being secrets: keys, fingerprints, DNS
-# records, and policy statement IDs.
-_PUBLIC_NAME_BODY = r"^(?:.*_)?(public_key|thumbprint|thumbprint_list|fingerprint|sid|records)$"
+# records, policy statement IDs, and digests of content (an S3 object's etag is the MD5 of its
+# body, a Lambda's source_code_hash the SHA-256 of its package).
+_PUBLIC_NAME_BODY = (
+    r"^(?:.*_)?(public_key|thumbprint|thumbprint_list|fingerprint|sid|records"
+    r"|etag|hash|checksum|digest|md5|sha1|sha256|sha512)$"
+)
 
 # Value checks exclude names covered by hardcoded_credential and public attributes. Keep one
 # leading regex case flag.
@@ -135,25 +139,6 @@ RULES: list[Rule] = [
             value_matches="AKIA[A-Z0-9]{16}",
         ),
     ),
-    # 40 characters of base64. The character class alone matches any long run
-    # of [a-z0-9/+], which an ordinary file path reaches easily — running this
-    # scanner against its own repository reported a `local-exec` build command
-    # as a leaked AWS key, at critical severity, on a 41-character path. That
-    # is precisely the false positive that gets a scanner switched off.
-    # Randomness is what separates the two, so the match is confirmed rather
-    # than trusted.
-    Rule(
-        id="credential_value_aws_secret_key",
-        category="tutorial_pattern",
-        severity="critical",
-        group="credential_value",
-        label="possible AWS secret key (40-char base64)",
-        message="{location}{attr_q} value matches pattern: {label}{via} — remove from source and use a secret reference",
-        match=credential_value_match(
-            value_matches="(?i)[a-z0-9/+]{40}",
-            confirm="base64_secret",
-        ),
-    ),
     Rule(
         id="credential_value_pem",
         category="tutorial_pattern",
@@ -185,6 +170,29 @@ RULES: list[Rule] = [
         message="{location}{attr_q} value matches pattern: {label}{via} — remove from source and use a secret reference",
         match=credential_value_match(
             value_matches="^(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{82})$",
+        ),
+    ),
+    # 40 characters of base64. The character class alone matches any long run
+    # of [a-z0-9/+], which an ordinary file path reaches easily — running this
+    # scanner against its own repository reported a `local-exec` build command
+    # as a leaked AWS key, at critical severity, on a 41-character path. That
+    # is precisely the false positive that gets a scanner switched off.
+    # Randomness is what separates the two, so the match is confirmed rather
+    # than trusted.
+    #
+    # It searches for a 40-character run anywhere in the value, so it comes after the
+    # formats that match a whole value: a PEM body, a JWT or a GitHub token contains such
+    # a run, and must be named for what it is.
+    Rule(
+        id="credential_value_aws_secret_key",
+        category="tutorial_pattern",
+        severity="critical",
+        group="credential_value",
+        label="possible AWS secret key (40-char base64)",
+        message="{location}{attr_q} value matches pattern: {label}{via} — remove from source and use a secret reference",
+        match=credential_value_match(
+            value_matches="(?i)[a-z0-9/+]{40}",
+            confirm="base64_secret",
         ),
     ),
     # The label claims entropy, so the check measures it: hex tops out at 4
@@ -223,13 +231,21 @@ RULES: list[Rule] = [
         message="{attr_q} includes 0.0.0.0/0 (open to the entire internet) — common tutorial copy-paste, narrow this range",
         match=Match(
             scope="attribute",
+            # Outbound traffic and default routes to 0.0.0.0/0 are how almost every VPC is
+            # built, not an opening to the internet: a route's destination, an egress rule, and
+            # an egress network ACL entry are left out. The benchmark case
+            # open-cidr-egress-and-routes holds them.
+            skip_resource_types=["aws_vpc_security_group_egress_rule"],
+            skip_when_attribute_equals={"type": "egress", "egress": "true"},
+            attr_name_not_matches="^destination_",
             attr_name_contains="cidr",
             literal=True,
             value_contains="0.0.0.0/0",
         ),
     ),
-    # ingress and egress only. A CIDR inside some other nested block is far
-    # more likely to be a route table or a peering range than a firewall hole.
+    # Ingress only. Allow-all egress is the default of every AWS security group, and a CIDR
+    # inside some other nested block is far more likely to be a route table or a peering
+    # range than a firewall hole.
     Rule(
         id="open_cidr_in_block",
         category="tutorial_pattern",
@@ -237,7 +253,7 @@ RULES: list[Rule] = [
         message='"{attr} (inside {block} block)" includes 0.0.0.0/0 (open to the entire internet) — common tutorial copy-paste, narrow this range',
         match=Match(
             scope="block_attribute",
-            block_types=["ingress", "egress"],
+            block_types=["ingress"],
             attr_name_contains="cidr",
             literal=True,
             value_contains="0.0.0.0/0",
@@ -459,7 +475,8 @@ RULES: list[Rule] = [
                 "at_rest_encryption_enabled",
                 "encryption_enabled",
                 "enable_encryption",
-                "infrastructure_encryption_enabled",
+                # infrastructure_encryption_enabled is left out: it adds a second layer on top
+                # of encryption that stays on, so `false` disables nothing at rest.
             ],
             literal=True,
             value_matches="^false$",
@@ -480,6 +497,8 @@ RULES: list[Rule] = [
                 "transit_encryption_enabled",
                 "encrypt_in_transit",
                 "enable_https_traffic_only",
+                # The name azurerm 4 and later use for enable_https_traffic_only.
+                "https_traffic_only_enabled",
                 "https_only",
             ],
             literal=True,
@@ -512,7 +531,13 @@ RULES: list[Rule] = [
                 "tls_policy",
             ],
             literal=True,
-            value_matches="(?i)(TLS-?1[._-]?[01]|TLSv1[._]?[01]?$|^1\\.[01]$)",
+            # TLS 1.0 or 1.1 named directly (TLS-1-1, TLS_1_0, TLS1_0, TLSv1), a TLS 1.3 policy
+            # whose floor is 1.0 or 1.1 (ELBSecurityPolicy-TLS13-1-0-2021-06), and the two
+            # undated ELB policies that accept TLS 1.0.
+            value_matches=(
+                "(?i)(TLS[-_]?1[._-]?[01]|TLS13-1-[01]-|TLSv1[._]?[01]?$|^1\\.[01]$"
+                "|^ELBSecurityPolicy-(2015-05|2016-08)$)"
+            ),
         ),
     ),
     # ---------------------------------------------------------------------
@@ -666,6 +691,38 @@ RULES: list[Rule] = [
         category="large_blast_radius",
         severity="medium",
         engine="large_blast_radius",
+    ),
+    # ---------------------------------------------------------------------
+    # What the scanner could not check. The engine and the file scanners
+    # build these findings (rules/incomplete.py, rules/unresolved.py); the
+    # definitions carry their severity, maturity and documentation.
+    # ---------------------------------------------------------------------
+    Rule(
+        id="unparsable_file",
+        category="incomplete_analysis",
+        severity="high",
+        engine="unparsable_file",
+    ),
+    Rule(
+        id="unparsable_base_file",
+        category="incomplete_analysis",
+        severity="low",
+        engine="unparsable_base_file",
+    ),
+    Rule(
+        id="unsupported_file_format",
+        category="incomplete_analysis",
+        severity="medium",
+        engine="unsupported_file_format",
+    ),
+    # Experimental until the benchmark and real repositories show how often a module takes its
+    # guards as variables: reported, never blocking.
+    Rule(
+        id="unresolved_guard_value",
+        category="unresolved_value",
+        severity="low",
+        engine="unresolved_guard_value",
+        maturity="experimental",
     ),
 ]
 
@@ -1189,6 +1246,79 @@ DOCS: list[CategoryDoc] = [
             "A trail deliberately parked in a sandbox account is reasonable.\n"
             "`# tf-firewall-ignore: audit_disabled` on the line, or `ignore_rules` for\n"
             "the category."
+        ),
+    ),
+    CategoryDoc(
+        category="incomplete_analysis",
+        title="File not analysed",
+        full_description="A changed file the scanner could not read, so no rule ran on it — a syntax error, a construct this parser rejects, or a format it does not analyse.",
+        markdown=(
+            "## What this means\n"
+            "\n"
+            "The scanner could not analyse this file, or part of it:\n"
+            "\n"
+            "- `unparsable_file` (high): the file does not parse. No rule ran on it.\n"
+            "- `unparsable_base_file` (low): the new version was checked, but the\n"
+            "  previous one does not parse, so changes that force a replacement were not\n"
+            "  detected.\n"
+            "- `unsupported_file_format` (medium): Terraform JSON syntax (`.tf.json`),\n"
+            "  which this scanner does not analyse.\n"
+            "\n"
+            "## Why it matters\n"
+            "\n"
+            "A file nobody checked is not a file without risk. If an unreadable file were\n"
+            "simply skipped, one syntax error — or one construct this parser does not\n"
+            "handle — would hide every other problem in it, and the scan would still\n"
+            "pass. A file that does not parse blocks at the default threshold: if\n"
+            "Terraform rejects it too, nothing is lost; if Terraform accepts it, the\n"
+            "scanner has a parser defect, and blocking is what makes it visible.\n"
+            "\n"
+            "## How to fix it\n"
+            "\n"
+            "Run `terraform validate`. If it reports the same error, fix the syntax. If\n"
+            "Terraform accepts the file, please open an issue with the smallest snippet\n"
+            "that reproduces the error: it is a defect in this scanner.\n"
+            "\n"
+            "## If you disagree\n"
+            "\n"
+            "Exclude generated or vendored files with `ignore_paths:`, scoped to\n"
+            "`incomplete_analysis` so the other categories still apply to them, or put\n"
+            "`# tf-firewall-ignore: incomplete_analysis` on the reported line. Avoid\n"
+            "`ignore_rules` for this category: it would let every unreadable file pass."
+        ),
+    ),
+    CategoryDoc(
+        category="unresolved_value",
+        title="Setting not evaluated",
+        full_description="A security setting whose value depends on something the scanner cannot resolve, so the rule that judges it did not run.",
+        markdown=(
+            "## What this means\n"
+            "\n"
+            "A setting that a guard rule judges — `publicly_accessible`,\n"
+            "`storage_encrypted`, `skip_final_snapshot`, `force_destroy` and the like —\n"
+            "is an expression the scanner cannot evaluate, typically a variable with no\n"
+            "default. The finding names the rules that did not run.\n"
+            "\n"
+            "## Why it matters\n"
+            "\n"
+            "Guard rules only judge values that were written down, because guessing at an\n"
+            "expression produces false positives. Their silence on an unresolved value\n"
+            'means "not checked", not "safe": the risky value can still arrive from a\n'
+            "`.tfvars` file, a module caller or the command line. This rule is\n"
+            "experimental: it is reported and never blocks.\n"
+            "\n"
+            "## How to fix it\n"
+            "\n"
+            "Give the variable a safe default, or add a `validation` block that rejects\n"
+            "the unsafe value, so the risk is ruled out where the variable is declared.\n"
+            "The scanner reads variable defaults and locals; it does not read the values\n"
+            "a `.tfvars` file or a module caller assigns.\n"
+            "\n"
+            "## If you disagree\n"
+            "\n"
+            "A reusable module whose callers own every setting will report these on each\n"
+            "change. Exclude its directory with `ignore_paths:` scoped to\n"
+            "`unresolved_value`, or add the category to `ignore_rules`."
         ),
     ),
 ]

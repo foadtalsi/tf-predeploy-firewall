@@ -1,0 +1,15 @@
+description: >
+  Destroys of stateful resources and replacements confirmed by the plan, and changes that destroy
+  nothing or nothing stateful.
+expect:
+  - {rule: confirmed_replace, target: aws_db_instance.orders}
+  - {rule: confirmed_replace, target: aws_s3_bucket.backups}
+  - {rule: confirmed_replace, target: aws_instance.web}
+  - {rule: confirmed_replace, target: aws_dynamodb_table.sessions}
+  - {rule: confirmed_replace, target: module.data.aws_rds_cluster.this}
+must_not_report:
+  - {rule: confirmed_replace, target: aws_instance.retired}
+  - {rule: confirmed_replace, target: aws_db_instance.resized}
+  - {rule: confirmed_replace, target: aws_s3_bucket.new}
+  - {rule: confirmed_replace, target: aws_kms_key.data}
+  - {rule: confirmed_replace, target: data.aws_db_instance.lookup}

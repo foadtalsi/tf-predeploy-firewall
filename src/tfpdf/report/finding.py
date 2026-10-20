@@ -58,6 +58,12 @@ class Category(StrEnum):
     UNEXPECTED_DRIFT = "unexpected_drift"
     LARGE_BLAST_RADIUS = "large_blast_radius"
 
+    # What the scanner could not check. They are two categories because suppression is
+    # per-category: a team whose modules take every guard as a variable should be able to silence
+    # unresolved values without also silencing files that failed to parse.
+    INCOMPLETE_ANALYSIS = "incomplete_analysis"
+    UNRESOLVED_VALUE = "unresolved_value"
+
 
 @dataclass(slots=True)
 class Fix:
@@ -142,3 +148,8 @@ class Finding:
     #: silently vanishes from the record.
     waived: bool = False
     waiver_note: str = ""
+
+    #: When true, the finding comes from a rule that is not yet enforced (maturity experimental,
+    #: or validated without an `enforce_rules` opt-in). It is reported like any other finding,
+    #: but it never decides whether a merge is blocked.
+    advisory: bool = False

@@ -1,0 +1,15 @@
+description: >
+  Module sources and providers without a version constraint, and pinned or local ones. The
+  versions.tf comment names required_providers before the block itself.
+expect:
+  - {rule: unpinned_version, target: module.vpc}
+  - {rule: unpinned_version, target: module.network}
+  - {rule: unpinned_version, target: module.dns}
+  - {rule: unpinned_version, target: provider.aws}
+  - {rule: unpinned_version, target: provider.random}
+must_not_report:
+  - {rule: unpinned_version, target: module.eks}
+  - {rule: unpinned_version, target: module.storage}
+  - {rule: unpinned_version, target: module.queues}
+  - {rule: unpinned_version, target: module.local}
+  - {rule: unpinned_version, target: provider.azurerm}

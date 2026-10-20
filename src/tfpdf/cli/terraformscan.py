@@ -7,7 +7,9 @@ from dataclasses import dataclass
 
 from .. import diff, terragrunt, tfvars
 from ..diff import ChangedFile
+from ..hcl import HCLParseError
 from ..report.finding import Finding
+from ..rules import incomplete
 
 
 @dataclass(slots=True, frozen=True)
@@ -74,22 +76,52 @@ def changed_tfvars(repo_dir: str, mode: Mode) -> list[ChangedFile]:
 
 
 def scan_terragrunt(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
-    """Scan changed Terragrunt files, warning and continuing if an individual file fails."""
+    """Scan changed Terragrunt files. A file that does not parse becomes a finding; any other
+    failure is a warning, and the remaining files are still scanned.
+    """
     findings: list[Finding] = []
     for changed_file in changed_terragrunt(repo_dir, mode):
         try:
             findings += terragrunt.scan_file(changed_file.path, changed_file.head_content)
+        except HCLParseError as exc:
+            findings.append(incomplete.unparsable_file(changed_file.path, exc))
         except Exception as exc:
             warn(str(exc))
     return findings
 
 
 def scan_tfvars(repo_dir: str, mode: Mode, warn: Callable[[str], None]) -> list[Finding]:
-    """Scan changed .tfvars and .tfvars.json files, warning and continuing on individual failures."""
+    """Scan changed .tfvars and .tfvars.json files. A file that does not parse becomes a finding;
+    any other failure is a warning, and the remaining files are still scanned.
+    """
     findings: list[Finding] = []
     for changed_file in changed_tfvars(repo_dir, mode):
         try:
             findings += tfvars.scan_file(changed_file.path, changed_file.head_content)
+        except HCLParseError as exc:
+            findings.append(incomplete.unparsable_file(changed_file.path, exc))
+        except ValueError as exc:
+            # The JSON variable-file reader reports a syntax error as ValueError.
+            findings.append(incomplete.unparsable_file(changed_file.path, exc, "JSON"))
         except Exception as exc:
             warn(str(exc))
     return findings
+
+
+def changed_terraform_json(repo_dir: str, mode: Mode) -> list[ChangedFile]:
+    return _select(
+        mode,
+        repo_dir,
+        diff.staged_terraform_json_files,
+        diff.uncommitted_terraform_json_files,
+        diff.all_terraform_json_files,
+        diff.changed_terraform_json_files,
+    )
+
+
+def report_terraform_json(repo_dir: str, mode: Mode) -> list[Finding]:
+    """Report each changed .tf.json file as unanalysed rather than skipping it without a word."""
+    return [
+        incomplete.unsupported_file_format(changed_file.path)
+        for changed_file in changed_terraform_json(repo_dir, mode)
+    ]

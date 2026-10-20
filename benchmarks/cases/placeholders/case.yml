@@ -1,0 +1,25 @@
+description: Placeholder local names and values, and real names that contain a placeholder word.
+expect:
+  - {rule: placeholder_resource_name, target: aws_s3_bucket.example}
+  - {rule: placeholder_resource_name, target: aws_s3_bucket.test_data}
+  - {rule: placeholder_resource_name, target: aws_db_instance.demo}
+  - {rule: placeholder_resource_name, target: aws_sqs_queue.foo}
+  - {rule: placeholder_resource_name, target: aws_iam_role.sample}
+  - {rule: placeholder_resource_name, target: aws_lambda_function.my_app}
+  - {rule: placeholder_attribute_value, target: aws_s3_bucket.example}
+  - {rule: placeholder_attribute_value, target: aws_s3_bucket.test_data}
+  - {rule: placeholder_attribute_value, target: aws_db_instance.demo}
+  - {rule: placeholder_attribute_value, target: aws_sqs_queue.foo}
+  - {rule: placeholder_attribute_value, target: aws_iam_role.sample}
+  - {rule: placeholder_attribute_value, target: aws_s3_bucket.logs_with_prefix}
+must_not_report:
+  - {rule: placeholder_resource_name, target: aws_s3_bucket.testimonials}
+  - {rule: placeholder_resource_name, target: aws_db_instance.examples_catalog}
+  - {rule: placeholder_resource_name, target: aws_sqs_queue.latest_orders}
+  - {rule: placeholder_resource_name, target: aws_iam_role.barcode_reader}
+  - {rule: placeholder_resource_name, target: aws_s3_bucket.temperature}
+  - {rule: placeholder_attribute_value, target: aws_s3_bucket.testimonials}
+  - {rule: placeholder_attribute_value, target: aws_db_instance.examples_catalog}
+  - {rule: placeholder_attribute_value, target: aws_sqs_queue.latest_orders}
+  - {rule: placeholder_attribute_value, target: aws_iam_role.barcode_reader}
+  - {rule: placeholder_attribute_value, target: aws_s3_bucket.temperature}

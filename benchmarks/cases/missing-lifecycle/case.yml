@@ -1,0 +1,12 @@
+description: Stateful resources without destruction protection, and protected or stateless ones.
+expect:
+  - {rule: missing_lifecycle, target: aws_db_instance.orders}
+  - {rule: missing_lifecycle, target: aws_s3_bucket.backups}
+  - {rule: missing_lifecycle, target: aws_dynamodb_table.sessions}
+  - {rule: missing_lifecycle, target: aws_kms_key.data}
+  - {rule: missing_lifecycle, target: azurerm_key_vault.secrets}
+must_not_report:
+  - {rule: missing_lifecycle, target: aws_rds_cluster.protected}
+  - {rule: missing_lifecycle, target: aws_instance.stateless}
+  - {rule: missing_lifecycle, target: aws_security_group.stateless}
+  - {rule: missing_lifecycle, target: aws_efs_file_system.protected}

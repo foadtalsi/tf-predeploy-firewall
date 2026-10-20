@@ -1,0 +1,13 @@
+description: >
+  In-place updates to replacement-forcing arguments that this change's .tf diff does not explain,
+  and updates the diff does explain.
+expect:
+  - {rule: unexpected_drift, target: aws_db_instance.orders}
+  - {rule: unexpected_drift, target: aws_db_instance.billing}
+  - {rule: unexpected_drift, target: aws_s3_bucket.logs}
+  - {rule: unexpected_drift, target: aws_instance.web}
+  - {rule: unexpected_drift, target: aws_dynamodb_table.sessions}
+must_not_report:
+  - {rule: unexpected_drift, target: aws_db_instance.reporting}
+  - {rule: unexpected_drift, target: aws_db_instance.resized}
+  - {rule: unexpected_drift, target: aws_instance.replaced}

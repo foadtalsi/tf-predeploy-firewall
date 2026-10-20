@@ -28,6 +28,19 @@ The default threshold is `high`. Severity order is `low`, `medium`, `high`, `cri
 A baseline or hosted waiver accepts a finding without removing it from the report.
 Suppression removes matching findings from the report entirely.
 
+Only an enforced rule can block. Each rule has a maturity: `stable` rules are enforced,
+`validated` rules are enforced when you name them in `enforce_rules`, and
+`experimental` rules are reported but never block. The report marks a finding from a
+rule that is not enforced. The [benchmark](benchmark.md) lists each rule's maturity
+and the evidence behind it.
+
+A file the scanner could not analyse is a finding, not a silent pass. A changed file
+that does not parse is reported as `incomplete_analysis` at `high`, and blocks at the
+default threshold; a `.tf.json` file is reported at `medium`, because this scanner
+does not analyse Terraform JSON syntax. A guard setting whose value cannot be
+evaluated, such as `publicly_accessible = var.public` with no default, is reported as
+`unresolved_value` at `low`. See the [rule reference](rules.md#incomplete_analysis).
+
 A hosted quota refusal skips recording the scan but does not suppress reports or
 change the findings-based exit code. Hosted-service failures produce warnings and
 retain available local coverage.
@@ -61,7 +74,13 @@ ignore_rules: []
 ignore_paths:
   - path: "legacy/**"
     categories: [missing_lifecycle]
+enforce_rules: []
 ```
+
+`enforce_rules` contains **rule ids** of validated rules that may block. Naming an
+experimental rule has no effect and prints a warning; to enforce one anyway, override
+its `maturity` in a rule pack that extends the built-in rules (`--print-rules` shows
+them).
 
 `ignore_rules` contains **category names**, listed in the [rule reference](rules.md).
 An `ignore_paths` entry without categories suppresses every category under that path.

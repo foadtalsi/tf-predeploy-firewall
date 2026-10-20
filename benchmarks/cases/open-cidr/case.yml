@@ -1,0 +1,19 @@
+description: Ingress opened to 0.0.0.0/0, at the top level and inside ingress blocks.
+expect:
+  - {rule: open_cidr, target: aws_security_group_rule.ssh_from_anywhere}
+  - {rule: open_cidr, target: aws_vpc_security_group_ingress_rule.rdp_from_anywhere}
+  - {rule: open_cidr, target: aws_network_acl_rule.all_inbound}
+  - {rule: open_cidr, target: aws_security_group_rule.mysql_from_anywhere}
+  - {rule: open_cidr, target: aws_vpc_security_group_ingress_rule.postgres_from_anywhere}
+  - {rule: open_cidr_in_block, target: aws_security_group.web}
+  - {rule: open_cidr_in_block, target: aws_security_group.database}
+  - {rule: open_cidr_in_block, target: aws_security_group.admin}
+  - {rule: open_cidr_in_block, target: aws_security_group.redis}
+  - {rule: open_cidr_in_block, target: aws_security_group.elasticsearch}
+must_not_report:
+  - {rule: open_cidr, target: aws_security_group_rule.ssh_from_office}
+  - {rule: open_cidr, target: aws_vpc_security_group_ingress_rule.https_from_vpc}
+  - {rule: open_cidr, target: aws_security_group_rule.from_variable}
+  - {rule: open_cidr_in_block, target: aws_security_group.internal}
+  - {rule: open_cidr_in_block, target: aws_security_group.office}
+  - {rule: open_cidr_in_block, target: aws_security_group.peered}

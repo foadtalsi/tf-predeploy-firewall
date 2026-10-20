@@ -1,0 +1,2 @@
+inputs = {
+  name = "app"

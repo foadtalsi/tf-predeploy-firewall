@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING
 from .. import ignore, providerversion
 from ..hcl import EvalContext, HCLParseError
 from ..parser import Resource, build_scope, parse_file, parse_file_with_context, type_from_address
-from ..report.finding import Category, Finding, Severity
+from ..report.finding import Finding, Severity
 from ..schema import KnowledgeBase
+from . import incomplete
 from .base import FileInput, Rule, RunOptions
 from .changedattrs import ChangedAttrKey, changed_attrs_for_resource
 
@@ -162,16 +163,7 @@ def run(
                 changed_file.path, changed_file.head_content, scope
             )
         except HCLParseError as parse_error:
-            findings.append(
-                Finding(
-                    file=changed_file.path,
-                    line=1,
-                    category=Category.UNKNOWN_ATTRIBUTE,
-                    severity=Severity.MEDIUM,
-                    resource="-",
-                    message=f"could not parse file as HCL: {parse_error}",
-                )
-            )
+            findings.append(incomplete.unparsable_file(changed_file.path, parse_error))
             continue
 
         base_resources_by_address: dict[str, Resource] = {}
@@ -183,8 +175,8 @@ def run(
             try:
                 for resource in parse_file(changed_file.path, changed_file.base_content):
                     base_resources_by_address[resource.address()] = resource
-            except HCLParseError:
-                pass
+            except HCLParseError as parse_error:
+                findings.append(incomplete.unparsable_base_file(changed_file.path, parse_error))
 
         file_input = FileInput(
             path=changed_file.path,

@@ -1,0 +1,281 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "aws_instance.node_0",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "node_0",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_instance.node_1",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "node_1",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_instance.node_2",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "node_2",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_instance.node_3",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "node_3",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_instance.node_4",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "node_4",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": null
+      }
+    },
+    {
+      "address": "aws_instance.other_0",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_0",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_1",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_1",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_2",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_2",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_3",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_3",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_4",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_4",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_5",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_5",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_6",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_6",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_7",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_7",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_8",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_8",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.other_9",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "other_9",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "no-op"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    }
+  ]
+}

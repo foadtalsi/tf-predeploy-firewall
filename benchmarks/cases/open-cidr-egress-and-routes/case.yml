@@ -1,0 +1,8 @@
+description: Default routes and allow-all egress, the most common legitimate uses of 0.0.0.0/0.
+must_not_report:
+  - {rule: open_cidr, target: aws_route.default_via_internet_gateway}
+  - {rule: open_cidr, target: aws_route.default_via_nat}
+  - {rule: open_cidr, target: aws_security_group_rule.all_outbound}
+  - {rule: open_cidr, target: aws_vpc_security_group_egress_rule.all_outbound}
+  - {rule: open_cidr_in_block, target: aws_security_group.app}
+  - {rule: open_cidr_in_block, target: aws_route_table.public}

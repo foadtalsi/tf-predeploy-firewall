@@ -1,0 +1,13 @@
+description: Guard settings set from values the scanner cannot evaluate, and evaluable look-alikes.
+expect:
+  - {rule: unresolved_guard_value, target: aws_db_instance.public_from_variable}
+  - {rule: unresolved_guard_value, target: aws_ebs_volume.encryption_from_variable}
+  - {rule: unresolved_guard_value, target: aws_rds_cluster.snapshot_from_variable}
+  - {rule: unresolved_guard_value, target: aws_instance.tokens_from_variable}
+  - {rule: unresolved_guard_value, target: aws_cloudtrail.logging_from_variable}
+  - {rule: unresolved_guard_value, target: aws_s3_bucket.force_destroy_from_resource}
+must_not_report:
+  - {rule: unresolved_guard_value, target: aws_db_instance.public_from_default}
+  - {rule: unresolved_guard_value, target: aws_db_instance.credential_reference}
+  - {rule: unresolved_guard_value, target: aws_s3_bucket.name_from_variable}
+  - {rule: unresolved_guard_value, target: aws_instance.literal_tokens}

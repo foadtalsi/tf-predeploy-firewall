@@ -1,0 +1,32 @@
+description: Data stores, buckets and instance metadata explicitly exposed, and safe look-alikes.
+expect:
+  - {rule: public_data_store, target: aws_db_instance.public}
+  - {rule: public_data_store, target: aws_db_instance.public_reporting}
+  - {rule: public_data_store, target: aws_rds_cluster_instance.public}
+  - {rule: public_data_store, target: aws_redshift_cluster.public}
+  - {rule: public_data_store, target: aws_dms_replication_instance.public}
+  - {rule: public_acl, target: aws_s3_bucket_acl.public_read}
+  - {rule: public_acl, target: aws_s3_bucket_acl.public_read_write}
+  - {rule: public_acl, target: aws_s3_bucket_acl.authenticated_read}
+  - {rule: public_acl, target: aws_s3_bucket.legacy_public}
+  - {rule: public_acl, target: aws_s3_object.public_object}
+  - {rule: s3_public_access_block_disabled, target: aws_s3_bucket_public_access_block.all_off, count: 4}
+  - {rule: s3_public_access_block_disabled, target: aws_s3_bucket_public_access_block.policy_off}
+  - {rule: imds_v1_allowed, target: aws_instance.imds_v1}
+  - {rule: imds_v1_allowed, target: aws_launch_template.imds_v1}
+  - {rule: imds_v1_allowed, target: aws_instance.imds_v1_bastion}
+  - {rule: imds_v1_allowed, target: aws_launch_template.imds_v1_batch}
+  - {rule: imds_v1_allowed, target: aws_instance.imds_v1_legacy}
+must_not_report:
+  - {rule: public_data_store, target: aws_db_instance.private}
+  - {rule: public_data_store, target: aws_db_instance.from_default}
+  - {rule: public_data_store, target: aws_redshift_cluster.private}
+  - {rule: public_acl, target: aws_s3_bucket_acl.private}
+  - {rule: public_acl, target: aws_s3_bucket_acl.log_delivery}
+  - {rule: public_acl, target: aws_s3_object.owner_full_control}
+  - {rule: s3_public_access_block_disabled, target: aws_s3_bucket_public_access_block.all_on}
+  - {rule: s3_public_access_block_disabled, target: aws_s3_bucket_public_access_block.defaults}
+  - {rule: s3_public_access_block_disabled, target: aws_s3_bucket_public_access_block.from_variable}
+  - {rule: imds_v1_allowed, target: aws_instance.imds_v2}
+  - {rule: imds_v1_allowed, target: aws_launch_template.imds_disabled}
+  - {rule: imds_v1_allowed, target: aws_instance.no_metadata_options}

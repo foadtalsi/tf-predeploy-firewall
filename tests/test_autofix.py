@@ -119,7 +119,7 @@ def test_pipeline_publishes_proposals_without_changing_blocking_verdict(proposal
     from tfpdf.cli.config import Config
 
     args, finding, _, _, _ = proposal
-    monkeypatch.setattr(pipeline, "_collect_findings", lambda *_: [finding])
+    monkeypatch.setattr(pipeline, "collect_findings", lambda *_: [finding])
     monkeypatch.setattr(pipeline, "apply_waivers", lambda findings, *_: findings)
     monkeypatch.setattr(pipeline, "report_usage", lambda *_: False)
     publish = Mock()

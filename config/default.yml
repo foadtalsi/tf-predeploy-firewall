@@ -1,5 +1,6 @@
 # Configuration for this repository's self-scan. Exclude intentionally insecure test fixtures
-# only. This file is not copied into the Action image; other repositories use defaults unless
-# they provide their own config.
+# and benchmark cases only. This file is not copied into the Action image; other repositories
+# use defaults unless they provide their own config.
 ignore_paths:
   - path: "tests/data/**"
+  - path: "benchmarks/cases/**"

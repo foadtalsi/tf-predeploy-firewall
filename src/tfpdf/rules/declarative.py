@@ -61,7 +61,7 @@ class DeclarativeRule:
                 for name in sorted(resource.attributes)
             )
         if matcher.scope in ("block_attribute", "any_attribute"):
-            for block in resource.blocks:
+            for block in all_nested_blocks(resource):
                 if matcher.block_types and block.type not in matcher.block_types:
                     continue
                 locations.extend(
@@ -169,6 +169,11 @@ def build_fix(
     )
 
 
+def all_nested_blocks(resource: Resource) -> list[NestedBlock]:
+    """Return every nested block of a resource at any depth, outermost first."""
+    return [nested for block in resource.blocks for nested in block.walk()]
+
+
 def base_vars(res: Resource) -> dict[str, str]:
     return {
         "resource": res.address(),
@@ -182,7 +187,15 @@ def matches_resource(m: Match, res: Resource) -> bool:
     """Apply block-level filters. Empty filters impose no restrictions."""
     if m.kinds and str(res.kind) not in m.kinds:
         return False
-    return not (m.resource_types and res.type not in m.resource_types)
+    if m.resource_types and res.type not in m.resource_types:
+        return False
+    if res.type in m.skip_resource_types:
+        return False
+    for name, value in m.skip_when_attribute_equals.items():
+        attribute = res.attributes.get(name)
+        if attribute is not None and attribute.is_literal and attribute.raw_value == value:
+            return False
+    return True
 
 
 def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool]:

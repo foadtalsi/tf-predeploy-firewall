@@ -1,0 +1,12 @@
+description: Changes to arguments that force a replacement, and in-place updates that do not.
+expect:
+  - {rule: force_new_change, target: aws_db_instance.orders}
+  - {rule: force_new_change, target: aws_s3_bucket.logs}
+  - {rule: force_new_change, target: aws_dynamodb_table.sessions}
+  - {rule: force_new_change, target: aws_instance.web}
+  - {rule: force_new_change, target: aws_db_instance.reporting}
+must_not_report:
+  - {rule: force_new_change, target: aws_db_instance.resized}
+  - {rule: force_new_change, target: aws_s3_bucket.tagged}
+  - {rule: force_new_change, target: aws_instance.upsized}
+  - {rule: force_new_change, target: aws_db_instance.brand_new}

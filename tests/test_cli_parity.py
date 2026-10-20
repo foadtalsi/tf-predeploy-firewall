@@ -156,15 +156,18 @@ def _mask_pack_versions(payload: str) -> str:
 #: the right outcome. Delete an entry if its rule comes back.
 RETIRED_SARIF_RULES = frozenset({"cost_impact"})
 
+#: Rules this scanner added after the port, which the Go oracle never listed. They are appended
+#: after the inherited rules, so no earlier ruleIndex moves, and taken out of the Python output
+#: before the comparison.
+ADDED_SARIF_RULES = frozenset({"incomplete_analysis", "unresolved_value"})
 
-def _without_retired_rules(sarif: str) -> dict[str, object]:
-    """The Go oracle's SARIF without the rules this scanner retired on purpose."""
+
+def _without_rules(sarif: str, rule_ids: frozenset[str]) -> dict[str, object]:
+    """A SARIF document without the named rules in its driver."""
     document = json.loads(sarif)
     for run in document["runs"]:
         driver = run["tool"]["driver"]
-        driver["rules"] = [
-            rule for rule in driver["rules"] if rule["id"] not in RETIRED_SARIF_RULES
-        ]
+        driver["rules"] = [rule for rule in driver["rules"] if rule["id"] not in rule_ids]
     return document
 
 
@@ -172,19 +175,19 @@ def _without_retired_rules(sarif: str) -> dict[str, object]:
 def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) -> None:
     """Compare SARIF, Code Quality, and coverage output against the Go oracle byte for byte,
     except for SARIF rules this scanner retired on purpose and the provider version each pack
-    stamps into documentation links. Match the oracle's stamped version to the installed Python
-    package.
+    stamps into documentation links, and SARIF rules added after the port. Match the oracle's
+    stamped version to the installed Python package.
     """
     go = _mask_pack_versions((both / f"go.{artefact}").read_text(encoding="utf-8"))
     py = _mask_pack_versions((both / f"py.{artefact}").read_text(encoding="utf-8"))
     if artefact == "sarif.json":
-        # Retired rules are the one deliberate difference from the Go oracle. Every other rule,
-        # every result and every ruleIndex must still match.
+        # Retired and added rules are the deliberate differences from the Go oracle. Every other
+        # rule, every result and every ruleIndex must still match.
         listed = {
             rule["id"] for run in json.loads(py)["runs"] for rule in run["tool"]["driver"]["rules"]
         }
         assert not listed & RETIRED_SARIF_RULES, "a retired rule is listed again"
-        assert _without_retired_rules(go) == json.loads(py)
+        assert _without_rules(go, RETIRED_SARIF_RULES) == _without_rules(py, ADDED_SARIF_RULES)
         return
     assert go == py
 
@@ -243,10 +246,14 @@ def test_full_repo_scan_agrees_over_the_go_fixture_corpus(
     py_code = _run(_PY_ENTRY, core, out, "py", "--full-repo-scan")
     assert go_code == py_code
 
-    for artefact in ("sarif.json", "cq.json"):
-        assert _mask_pack_versions((out / f"go.{artefact}").read_text(encoding="utf-8")) == (
-            _mask_pack_versions((out / f"py.{artefact}").read_text(encoding="utf-8"))
-        )
+    go_sarif = _mask_pack_versions((out / "go.sarif.json").read_text(encoding="utf-8"))
+    py_sarif = _mask_pack_versions((out / "py.sarif.json").read_text(encoding="utf-8"))
+    assert _without_rules(go_sarif, RETIRED_SARIF_RULES) == _without_rules(
+        py_sarif, ADDED_SARIF_RULES
+    )
+    assert _mask_pack_versions((out / "go.cq.json").read_text(encoding="utf-8")) == (
+        _mask_pack_versions((out / "py.cq.json").read_text(encoding="utf-8"))
+    )
 
     go, py = _rows(out / "go.md"), _rows(out / "py.md")
     assert len(go) > 50, "expected the fixture corpus to produce a substantial report"

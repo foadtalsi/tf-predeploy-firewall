@@ -26,13 +26,13 @@ cloud credentials. Your environment must allow local loopback servers.
 Run the relevant test file while developing, then the CI checks before submitting:
 
 ```sh
-ruff check src tests
-ruff format --check src tests
+ruff check src tests benchmarks
+ruff format --check src tests benchmarks
 mypy
 pytest
 ```
 
-Use `ruff format src tests` to apply formatting. For example, run
+Use `ruff format src tests benchmarks` to apply formatting. For example, run
 `pytest tests/test_engine.py` after changing engine behavior. Include a regression
 case for the bug you fix, with a minimal Terraform example and expected finding.
 
@@ -43,7 +43,10 @@ case for the bug you fix, with a minimal Terraform example and expected finding.
 2. Change the declarative definition or the specialized detector under
    `src/tfpdf/rules/`. Keep rule IDs stable: baselines and integrations depend on them.
 3. Test both a risky example and a similar safe example. For exact fixes, check the
-   replacement text and source range, including indentation.
+   replacement text and source range, including indentation. Add the same examples to the
+   rule's case under `benchmarks/cases` as a positive and a near miss, then run
+   `python benchmarks/score.py --write` and commit `benchmarks/RESULTS.md`; see
+   [docs/benchmark.md](docs/benchmark.md). A new rule starts with `maturity="experimental"`.
 4. Update the category help beside the rule, then regenerate its reference:
 
    ```sh

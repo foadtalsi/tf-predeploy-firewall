@@ -1,0 +1,3 @@
+description: A plan replacing 12 resources, at or above the default threshold of 10.
+expect:
+  - {rule: large_blast_radius, target: 12 resources}

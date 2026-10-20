@@ -1,0 +1,159 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "aws_db_instance.orders",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "orders",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "engine": "postgres"
+        },
+        "after": {
+          "engine": "mysql"
+        }
+      }
+    },
+    {
+      "address": "aws_db_instance.billing",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "billing",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "username": "billing_admin"
+        },
+        "after": {
+          "username": "admin"
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket.logs",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_s3_bucket",
+      "name": "logs",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "bucket": "acme-logs"
+        },
+        "after": {
+          "bucket": "acme-logs-v2"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.web",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "ami": "ami-0abcdef1234567890"
+        },
+        "after": {
+          "ami": "ami-0fedcba9876543210"
+        }
+      }
+    },
+    {
+      "address": "aws_dynamodb_table.sessions",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_dynamodb_table",
+      "name": "sessions",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "hash_key": "id"
+        },
+        "after": {
+          "hash_key": "session_id"
+        }
+      }
+    },
+    {
+      "address": "aws_db_instance.reporting",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "reporting",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "engine": "postgres"
+        },
+        "after": {
+          "engine": "mysql"
+        }
+      }
+    },
+    {
+      "address": "aws_db_instance.resized",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "resized",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "instance_class": "db.t3.micro"
+        },
+        "after": {
+          "instance_class": "db.t3.large"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.replaced",
+      "module_address": "",
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "replaced",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": [
+          "delete",
+          "create"
+        ],
+        "before": {
+          "ami": "ami-1"
+        },
+        "after": {
+          "ami": "ami-2"
+        }
+      }
+    }
+  ]
+}

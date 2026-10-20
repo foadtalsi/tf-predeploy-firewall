@@ -50,16 +50,57 @@ def _wants_markdown_on_stdout(choice: str) -> bool:
 
 
 def blocked_by(findings: list[Finding], threshold: Severity | str) -> bool:
-    """Block when an unaccepted finding reaches the configured threshold."""
-    return any(finding.severity.at_least(threshold) for finding in findings if not finding.waived)
+    """Block when an unaccepted finding from an enforced rule reaches the configured threshold."""
+    return any(
+        finding.severity.at_least(threshold)
+        for finding in findings
+        if not finding.waived and not finding.advisory
+    )
+
+
+def mark_findings_of_unenforced_rules(
+    findings: list[Finding], pack: ruledef.Pack, enforce_rules: list[str]
+) -> None:
+    """Flag findings whose rule may not block: experimental rules never block, validated rules
+    block only when named in `enforce_rules`, stable rules always may. A finding whose rule is not
+    in the pack (custom rules, variable files) keeps blocking as before.
+    """
+    for finding in findings:
+        rule = pack.by_id(finding.rule_name)
+        if rule is None or rule.maturity == "stable":
+            continue
+        if rule.maturity == "validated" and rule.id in enforce_rules:
+            continue
+        finding.advisory = True
+
+
+def warn_unenforceable_rules(pack: ruledef.Pack, enforce_rules: list[str]) -> None:
+    """Explain an `enforce_rules` entry that cannot take effect, instead of ignoring it quietly."""
+    for rule_id in enforce_rules:
+        rule = pack.by_id(rule_id)
+        if rule is None:
+            _warn(f"enforce_rules names {rule_id!r}, which is not a rule in the active pack")
+        elif rule.maturity == "experimental":
+            _warn(
+                f"enforce_rules names {rule_id!r}, an experimental rule — it has no benchmark "
+                "evidence yet and never blocks. Override its maturity in a rule pack that "
+                "extends the built-in one to enforce it anyway."
+            )
 
 
 def load_ruleset(path: str) -> list[Rule]:
     """Load built-in or external rules. External rules replace built-ins unless extends: builtin is
     set.
     """
+    return rules.from_pack(load_rule_pack(path))
+
+
+def load_rule_pack(path: str) -> ruledef.Pack:
+    """Load the built-in pack, or an external pack that replaces it or, with extends: builtin,
+    is layered over it.
+    """
     if not path:
-        return rules.default_rules()
+        return rules.builtin_pack()
 
     try:
         data = Path(path).read_bytes()
@@ -77,11 +118,12 @@ def load_ruleset(path: str) -> list[Rule]:
     if pack.extends == ruledef.EXTENDS_BUILTIN:
         try:
             merged, merge_report = ruledef.merge(rules.builtin_pack(), pack)
-            ruleset = rules.from_pack(merged)
+            # Built here only to reject an engine this scanner does not have.
+            rules.from_pack(merged)
         except ruledef.RulePackError as exc:
             raise ConfigError(f"{path}: {exc}") from exc
         _warn(f"rule pack {path} extends the built-in rules: {merge_report}")
-        return ruleset
+        return merged
 
     try:
         ruleset = rules.from_pack(pack)
@@ -91,7 +133,7 @@ def load_ruleset(path: str) -> list[Rule]:
         f"using rule pack {path} ({len(pack.rules)} definitions, {len(ruleset)} active) "
         "— the built-in rules are NOT in effect"
     )
-    return ruleset
+    return pack
 
 
 def load_knowledge_base(
@@ -137,7 +179,7 @@ def load_knowledge_base(
 
 def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -> int:
     """Collect findings, apply accepted risks, decide whether to block, and publish results."""
-    findings = _collect_findings(args, config)
+    findings = collect_findings(args, config)
     if args.write_baseline:
         return _write_baseline(args.write_baseline, findings)
 
@@ -165,7 +207,7 @@ def execute_scan(args: argparse.Namespace, config: Config, post_comment: bool) -
     return 1 if blocked else 0
 
 
-def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Finding]:
+def collect_findings(arguments: argparse.Namespace, config: Config) -> list[Finding]:
     """Scan source and optional plan input before applying accepted risks."""
     mode = terraformscan.Mode(
         staged=bool(arguments.staged),
@@ -202,7 +244,9 @@ def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Fin
     )
     warn_uncovered_providers(changed_files, coverage)
 
-    ruleset = load_ruleset(arguments.rules)
+    rule_pack = load_rule_pack(arguments.rules)
+    warn_unenforceable_rules(rule_pack, config.enforce_rules)
+    ruleset = rules.from_pack(rule_pack)
 
     custom_rule_set = load_custom_rules(arguments.config)
     if custom_rule_set is not None:
@@ -246,8 +290,12 @@ def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Fin
     findings += ignore.apply(
         terraformscan.scan_tfvars(arguments.repo_dir, mode, _warn), {}, config.ignore_rules
     )
+    findings += ignore.apply(
+        terraformscan.report_terraform_json(arguments.repo_dir, mode), {}, config.ignore_rules
+    )
     findings = ignore.apply_path_rules(findings, config.ignore_path_rules())
 
+    mark_findings_of_unenforced_rules(findings, rule_pack, config.enforce_rules)
     return findings
 
 

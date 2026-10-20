@@ -14,9 +14,57 @@ release; see the [usage guide](docs/usage.md) for current behavior.
   clusters (`redshift:DescribeClusters`), and `skip_final_snapshot` now covers
   DocumentDB, Neptune and Redshift clusters too. Add the new actions to the role to
   use them; a refused lookup keeps the static severity.
+- Rule maturity. Each rule is `experimental` (reported, never blocks), `validated`
+  (blocks only when listed in the new `enforce_rules` config key) or `stable` (blocks).
+  Every rule that shipped before is `stable`, so nothing that blocked stops blocking.
+  The report marks a finding from a rule that is not enforced.
+- A labelled benchmark under `benchmarks/`: every rule is scored on positives and near
+  misses, and a rule allowed to block must meet published acceptance criteria. See
+  [docs/benchmark.md](docs/benchmark.md) and
+  [benchmarks/RESULTS.md](benchmarks/RESULTS.md).
+- `unresolved_value` (`unresolved_guard_value`, low, experimental): a guard setting whose
+  value cannot be evaluated, such as `publicly_accessible = var.public` with no default,
+  is reported as unverified instead of passing in silence.
+- Changed `.tf.json` files are reported as `unsupported_file_format` (medium) instead of
+  being skipped without a word; this scanner does not analyse Terraform JSON syntax.
+- The rule format accepts `skip_resource_types` and `skip_when_attribute_equals` in a
+  `match` block.
+
+### Changed
+
+- **A file that does not parse now blocks.** It was reported as an unknown attribute at
+  `medium`, below the default threshold, so a syntax error — or a construct this parser
+  rejects — let a pull request pass with nothing in the file checked. It is now
+  `incomplete_analysis` / `unparsable_file` at `high`, on the line of the error. An
+  unreadable `.tfvars`, `.tfvars.json` or `terragrunt.hcl` file, which only printed a
+  warning, is reported the same way. A base revision that does not parse is reported at
+  `low` (`unparsable_base_file`), since ForceNew changes in that file went unchecked.
+- `open_cidr` no longer reports default routes (`destination_cidr_block`), egress rules
+  (`aws_vpc_security_group_egress_rule`, `type = "egress"`) or egress network ACL entries,
+  and `open_cidr_in_block` no longer reports `egress` blocks. Allow-all egress and a
+  default route are how almost every VPC is built, and both rules block at `high`.
+- `encryption_at_rest_disabled` no longer reports `infrastructure_encryption_enabled =
+  false`: that setting removes a second layer, and encryption at rest stays on.
+- Arguments that hold a digest of public content (`etag`, `*_hash`, `checksum`, `digest`,
+  `md5`, `sha1`, `sha256`, `sha512`) are no longer read as hex or base64 secrets.
+- Within the credential-value group, a PEM key, a JWT or a GitHub token is now named for
+  what it is: the 40-character AWS secret key pattern, which matches part of each of
+  them, is tried after them.
 
 ### Fixed
 
+- **The parser looped forever on an unterminated quoted string at the end of a line**,
+  such as `name = "${var.prefix-app"`, so one typo in a pull request hung the scan until
+  the CI job timed out. The string now ends at the line break, as in HCL, and the lexer
+  stops with a diagnostic if it ever stops advancing.
+- `iam_document_wildcard_principal` never fired: `principals` sits inside `statement`,
+  and the parser exposed one level of nested blocks only. Nested blocks are now read at
+  every depth, so `principals { identifiers = ["*"] }` is reported.
+- `weak_tls_policy` missed `TLS_1_0` (API Gateway), `ELBSecurityPolicy-2016-08` and
+  `ELBSecurityPolicy-2015-05`, and TLS 1.3 policies with a TLS 1.0 or 1.1 floor
+  (`ELBSecurityPolicy-TLS13-1-0-2021-06`).
+- `encryption_in_transit_disabled` missed `https_traffic_only_enabled = false`, the name
+  azurerm 4 and later use for `enable_https_traffic_only`.
 - A versioned bucket holding only noncurrent versions was rated empty, so
   `force_destroy` on it dropped to `low`. The check now also lists versions
   (`s3:ListObjectVersions`, IAM `s3:ListBucketVersions`); without that permission, a

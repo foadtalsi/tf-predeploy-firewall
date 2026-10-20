@@ -111,6 +111,8 @@ def _headline(
 
     if blocked:
         return paint(_COLOR[Severity.CRITICAL], head + f"  ✗ blocked at {threshold}")
+    if any(finding.advisory and finding.severity.at_least(threshold) for finding in live):
+        return paint(_BOLD, head) + paint(_DIM, f"  nothing enforced reaches {threshold}")
     return paint(_BOLD, head) + paint(_DIM, f"  nothing reaches {threshold}")
 
 
@@ -134,6 +136,9 @@ def _render_group(
     title = category_display(first.category)
     if first.rule_name and first.rule_name != str(first.category):
         title += paint(_DIM, f" · {first.rule_name}")
+    # Every finding of one rule shares its enforcement status.
+    if first.advisory:
+        title += paint(_DIM, " · not enforced yet, never blocks")
     lines = [paint(_COLOR[severity], f"{severity}") + f"  {title}{count}"]
 
     # Print the shared explanation once per rule, then list individual findings.

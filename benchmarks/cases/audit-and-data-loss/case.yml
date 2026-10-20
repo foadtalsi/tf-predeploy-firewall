@@ -1,0 +1,27 @@
+description: Audit trails switched off and settings that lose data on destroy, with safe look-alikes.
+expect:
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.organization}
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.management_events}
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.data_events}
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.security_account}
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.sandbox}
+  - {rule: skip_final_snapshot, target: aws_db_instance.no_final_snapshot}
+  - {rule: skip_final_snapshot, target: aws_rds_cluster.no_final_snapshot}
+  - {rule: skip_final_snapshot, target: aws_docdb_cluster.no_final_snapshot}
+  - {rule: skip_final_snapshot, target: aws_neptune_cluster.no_final_snapshot}
+  - {rule: skip_final_snapshot, target: aws_redshift_cluster.no_final_snapshot}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.force_destroy_backups}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.force_destroy_logs}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.force_destroy_exports}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.force_destroy_uploads}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.force_destroy_reports}
+must_not_report:
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.enabled}
+  - {rule: audit_logging_disabled, target: aws_cloudtrail.default}
+  - {rule: audit_logging_disabled, target: aws_cloudwatch_event_rule.disabled_schedule}
+  - {rule: skip_final_snapshot, target: aws_db_instance.final_snapshot}
+  - {rule: skip_final_snapshot, target: aws_rds_cluster.snapshot_from_default}
+  - {rule: skip_final_snapshot, target: aws_db_instance.snapshot_by_default}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.kept_on_destroy}
+  - {rule: s3_force_destroy, target: aws_s3_bucket.default_destroy}
+  - {rule: s3_force_destroy, target: aws_ecr_repository.force_delete_is_another_rule}

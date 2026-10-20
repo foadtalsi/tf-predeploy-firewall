@@ -23,6 +23,13 @@ EXTENDS_BUILTIN = "builtin"
 
 VALID_SEVERITIES = frozenset({"low", "medium", "high", "critical"})
 
+#: How much evidence stands behind a rule, and therefore whether its findings may block a merge.
+#:   experimental — reported, never blocks; no benchmark evidence yet
+#:   validated    — meets its benchmark acceptance criteria; blocks only when opted into
+#:   stable       — validated and enforced by default
+#: See docs/benchmark.md for the acceptance criteria.
+VALID_MATURITIES = ("experimental", "validated", "stable")
+
 VALID_SCOPES = frozenset({"attribute", "block_attribute", "any_attribute", "resource_name"})
 
 #: Only the one action, because it is the only one a declarative rule can
@@ -79,6 +86,11 @@ class Match:
     resource_types: list[str] = field(default_factory=list)
     #: Restricts which nested blocks are walked; empty means all.
     block_types: list[str] = field(default_factory=list)
+    #: Provider type names the rule never applies to.
+    skip_resource_types: list[str] = field(default_factory=list)
+    #: Skips a resource when any of these top-level attributes is set to exactly this literal
+    #: value, such as `type = "egress"` on a security group rule.
+    skip_when_attribute_equals: dict[str, str] = field(default_factory=dict)
 
     attr_names: list[str] = field(default_factory=list)
     attr_name_matches: str = ""
@@ -193,6 +205,11 @@ class Rule:
     #: type and no schema-per-engine.
     params: dict[str, str] = field(default_factory=dict)
 
+    #: One of VALID_MATURITIES. Only a stable rule blocks a merge by default; the others report
+    #: and wait for evidence. Defaults to stable so that an external pack written before this
+    #: field existed keeps blocking exactly as it did.
+    maturity: str = "stable"
+
     #: Switches one rule off. Only meaningful in a pack that extends another —
     #: it is how you turn off a single built-in detector without disowning the
     #: rest of its category, which is all `ignore_rules:` in the config can do.
@@ -214,6 +231,10 @@ class Rule:
         if self.severity not in VALID_SEVERITIES:
             raise RulePackError(
                 f"severity must be one of low/medium/high/critical, got {self.severity!r}"
+            )
+        if self.maturity not in VALID_MATURITIES:
+            raise RulePackError(
+                f"maturity must be one of experimental/validated/stable, got {self.maturity!r}"
             )
         if not self.engine and self.match is None:
             raise RulePackError("a rule needs either an engine or a match block")
@@ -403,6 +424,11 @@ def _match_from_dict(d: dict[str, Any]) -> Match:
         kinds=_as_str_list(d.get("kinds")),
         resource_types=_as_str_list(d.get("resource_types")),
         block_types=_as_str_list(d.get("block_types")),
+        skip_resource_types=_as_str_list(d.get("skip_resource_types")),
+        skip_when_attribute_equals={
+            str(name): str(value)
+            for name, value in (d.get("skip_when_attribute_equals") or {}).items()
+        },
         attr_names=_as_str_list(d.get("attr_names")),
         attr_name_matches=str(d.get("attr_name_matches", "")),
         attr_name_not_matches=str(d.get("attr_name_not_matches", "")),
@@ -443,6 +469,7 @@ def _rule_from_dict(d: dict[str, Any]) -> Rule:
         suggestion=str(d.get("suggestion", "")),
         fix=_fix_from_dict(fix_d) if isinstance(fix_d, dict) else None,
         params={str(k): str(v) for k, v in params.items()},
+        maturity=str(d.get("maturity", "stable") or "stable"),
         disabled=bool(d.get("disabled", False)),
     )
 

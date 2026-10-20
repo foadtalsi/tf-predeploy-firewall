@@ -76,14 +76,18 @@ def _block_to_resource(
                 if not diagnostics.has_errors() and value.type is hcl.BOOL and not value.is_null():
                     resource.prevent_destroy_value = value.true()
             continue
-        nested_block = NestedBlock(
-            type=nested.type, labels=list(nested.labels), range=nested.def_range()
-        )
-        for attr_name, attribute in nested.body.attributes.items():
-            nested_block.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
-        resource.blocks.append(nested_block)
+        resource.blocks.append(_nested_block(nested, context))
 
     return resource
+
+
+def _nested_block(block: Block, context: EvalContext | None) -> NestedBlock:
+    """Convert a nested block and, recursively, the blocks inside it."""
+    nested_block = NestedBlock(type=block.type, labels=list(block.labels), range=block.def_range())
+    for attr_name, attribute in block.body.attributes.items():
+        nested_block.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
+    nested_block.blocks = [_nested_block(child, context) for child in block.body.blocks]
+    return nested_block
 
 
 def _attr_to_attribute(

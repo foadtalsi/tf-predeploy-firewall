@@ -46,6 +46,10 @@ class Config:
     # report.
     suggestions: bool = True
 
+    # Validated rules whose findings may block a merge. Stable rules always may; experimental
+    # rules never do.
+    enforce_rules: list[str] = field(default_factory=list)
+
     def ignore_path_rules(self) -> list[ignore.PathRule]:
         return [
             ignore.PathRule(pattern=p.path, categories=list(p.categories))
@@ -97,6 +101,8 @@ def _apply_yaml(config: Config, document: dict[str, Any]) -> None:
         config.plan_blast_radius_threshold = int(document["plan_blast_radius_threshold"])
     if document.get("suggestions") is not None:
         config.suggestions = bool(document["suggestions"])
+    if "enforce_rules" in document:
+        config.enforce_rules = _as_str_list(document["enforce_rules"])
     if "require_second_reviewer_users" in document:
         config.require_second_reviewer_users = _as_str_list(
             document["require_second_reviewer_users"]

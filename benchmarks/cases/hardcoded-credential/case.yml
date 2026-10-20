@@ -1,0 +1,12 @@
+description: Credential-named arguments set to literals, and look-alikes that are safe.
+expect:
+  - {rule: hardcoded_credential, target: aws_db_instance.inline}
+  - {rule: hardcoded_credential, target: aws_db_instance.via_default}
+  - {rule: hardcoded_credential, target: aws_elasticache_replication_group.sessions}
+  - {rule: hardcoded_credential, target: aws_dms_endpoint.source}
+  - {rule: hardcoded_credential, target: azurerm_kubernetes_cluster.platform}
+must_not_report:
+  - {rule: hardcoded_credential, target: aws_db_instance.from_variable}
+  - {rule: hardcoded_credential, target: aws_rds_cluster.managed}
+  - {rule: hardcoded_credential, target: aws_db_instance.generated}
+  - {rule: hardcoded_credential, target: aws_iam_user_login_profile.operator}

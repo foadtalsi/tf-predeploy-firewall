@@ -19,6 +19,7 @@ from .detectors import (
     UnpinnedVersionRule,
 )
 from .predicates import CONFIRM_PREDICATES, VALUE_PREDICATES, known_predicates
+from .unresolved import UnresolvedGuardRule, guard_rules
 
 #: The rules this build reaches for by name. The .tfvars and terragrunt
 #: scanners judge a value by exactly the same standard as a resource attribute,
@@ -128,6 +129,10 @@ def _build_rules(p: Pack) -> list[_BuiltRule]:
             out.append(
                 _BuiltRule(rule=DeclarativeRule(specs=[spec], scope=spec.match.scope), spec=spec)
             )
+        elif spec.engine == "unresolved_guard_value":
+            # The one engine built from other rules: it reports what the guard rules of this
+            # same pack could not evaluate.
+            out.append(_BuiltRule(rule=UnresolvedGuardRule(spec, guard_rules(p)), spec=spec))
         else:
             rule = _compiled_engine(spec)
             if rule is not None:
@@ -167,10 +172,15 @@ def _compiled_engine(spec: RuleSpec) -> Rule | None:
     if engine == "iam_wildcard":
         return IAMWildcardRule()
 
+    # Plan rules run from the plan, and the file-level rules from the engine and the file
+    # scanners, which build those findings themselves.
     if engine in (
         "confirmed_replace",
         "unexpected_drift",
         "large_blast_radius",
+        "unparsable_file",
+        "unparsable_base_file",
+        "unsupported_file_format",
     ):
         return None
 

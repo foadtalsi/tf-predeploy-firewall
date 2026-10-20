@@ -58,6 +58,16 @@ class NestedBlock:
     labels: list[str] = field(default_factory=list)
     range: Range = field(default_factory=Range)
     attributes: dict[str, Attribute] = field(default_factory=dict)
+    #: Blocks nested inside this one, such as `principals` inside a policy document's
+    #: `statement`.
+    blocks: list[NestedBlock] = field(default_factory=list)
+
+    def walk(self) -> list[NestedBlock]:
+        """Return this block and every block nested in it, outermost first."""
+        out = [self]
+        for child in self.blocks:
+            out.extend(child.walk())
+        return out
 
 
 @dataclass(slots=True)

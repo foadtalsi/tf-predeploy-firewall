@@ -29,8 +29,8 @@ jobs:
           cache: pip
 
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests
-      - run: ruff format --check src tests
+      - run: ruff check src tests benchmarks
+      - run: ruff format --check src tests benchmarks
       - run: mypy
       - run: pytest -q
 

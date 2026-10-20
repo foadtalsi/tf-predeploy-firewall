@@ -16,6 +16,13 @@ from .local import (
     uncommitted_terraform_files,
     uncommitted_terragrunt_files,
 )
+from .tfjson import (
+    all_terraform_json_files,
+    changed_terraform_json_files,
+    is_terraform_json,
+    staged_terraform_json_files,
+    uncommitted_terraform_json_files,
+)
 from .tfvars import (
     all_tfvars_files,
     changed_tfvars_files,
@@ -28,18 +35,23 @@ __all__ = [
     "ChangedFile",
     "GitError",
     "all_terraform_files",
+    "all_terraform_json_files",
     "all_terragrunt_files",
     "all_tfvars_files",
     "changed_terraform_files",
+    "changed_terraform_json_files",
     "changed_terragrunt_files",
     "changed_tfvars_files",
+    "is_terraform_json",
     "is_tfvars",
     "remote_url",
     "show_file",
     "staged_terraform_files",
+    "staged_terraform_json_files",
     "staged_terragrunt_files",
     "staged_tfvars_files",
     "uncommitted_terraform_files",
+    "uncommitted_terraform_json_files",
     "uncommitted_terragrunt_files",
     "uncommitted_tfvars_files",
 ]

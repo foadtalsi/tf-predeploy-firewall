@@ -16,6 +16,10 @@ SEVERITY_EMOJI = {
 }
 
 
+# Appended to the detail of a finding whose rule is not enforced yet.
+ADVISORY_NOTE = " _(rule not enforced yet: reported, never blocks)_"
+
+
 def _by_file_then_line(finding: Finding) -> tuple[str, int, str, str]:
     """Sort findings deterministically by file, line, and remaining tie-breakers."""
     return (finding.file, finding.line, str(finding.category), finding.message)
@@ -41,9 +45,15 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
             "accepted (see below).\n\n"
         )
     elif blocked:
+        enforced = [finding for finding in active if not finding.advisory]
         sections.append(
-            f"🚫 **Merge blocked** — findings at or above `{highest_severity(active)}` "
+            f"🚫 **Merge blocked** — findings at or above `{highest_severity(enforced)}` "
             f"severity (threshold: `{threshold}`).\n\n"
+        )
+    elif any(finding.advisory and finding.severity.at_least(threshold) for finding in active):
+        sections.append(
+            f"⚠️ {len(active)} finding(s), none from an enforced rule reaches the `{threshold}` "
+            "blocking threshold.\n\n"
         )
     else:
         sections.append(
@@ -57,7 +67,7 @@ def render_markdown(findings: list[Finding], threshold: Severity | str, blocked:
             sections.append(
                 f"| {SEVERITY_EMOJI.get(finding.severity, '')} {finding.severity} | `{finding.file}` | "
                 f"{finding.line} | {category_display(finding.category)} | {resource_cell(finding)} | "
-                f"{finding.message} |\n"
+                f"{finding.message}{ADVISORY_NOTE if finding.advisory else ''} |\n"
             )
 
     _render_suggestions(sections, active)

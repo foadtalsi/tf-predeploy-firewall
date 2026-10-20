@@ -1,0 +1,28 @@
+description: IAM policies granting every action or every principal, and narrower look-alikes.
+expect:
+  - {rule: iam_wildcard, target: aws_iam_policy.admin}
+  - {rule: iam_wildcard, target: aws_iam_role_policy.everything_on_bucket}
+  - {rule: iam_wildcard, target: aws_s3_bucket_policy.public_read}
+  - {rule: iam_wildcard, target: aws_iam_role.anyone_can_assume}
+  - {rule: iam_wildcard, target: aws_sqs_queue_policy.open_queue}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.admin_actions}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.all_actions_on_table}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.all_actions_second_statement}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.all_actions_kms}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.all_actions_queue}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_bucket}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.any_account}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_topic}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_queue}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_key}
+must_not_report:
+  - {rule: iam_wildcard, target: aws_iam_policy.read_only_everywhere}
+  - {rule: iam_wildcard, target: aws_s3_bucket_policy.organization_only}
+  - {rule: iam_wildcard, target: aws_iam_role.ec2_can_assume}
+  - {rule: iam_wildcard, target: aws_iam_policy.service_wildcard}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.scoped_actions}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.service_wildcard}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.actions_from_variable}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.named_account}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.service_principal}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.principal_from_variable}

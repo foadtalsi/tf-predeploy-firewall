@@ -188,6 +188,23 @@ SARIF_RULES: list[SarifRule] = [
             tags=["terraform", "plan", "blast-radius"], severity="warning"
         ),
     ),
+    # Appended after the rules inherited from the Go scanner, so that no earlier ruleIndex moves.
+    SarifRule(
+        id=Category.INCOMPLETE_ANALYSIS,
+        name="IncompleteAnalysis",
+        short_description=SarifMessage(
+            "A changed file the scanner could not analyse, so no rule checked it"
+        ),
+        properties=SarifRuleProperties(tags=["terraform", "coverage"], severity="error"),
+    ),
+    SarifRule(
+        id=Category.UNRESOLVED_VALUE,
+        name="UnresolvedValue",
+        short_description=SarifMessage(
+            "A security setting whose value could not be evaluated, so it was not checked"
+        ),
+        properties=SarifRuleProperties(tags=["terraform", "coverage"], severity="note"),
+    ),
 ]
 
 

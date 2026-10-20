@@ -1,0 +1,6 @@
+description: >
+  A plan destroying 9 resources, below the default threshold, alongside ten update actions
+  that destroy nothing.
+must_not_report:
+  - {rule: large_blast_radius, target: 9 resources}
+  - {rule: large_blast_radius, target: 19 resources}

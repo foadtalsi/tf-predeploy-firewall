@@ -28,6 +28,11 @@ from tfpdf.report import (
 ORACLES = Path(__file__).parent / "data" / "oracles"
 DATA = Path(__file__).parent / "data"
 
+#: Categories this scanner added after the port. The Go oracles predate them, so they are taken
+#: out of the generated output before the comparison; everything else must still match. Their
+#: SARIF rules are appended last, so no earlier ruleIndex moves.
+ADDED_CATEGORIES = ("incomplete_analysis", "unresolved_value")
+
 
 def _oracle_findings() -> list[Finding]:
     """Recreate the finding inputs used to generate the historical Go oracles."""
@@ -101,7 +106,13 @@ def test_sarif_matches_the_go_implementation() -> None:
     expected = json.loads(want)
     driver = expected["runs"][0]["tool"]["driver"]
     driver["rules"] = [rule for rule in driver["rules"] if rule["id"] != "cost_impact"]
-    assert json.loads(render_sarif(_oracle_findings())) == expected
+    got = json.loads(render_sarif(_oracle_findings()))
+    got_driver = got["runs"][0]["tool"]["driver"]
+    assert [rule["id"] for rule in got_driver["rules"][-len(ADDED_CATEGORIES) :]] == list(
+        ADDED_CATEGORIES
+    ), "rules added after the port are listed last"
+    got_driver["rules"] = got_driver["rules"][: -len(ADDED_CATEGORIES)]
+    assert got == expected
 
 
 def test_code_quality_matches_the_go_implementation() -> None:
@@ -164,4 +175,7 @@ def test_rule_docs_match_the_committed_go_generated_file(
     assert "internal/ruledef/rules.yaml" in want_preamble
 
     want_body = re.sub(r"## cost_impact.*?\n---\n\n", "", want_body, flags=re.S)
+    for category in ADDED_CATEGORIES:
+        assert f"## {category}\n" in got_body, f"{category} is documented"
+        got_body = re.sub(rf"## {category}\n.*?\n---\n\n", "", got_body, flags=re.S)
     assert got_body == want_body

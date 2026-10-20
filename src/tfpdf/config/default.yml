@@ -9,9 +9,14 @@ block_threshold: high
 # Valid values: unknown_attribute, unpinned_version, tutorial_pattern,
 # force_new_change, missing_lifecycle, public_exposure, encryption_disabled,
 # permissive_iam, audit_disabled,
-# confirmed_replace, unexpected_drift, large_blast_radius
+# confirmed_replace, unexpected_drift, large_blast_radius,
+# incomplete_analysis, unresolved_value
 # Use sparingly; prefer inline # tf-firewall-ignore: <category> comments for targeted suppression.
 ignore_rules: []
+
+# Rule ids of validated rules allowed to block. Stable rules always may; experimental rules
+# never do. See docs/benchmark.md for each rule's maturity.
+enforce_rules: []
 
 # --- Phase 2: terraform plan analysis (only active with --plan-json) ---
 # Number of destroy/replace actions in a single plan that triggers a

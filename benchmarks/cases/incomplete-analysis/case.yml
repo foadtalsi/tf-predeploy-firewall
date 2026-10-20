@@ -1,0 +1,32 @@
+description: >
+  Files the scanner cannot analyse: syntax errors in .tf, variable and Terragrunt files, an old
+  revision that does not parse, and Terraform JSON. Valid files of each kind are the near misses.
+expect:
+  - {rule: unparsable_file, target: file:unclosed_block.tf}
+  - {rule: unparsable_file, target: file:unclosed_map.tf}
+  - {rule: unparsable_file, target: file:unterminated_template.tf}
+  - {rule: unparsable_file, target: file:broken.tfvars}
+  - {rule: unparsable_file, target: file:broken.tfvars.json}
+  - {rule: unparsable_file, target: file:live/app/terragrunt.hcl}
+  - {rule: unparsable_base_file, target: file:fixed_1.tf}
+  - {rule: unparsable_base_file, target: file:fixed_2.tf}
+  - {rule: unparsable_base_file, target: file:fixed_3.tf}
+  - {rule: unparsable_base_file, target: file:fixed_4.tf}
+  - {rule: unparsable_base_file, target: file:fixed_5.tf}
+  - {rule: unsupported_file_format, target: file:generated/main.tf.json}
+  - {rule: unsupported_file_format, target: file:generated/network.tf.json}
+  - {rule: unsupported_file_format, target: file:generated/storage.tf.json}
+  - {rule: unsupported_file_format, target: file:generated/dns.tf.json}
+  - {rule: unsupported_file_format, target: file:generated/queues.tf.json}
+must_not_report:
+  - {rule: unparsable_file, target: file:valid.tf}
+  - {rule: unparsable_file, target: file:valid.tfvars}
+  - {rule: unparsable_file, target: file:valid.tfvars.json}
+  - {rule: unparsable_file, target: file:live/terragrunt.hcl}
+  - {rule: unparsable_file, target: file:heredoc_ok.tf}
+  - {rule: unparsable_base_file, target: file:unchanged_valid.tf}
+  - {rule: unparsable_base_file, target: file:valid.tf}
+  - {rule: unparsable_base_file, target: file:heredoc_ok.tf}
+  - {rule: unsupported_file_format, target: file:generated/not_terraform.json}
+  - {rule: unsupported_file_format, target: file:valid.tfvars.json}
+  - {rule: unsupported_file_format, target: file:valid.tf}
