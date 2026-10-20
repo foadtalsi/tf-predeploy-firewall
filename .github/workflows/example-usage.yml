@@ -5,23 +5,41 @@
 name: tf-predeploy-firewall
 on:
   pull_request:
-    paths: ["**/*.tf", "**/*.tfvars", "**/*.tfvars.json", "**/terragrunt.hcl"]
+    paths:
+      - "**/*.tf"
+      - "**/*.tf.json"
+      - "**/*.tfvars"
+      - "**/*.tfvars.json"
+      - "**/terragrunt.hcl"
+      # This repository's own fixtures and benchmark cases are insecure or malformed on
+      # purpose. Leave these two lines out of your copy.
+      - "!tests/data/**"
+      - "!benchmarks/cases/**"
 
-permissions:
-  pull-requests: write        # post/update the PR comment
-  contents: read
-  security-events: write      # upload SARIF to GitHub Code Scanning
+# Nothing at the workflow level; the job asks for exactly what it uses.
+permissions: {}
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    # A scan of a pull request takes seconds. The limit turns a stuck job into a failed check
+    # instead of six hours of runner time.
+    timeout-minutes: 15
+    permissions:
+      pull-requests: write # post/update the PR comment
+      contents: read
+      security-events: write # upload SARIF to GitHub Code Scanning
     steps:
-      # fetch-depth: 0 ensures the base branch ref is available for git diff
-      - uses: actions/checkout@v4
+      # fetch-depth: 0 ensures the base branch ref is available for git diff.
+      # Pin third-party actions to a full commit SHA, and let Dependabot update them.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: foadtalsi/tf-predeploy-firewall@v1
+      # In your copy, pin this to a release commit too: the release page lists it, and
+      # Dependabot updates it like any other action. @v1 follows every 1.x release.
+      - uses: foadtalsi/tf-predeploy-firewall@v1 # zizmor: ignore[unpinned-uses]
         with:
           # Set to 'critical' to only block on credentials-in-code / ForceNew on prod DB.
           # Set to 'medium' to also block on missing prevent_destroy.
@@ -34,7 +52,7 @@ jobs:
 
       # Upload findings to GitHub Code Scanning for inline PR annotations.
       # Runs even when the scan step fails (blocked PR) so findings are visible.
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.38.2
         if: always()
         with:
           sarif_file: tf-firewall.sarif

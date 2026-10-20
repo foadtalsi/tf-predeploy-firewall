@@ -207,3 +207,32 @@ Failed, empty, malformed, or truncated responses leave files and verdicts unchan
 existing deterministic suggestions remain available. The service limits requests to
 64 KiB and generation to 2,048 tokens. After accepting a fix, review it, validate the
 Terraform, and rerun the scan. Acceptance does not change the current scan's verdict.
+
+## Verify a release
+
+Each release after v1.3.1 is built once from its tag by
+[the release workflow](../.github/workflows/release.yml), and every published file can be
+traced back to that build:
+
+- The wheel and sdist on the GitHub release carry a build provenance attestation, signed
+  through GitHub's OIDC identity and recorded in a public transparency log.
+- `checksums.txt` lists their SHA-256 digests, and a CycloneDX SBOM
+  (`tf-predeploy-firewall-<tag>.cdx.json`) lists the package and the dependencies it
+  installed with.
+- The Action image is also published as `ghcr.io/foadtalsi/tf-predeploy-firewall:<tag>`,
+  with its own attestation and SBOM.
+
+Verify a downloaded package, or the image, with the GitHub CLI:
+
+```sh
+gh attestation verify tf_predeploy_firewall-<version>-py3-none-any.whl \
+  --repo foadtalsi/tf-predeploy-firewall
+gh attestation verify oci://ghcr.io/foadtalsi/tf-predeploy-firewall:<tag> \
+  --repo foadtalsi/tf-predeploy-firewall
+```
+
+The Action itself still builds its image from the `Dockerfile` at the tag you reference.
+The base image is pinned by digest and every Python package by version and hash
+(`requirements/`); only `git` and `ca-certificates` come from the Debian archive at build
+time. Pin the Action to a release commit SHA rather than `@v1` if your policy requires
+immutable references; the release page names the commit.

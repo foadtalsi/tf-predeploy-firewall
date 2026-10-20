@@ -50,25 +50,31 @@ on:
   pull_request:
     paths:
       - "**/*.tf"
+      - "**/*.tf.json"
       - "**/*.tfvars"
       - "**/*.tfvars.json"
       - "**/terragrunt.hcl"
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: foadtalsi/tf-predeploy-firewall@v1
 ```
 
-The full checkout makes the base revision available. The action creates or updates
+The full checkout makes the base revision available. Pin each action to a full commit SHA
+if your policy requires immutable references, `foadtalsi/tf-predeploy-firewall` included;
+see [Verify a release](docs/usage.md#verify-a-release). The action creates or updates
 a summary comment and posts exact fixes as review suggestions. Review a suggestion
 before accepting it with **Commit suggestion**. Repository branch protection controls
 whether a failed scan prevents merging.

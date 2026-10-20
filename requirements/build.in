@@ -1,0 +1,5 @@
+# The build backend and frontend for the Action image. Compile with:
+#   uv pip compile requirements/build.in --universal --generate-hashes \
+#     --python-version 3.12 --exclude-newer <two weeks ago> -o requirements/build.txt
+build
+hatchling

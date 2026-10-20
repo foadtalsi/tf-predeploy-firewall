@@ -51,6 +51,21 @@ release; see the [usage guide](docs/usage.md) for current behavior.
   what it is: the 40-character AWS secret key pattern, which matches part of each of
   them, is tried after them.
 
+### Security
+
+- Releases are built once and published with build provenance attestations, a CycloneDX
+  SBOM and checksums; the Action image is also published to `ghcr.io` with its own
+  attestation, and to PyPI once trusted publishing is enabled. See "Verify a release" in
+  the [usage guide](docs/usage.md).
+- The Action image is pinned: the base image by digest, the build backend and every
+  Python dependency by version and hash (`requirements/`). It used to install whatever
+  was newest when each run built it.
+- Every action in the workflows is pinned to a commit SHA, credentials are not persisted
+  in checkouts, permissions are declared per job, the release no longer uses a
+  dependency cache or interpolates its input into shell, and CI audits the workflows
+  (zizmor) and the locked dependencies (pip-audit). Dependabot proposes updates to every
+  pin after a 14-day cooldown.
+
 ### Fixed
 
 - **The parser looped forever on an unterminated quoted string at the end of a line**,

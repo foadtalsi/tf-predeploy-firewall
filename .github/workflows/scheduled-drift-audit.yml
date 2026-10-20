@@ -13,15 +13,19 @@ on:
     - cron: "0 6 * * 1" # every Monday at 06:00 UTC
   workflow_dispatch: {} # allow a manual run from the Actions tab too
 
-permissions:
-  contents: read
-  security-events: write # upload SARIF to GitHub Code Scanning
+permissions: {}
 
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to GitHub Code Scanning
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       # Before your first Monday: a full-repo scan reads EVERY .tf in the
       # checkout, including the ones you never meant as production — test
@@ -43,7 +47,8 @@ jobs:
       #     it below.
       #
       # This repository does the first: see config/default.yml.
-      - uses: foadtalsi/tf-predeploy-firewall@v1
+      # Pin this to a release commit in your copy; see example-usage.yml.
+      - uses: foadtalsi/tf-predeploy-firewall@v1 # zizmor: ignore[unpinned-uses]
         with:
           full-repo-scan: "true"
           block-threshold: high
@@ -52,7 +57,7 @@ jobs:
           # No github-token / post-comment here — there's no PR to comment
           # on for a scheduled run.
 
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: github/codeql-action/upload-sarif@1190a975f95ce23525efb6a3fc21ea29567c1b52 # v3.38.2
         if: always()
         with:
           sarif_file: tf-firewall-audit.sarif

@@ -1,0 +1,33 @@
+# Every pin in this repository has an owner here: the action SHAs in the workflows, the base
+# image digest in the Dockerfile, and the hash-locked requirements the image is built from.
+#
+# A release must be two weeks old before it is proposed. Most compromised packages and
+# actions are found and pulled within days; the delay keeps them out of an update.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+
+  - package-ecosystem: pip
+    directory: /requirements
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      image-dependencies:
+        patterns: ["*"]

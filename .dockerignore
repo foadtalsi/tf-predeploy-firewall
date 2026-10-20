@@ -1,7 +1,7 @@
-# Le contexte de build envoyé au démon.
+# The build context sent to the daemon.
 #
-# .venv seul fait 180 Mo, et il est recréé dans l'image de toute façon : le
-# Dockerfile construit un wheel puis l'installe dans un interpréteur propre.
+# .venv alone weighs 180 MB, and it is rebuilt in the image anyway: the
+# Dockerfile builds a wheel and installs it into a clean interpreter.
 
 .venv/
 .git/
@@ -12,10 +12,11 @@
 dist/
 build/
 
-# Rien de ce qui suit n'entre dans l'image. Le Dockerfile ne copie que
-# pyproject.toml, README.md et src/ ; les envoyer quand même ne fait que
-# ralentir chaque build et invalider le cache sur des changements sans effet.
+# Nothing below goes into the image. The Dockerfile copies only pyproject.toml,
+# README.md, requirements/ and src/; sending the rest only slows every build down
+# and invalidates the cache on changes that have no effect.
 tests/
 docs/
 tools/
+benchmarks/
 .github/

@@ -161,10 +161,11 @@ permissions:
   pull-requests: write
 
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
     with:
       fetch-depth: 0
-  - uses: aws-actions/configure-aws-credentials@v4
+      persist-credentials: false
+  - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
     with:
       role-to-assume: arn:aws:iam::123456789012:role/tf-predeploy-firewall-read
       aws-region: eu-west-3
