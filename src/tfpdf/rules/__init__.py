@@ -10,7 +10,7 @@ from .detectors import (
     UnknownAttributeRule,
     UnpinnedVersionRule,
 )
-from .engine import Result, ScopeCache, attach_doc_urls, run
+from .engine import Result, ScopeCache, adjust_severity_against_the_cloud, attach_doc_urls, run
 from .entropy import looks_like_secret, shannon_entropy
 from .goformat import sprint
 from .pack import (
@@ -52,6 +52,7 @@ __all__ = [
     "ScopeCache",
     "UnknownAttributeRule",
     "UnpinnedVersionRule",
+    "adjust_severity_against_the_cloud",
     "attach_doc_urls",
     "bare_resource_address",
     "builtin_pack",

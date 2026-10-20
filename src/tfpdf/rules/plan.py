@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .. import ignore, planjson
+from .. import cloudname, ignore, planjson
 from ..report.finding import Category, Finding, Severity
 from ..schema import KnowledgeBase
 from .changedattrs import ChangedAttrKey, bare_resource_address
@@ -99,6 +99,9 @@ class ConfirmedReplaceRule:
                         rule_name="confirmed_replace",
                         severity=Severity.CRITICAL,
                         resource=resource_change.address,
+                        cloud_name=cloudname.of_state(
+                            resource_change.type, resource_change.change.before
+                        ),
                         message=(
                             f"terraform plan confirms {resource_change.type} will be DESTROYED with "
                             "no replacement — this is a stateful/critical resource type; "
@@ -115,6 +118,11 @@ class ConfirmedReplaceRule:
                         rule_name="confirmed_replace",
                         severity=Severity.CRITICAL if critical else Severity.HIGH,
                         resource=resource_change.address,
+                        # The before-state names the resource that exists today, even when the
+                        # source builds its name from a variable.
+                        cloud_name=cloudname.of_state(
+                            resource_change.type, resource_change.change.before
+                        ),
                         message=(
                             f"terraform plan confirms {resource_change.type} will be destroyed and "
                             "recreated (replace) — data loss risk if this resource holds "

@@ -4,15 +4,20 @@ with an invented name could incorrectly lower severity.
 
 from __future__ import annotations
 
+import argparse
+from pathlib import Path
+
 import pytest
 
 from tfpdf import cloudname
 from tfpdf.diff import ChangedFile
 from tfpdf.parser import parse_file
-from tfpdf.report.finding import Severity
+from tfpdf.report.finding import Finding, Severity
 from tfpdf.rules import RunOptions, default_rules, run
 from tfpdf.schema import KnowledgeBase
 from tfpdf.schema import load as load_schema
+
+PLANS = Path(__file__).parent / "data" / "plans"
 
 
 def _resource(source: bytes, name: str = "a"):  # type: ignore[no-untyped-def]
@@ -368,3 +373,113 @@ def test_the_check_itself_never_probes(kb: KnowledgeBase, check_name: str) -> No
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     }
     assert "available_context" not in called
+
+
+# Destroys and replacements.
+
+
+def test_a_forcenew_change_is_looked_up_under_the_name_that_exists_today(
+    kb: KnowledgeBase, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Renaming a bucket replaces it: the bucket destroyed is the base revision's."""
+    received: list[tuple[str, str]] = []
+
+    def check(severity: Severity, resource_type: str, name: str) -> str:
+        received.append((resource_type, name))
+        return "critical"
+
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", lambda: True)
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.destruction_severity_check", check)
+    base = b'resource "aws_s3_bucket" "backups" {\n  bucket = "prod-backups"\n}\n'
+    head = b'resource "aws_s3_bucket" "backups" {\n  bucket = "prod-backups-v2"\n}\n'
+    result = run(
+        [ChangedFile(path="s3.tf", head_content=head, base_content=base)],
+        kb,
+        default_rules(),
+        RunOptions(cloud_reader=object()),
+    )
+
+    finding = next(f for f in result.findings if f.rule_name == "force_new_change")
+    assert received == [("aws_s3_bucket", "prod-backups")]
+    assert finding.severity is Severity.CRITICAL
+
+
+def test_a_plan_finding_takes_its_name_from_the_before_state() -> None:
+    """The before-state names the real resource even when the source uses a variable."""
+    from tfpdf import planjson
+    from tfpdf.rules import ConfirmedReplaceRule
+
+    change = planjson.ResourceChange(
+        address="module.data.aws_dynamodb_table.orders",
+        mode="managed",
+        type="aws_dynamodb_table",
+        name="orders",
+        change=planjson.Change(
+            actions=["delete", "create"],
+            before={"name": "prod-orders", "hash_key": "id"},
+            after={"name": "prod-orders", "hash_key": "order_id"},
+        ),
+    )
+    findings = ConfirmedReplaceRule().check("plan.json", [change], load_schema())
+
+    assert [f.cloud_name for f in findings] == ["prod-orders"]
+
+
+def test_a_plan_finding_for_a_type_with_no_name_attribute_has_no_name() -> None:
+    assert cloudname.of_state("aws_instance", {"id": "i-0abc"}) == ""
+    assert cloudname.of_state("aws_s3_bucket", None) == ""
+    assert cloudname.of_state("aws_s3_bucket", {"bucket": None}) == ""
+
+
+def _merge_sample_plan(tmp_path: Path, cloud_access: object | None) -> list[Finding]:
+    from tfpdf.cli.config import load_config
+    from tfpdf.cli.pipeline import _merge_plan_findings
+
+    arguments = argparse.Namespace(plan_json=str(PLANS / "sample_plan.json"))
+    config = load_config(str(tmp_path / "does-not-exist.yml"))
+    return _merge_plan_findings(
+        arguments,
+        config,
+        [],
+        {},
+        load_schema(),
+        cloud_access,  # type: ignore[arg-type]
+    )
+
+
+def test_plan_findings_are_rated_against_the_account(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Plan findings are built after the static run, so the pipeline rates them itself."""
+    received: list[tuple[str, str]] = []
+
+    def check(severity: Severity, resource_type: str, name: str) -> str:
+        received.append((resource_type, name))
+        return "low"
+
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", lambda: True)
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.destruction_severity_check", check)
+
+    findings = _merge_sample_plan(tmp_path, cloud_access=object())
+
+    replaced = [f for f in findings if f.rule_name == "confirmed_replace"]
+    assert sorted(received) == [
+        ("aws_db_instance", "prod-db"),
+        ("aws_s3_bucket", "prod-logs-bucket"),
+    ]
+    assert {f.severity for f in replaced} == {Severity.LOW}
+
+
+def test_plan_findings_are_not_looked_up_without_the_opt_in(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse() -> bool:
+        raise AssertionError("no cloud session without --cloud-read-access")
+
+    monkeypatch.setattr("tfpdf.ruledef.severitycheck.available_context", refuse)
+
+    findings = _merge_sample_plan(tmp_path, cloud_access=None)
+
+    assert {f.severity for f in findings if f.rule_name == "confirmed_replace"} == {
+        Severity.CRITICAL
+    }

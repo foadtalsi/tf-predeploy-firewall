@@ -111,6 +111,7 @@ class ForceNewChangeRule:
                     file_input.path,
                     resource.address(),
                     resource.type,
+                    cloudname.of(base),
                     attr_name,
                     "",
                     resource.attributes.get(attr_name),
@@ -131,6 +132,7 @@ class ForceNewChangeRule:
                         file_input.path,
                         resource.address(),
                         resource.type,
+                        cloudname.of(base),
                         attr_name,
                         block_type,
                         head_blk.attributes.get(attr_name),
@@ -147,6 +149,7 @@ def _compare_attr(
     path: str,
     resource: str,
     res_type: str,
+    cloud_name: str,
     attr_name: str,
     block_context: str,
     head: Attribute | None,
@@ -186,6 +189,9 @@ def _compare_attr(
         rule_name="force_new_change",
         severity=severity,
         resource=resource,
+        # The base revision's name: it is the resource that exists today, and the one the
+        # replacement destroys — including when the change is the name itself.
+        cloud_name=cloud_name,
         message=(
             f'"{location}" changed from "{base.raw_value}" to "{head.raw_value}" — this '
             f"attribute is ForceNew on {res_type} and will destroy + recreate the resource "

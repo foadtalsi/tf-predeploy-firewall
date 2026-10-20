@@ -3,6 +3,27 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
+## [Unreleased]
+
+### Added
+
+- `--cloud-read-access` now also rates ForceNew changes and plan-confirmed destroys
+  and replacements by what the resource holds: `critical` when it holds data, `low`
+  when it is empty or, for a bucket, does not exist. It reads DynamoDB tables
+  (`dynamodb:DescribeTable`), ECR repositories (`ecr:ListImages`) and Redshift
+  clusters (`redshift:DescribeClusters`), and `skip_final_snapshot` now covers
+  DocumentDB, Neptune and Redshift clusters too. Add the new actions to the role to
+  use them; a refused lookup keeps the static severity.
+
+### Fixed
+
+- A versioned bucket holding only noncurrent versions was rated empty, so
+  `force_destroy` on it dropped to `low`. The check now also lists versions
+  (`s3:ListObjectVersions`, IAM `s3:ListBucketVersions`); without that permission, a
+  bucket with no current object keeps its static severity.
+- A network failure during a cloud lookup now keeps the static severity instead of
+  failing the scan.
+
 ## [v1.3.1] — 2026-09-19
 
 ### Changed

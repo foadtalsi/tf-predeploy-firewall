@@ -272,12 +272,18 @@ def _provider_the_finding_judges(finding: Finding) -> str:
     return providerversion.provider_of(resource_type)
 
 
+# Rules whose severity depends on what the resource holds in the real account.
+_CLOUD_ADJUSTED_RULES = frozenset(
+    {"s3_force_destroy", "skip_final_snapshot", "force_new_change", "confirmed_replace"}
+)
+
+
 def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
     """Adjust eligible findings using optional read-only cloud observations."""
     adjustable = [
         finding
         for finding in findings
-        if finding.rule_name in ("s3_force_destroy", "skip_final_snapshot") and finding.cloud_name
+        if finding.rule_name in _CLOUD_ADJUSTED_RULES and finding.cloud_name
     ]
     if not adjustable:
         # Do not open a cloud session when no finding can use it.
@@ -291,16 +297,23 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
         return
 
     for finding in adjustable:
+        # The address is "type.name"; the type decides which AWS call applies.
+        resource_type, _, _ = type_from_address(finding.resource)
         if finding.rule_name == "s3_force_destroy":
             severity = severitycheck.s3_force_destroy_severity_check(
                 severity=finding.severity, bucket=finding.cloud_name
             )
-        else:
-            # The address is "type.name"; the type decides which RDS call applies.
+        elif finding.rule_name == "skip_final_snapshot":
             severity = severitycheck.skip_final_snapshot_severity_check(
                 severity=finding.severity,
-                resource_type=finding.resource.split(".")[0],
+                resource_type=resource_type,
                 identifier=finding.cloud_name,
+            )
+        else:
+            severity = severitycheck.destruction_severity_check(
+                severity=finding.severity,
+                resource_type=resource_type,
+                name=finding.cloud_name,
             )
         # Convert returned strings to Severity to keep sorting and threshold comparisons
         # consistent.

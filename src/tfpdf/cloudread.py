@@ -16,8 +16,11 @@ if TYPE_CHECKING:
 # docs/cloud-read-access.md and its IAM example.
 _READ_ONLY_OPERATIONS: dict[str, frozenset[str]] = {
     "sts": frozenset({"GetCallerIdentity"}),
-    "s3": frozenset({"ListObjectsV2"}),
+    "s3": frozenset({"ListObjectsV2", "ListObjectVersions"}),
     "rds": frozenset({"DescribeDBInstances", "DescribeDBClusters"}),
+    "dynamodb": frozenset({"DescribeTable"}),
+    "ecr": frozenset({"ListImages"}),
+    "redshift": frozenset({"DescribeClusters"}),
 }
 
 

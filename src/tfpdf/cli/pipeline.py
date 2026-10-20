@@ -237,7 +237,7 @@ def _collect_findings(arguments: argparse.Namespace, config: Config) -> list[Fin
 
     if arguments.plan_json:
         findings = _merge_plan_findings(
-            arguments, config, findings, result.changed_attrs, knowledge_base
+            arguments, config, findings, result.changed_attrs, knowledge_base, cloud_access
         )
 
     findings += ignore.apply(
@@ -257,6 +257,7 @@ def _merge_plan_findings(
     findings: list[Finding],
     changed_attrs: dict[str, set[ChangedAttrKey]],
     knowledge_base: schema.KnowledgeBase,
+    cloud_access: cloudread.Access | None,
 ) -> list[Finding]:
     """Confirm replacements with the plan and remove duplicate static findings."""
     # A --plan-json that names a file we can't read or parse is fatal, not a
@@ -279,6 +280,9 @@ def _merge_plan_findings(
     # A confirmed replace from the real plan supersedes phase 1's ForceNew
     # heuristic for the same resource — drop the guess once we have
     # certainty, instead of reporting the same problem twice.
+    # Plan findings are built after the static run, so they are rated against the account here.
+    if cloud_access is not None:
+        rules.adjust_severity_against_the_cloud(plan_findings)
     findings = rules.deduplicate_force_new_against_plan(findings, plan_findings)
     findings += plan_findings
 

@@ -184,3 +184,38 @@ def test_the_note_lists_what_the_scan_may_call(monkeypatch: pytest.MonkeyPatch) 
         "rds:DescribeDBClusters",
     ):
         assert expected in note
+
+
+def test_the_table_repository_and_warehouse_lookups_are_allowed(granted: Access) -> None:
+    """The destruction checks describe tables, repositories and clusters; they must never be
+    able to change one."""
+    import boto3
+    from botocore.stub import Stubber
+
+    s3 = boto3.client("s3")
+    with Stubber(s3) as stub:
+        stub.add_response("list_object_versions", {})
+        s3.list_object_versions(Bucket="b")
+
+    dynamodb = boto3.client("dynamodb")
+    with Stubber(dynamodb) as stub:
+        stub.add_response("describe_table", {"Table": {"TableName": "orders"}})
+        dynamodb.describe_table(TableName="orders")
+    with pytest.raises(WriteAttempted, match="dynamodb:Scan"):
+        dynamodb.scan(TableName="orders")
+    with pytest.raises(WriteAttempted, match="dynamodb:DeleteTable"):
+        dynamodb.delete_table(TableName="orders")
+
+    ecr = boto3.client("ecr")
+    with Stubber(ecr) as stub:
+        stub.add_response("list_images", {})
+        ecr.list_images(repositoryName="api", maxResults=1)
+    with pytest.raises(WriteAttempted, match="ecr:BatchDeleteImage"):
+        ecr.batch_delete_image(repositoryName="api", imageIds=[{"imageTag": "latest"}])
+
+    redshift = boto3.client("redshift")
+    with Stubber(redshift) as stub:
+        stub.add_response("describe_clusters", {"Clusters": []})
+        redshift.describe_clusters(ClusterIdentifier="c")
+    with pytest.raises(WriteAttempted, match="redshift:DeleteCluster"):
+        redshift.delete_cluster(ClusterIdentifier="c", SkipFinalClusterSnapshot=True)

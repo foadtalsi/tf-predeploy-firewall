@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .parser import Kind
 
@@ -15,6 +15,9 @@ NAME_ATTRIBUTE_BY_TYPE: dict[str, str] = {
     "aws_s3_bucket": "bucket",
     "aws_db_instance": "identifier",
     "aws_rds_cluster": "cluster_identifier",
+    "aws_docdb_cluster": "cluster_identifier",
+    "aws_neptune_cluster": "cluster_identifier",
+    "aws_redshift_cluster": "cluster_identifier",
     "aws_elasticache_cluster": "cluster_id",
     "aws_dynamodb_table": "name",
     "aws_lambda_function": "function_name",
@@ -42,3 +45,14 @@ def of(resource: Resource) -> str:
     if attribute is None or not attribute.is_literal or not attribute.raw_value:
         return ""
     return attribute.raw_value
+
+
+def of_state(resource_type: str, state: dict[str, Any] | None) -> str:
+    """Return the actual cloud name recorded in a plan's before-state, or an empty string when it
+    is missing.
+    """
+    attribute_name = NAME_ATTRIBUTE_BY_TYPE.get(resource_type)
+    if attribute_name is None or not state:
+        return ""
+    value = state.get(attribute_name)
+    return value if isinstance(value, str) else ""
