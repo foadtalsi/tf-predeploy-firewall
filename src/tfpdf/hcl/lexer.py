@@ -71,6 +71,10 @@ _ONE_CHAR_OPS = {
 #: type stays a Token and mypy keeps checking the call sites.
 _SUPPRESSED = Token(T.INVALID, "", Range())
 
+#: Empty tokens close one open frame each, so a well-behaved lexer emits at most as many in a
+#: row as a file can nest. Far above any real nesting depth, far below a hang.
+_MAX_TOKENS_WITHOUT_PROGRESS = 1000
+
 
 class _Mode(Enum):
     NORMAL = auto()
@@ -166,8 +170,23 @@ class Lexer:
 
     def tokens(self) -> list[Token]:
         out: list[Token] = []
+        # Tokens may be empty (a string closed by a newline, a frame closed at the end of the
+        # file), but only as many in a row as there are frames to close. Many more without the
+        # position moving means the lexer is stuck, and a stuck lexer would hang the scan until
+        # the CI job times out.
+        tokens_without_progress = 0
+        last_byte = -1
         while True:
             token = self._next_token()
+            if self.byte == last_byte:
+                tokens_without_progress += 1
+                if tokens_without_progress > _MAX_TOKENS_WITHOUT_PROGRESS:
+                    self._err("Lexer made no progress", self._pos(), "The file is malformed.")
+                    out.append(self._tok(T.EOF, "", self._pos()))
+                    return out
+            else:
+                tokens_without_progress = 0
+                last_byte = self.byte
             if token.type is T.COMMENT:
                 continue
             out.append(token)
@@ -324,6 +343,14 @@ class Lexer:
             self._stack.pop()
             return self._tok(T.CQUOTE, "", start)
 
+        if self._peek() == "\n":
+            # A quoted string cannot span lines, so it ends here, as it does in HCL, and the
+            # rest of the file is still lexed. The newline is left for normal mode. Returning an
+            # empty literal without consuming anything would return that literal forever.
+            self._err("Invalid multi-line string", start, "Use a heredoc for text spanning lines.")
+            self._stack.pop()
+            return self._tok(T.CQUOTE, "", start)
+
         if self._peek() == '"':
             self._advance()
             self._stack.pop()
@@ -360,10 +387,7 @@ class Lexer:
                 out.append(self._scan_escape(start))
                 continue
             if character == "\n":
-                self._err(
-                    "Invalid multi-line string", start, "Use a heredoc for text spanning lines."
-                )
-                break
+                break  # the next call reports the unterminated string and closes it
             consumed_character = self._advance()
             raw.append(consumed_character)
             out.append(consumed_character)
