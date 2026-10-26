@@ -2,37 +2,37 @@
 resource "aws_instance" "access_key_in_user_data" {
   ami           = "ami-0abcdef1234567890"
   instance_type = "t3.micro"
-  user_data     = "export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
+  user_data     = "export AWS_ACCESS_KEY_ID=AKIADZHVE0PMRCA0MSLK"
 }
 
 resource "aws_ssm_parameter" "access_key_value" {
   name  = "/ci/access-key-id"
   type  = "String"
-  value = "AKIAI44QH8DHBEXAMPLE"
+  value = "AKIACKZ1YLENKJS1W899"
 }
 
 resource "aws_lambda_function" "access_key_description" {
   function_name = "exporter"
   role          = "arn:aws:iam::123456789012:role/exporter"
-  description   = "uses AKIAIOSFODNN7EXAMPLE for the upload"
+  description   = "uses AKIAKGUTIPKW8VLBGLPT for the upload"
 }
 
 resource "aws_ssm_parameter" "secret_key_value" {
   name  = "/ci/secret-access-key"
   type  = "String"
-  value = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  value = "H2yOynBcI5QyVHjjMtMgl7K0KlBmoKiGBHOtX5ty"
 }
 
 resource "aws_instance" "secret_key_in_user_data" {
   ami           = "ami-0abcdef1234567890"
   instance_type = "t3.micro"
-  user_data     = "AWS_SECRET_ACCESS_KEY=je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"
+  user_data     = "AWS_SECRET_ACCESS_KEY=S7crAbqkRCHfbFIq5TJJ21s9wJq+f/xw5KXAbNDN"
 }
 
 resource "aws_codebuild_project" "secret_key_description" {
   name         = "deploy"
   service_role = "arn:aws:iam::123456789012:role/codebuild"
-  description  = "key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  description  = "key: +EbK4ko/3Wumw5225KRoqJE9vtYnmhmUtry06Yu2"
 }
 
 resource "aws_ssm_parameter" "pem_rsa" {
@@ -40,7 +40,7 @@ resource "aws_ssm_parameter" "pem_rsa" {
   type  = "String"
   value = <<-PEM
     -----BEGIN RSA PRIVATE KEY-----
-    MIIEowIBAAKCAQEAexampleexampleexample
+    MIIEowIBAAKCAQEASjWBEu7CQ90T5WZew0P/Es96
     -----END RSA PRIVATE KEY-----
   PEM
 }
@@ -48,13 +48,13 @@ resource "aws_ssm_parameter" "pem_rsa" {
 resource "aws_ssm_parameter" "pem_ec" {
   name  = "/tls/ec"
   type  = "String"
-  value = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIexample\n-----END EC PRIVATE KEY-----"
+  value = "-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIMNt4V3tVGND3vWifC4y9ZtJk\n-----END EC PRIVATE KEY-----"
 }
 
 resource "aws_instance" "pem_openssh" {
   ami           = "ami-0abcdef1234567890"
   instance_type = "t3.micro"
-  user_data     = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEexample\n-----END OPENSSH PRIVATE KEY-----"
+  user_data     = "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEoqHl/UUT2QjLkpMHYiKW5drC\n-----END OPENSSH PRIVATE KEY-----"
 }
 
 resource "aws_lambda_function" "jwt_description" {
@@ -265,31 +265,31 @@ resource "aws_lambda_function" "hex_source_code_hash" {
 resource "aws_ssm_parameter" "aws_access_key_extra_4" {
   name  = "/extra/aws_access_key_extra_4"
   type  = "String"
-  value = "AKIAIOSFODNN7EXAMPLE"
+  value = "AKIAGPEYMN8YJGYQMNKJ"
 }
 
 resource "aws_ssm_parameter" "aws_access_key_extra_5" {
   name  = "/extra/aws_access_key_extra_5"
   type  = "String"
-  value = "role=deploy key=AKIAI44QH8DHBEXAMPLE region=eu-west-1"
+  value = "role=deploy key=AKIAPLOKG9BERGSEHPWH region=eu-west-1"
 }
 
 resource "aws_ssm_parameter" "aws_secret_key_extra_4" {
   name  = "/extra/aws_secret_key_extra_4"
   type  = "String"
-  value = "je7MtGbClwBF/2Zp9Utk/h3yCo8nvbEXAMPLEKEY"
+  value = "pBHS3fyDTsi8N5pe4jNfwq9Ux9YXIY4eYhLp2ojb"
 }
 
 resource "aws_ssm_parameter" "aws_secret_key_extra_5" {
   name  = "/extra/aws_secret_key_extra_5"
   type  = "String"
-  value = "secret=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY end"
+  value = "secret=pSm6Kbxs1S6g5uY0cYUjtQQr09l0MLmO85RW0COH end"
 }
 
 resource "aws_ssm_parameter" "pem_extra_4" {
   name  = "/extra/pem_extra_4"
   type  = "String"
-  value = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiexample\n-----END PRIVATE KEY-----"
+  value = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiO2rJsd/XiN/l6p4jcjnWM802\n-----END PRIVATE KEY-----"
 }
 
 resource "aws_ssm_parameter" "pem_extra_5" {
@@ -344,4 +344,82 @@ resource "aws_ssm_parameter" "entropy_extra_5" {
   name  = "/extra/entropy_extra_5"
   type  = "String"
   value = "Hk3Lp9Zx7Cv2Bn5Mq8Wf1Rt4Yg6Uj0Ik"
+}
+
+# Near misses reported from real repositories: placeholders standing in for a secret.
+resource "aws_ssm_parameter" "aws_documentation_access_key" {
+  name  = "/docs/access-key"
+  type  = "String"
+  value = "AKIAIOSFODNN7EXAMPLE"
+}
+
+resource "aws_ssm_parameter" "aws_documentation_secret_key" {
+  name  = "/docs/secret-key"
+  type  = "String"
+  value = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+}
+
+resource "aws_ssm_parameter" "pem_placeholder" {
+  name  = "/tls/key-template"
+  type  = "String"
+  value = "-----BEGIN RSA PRIVATE KEY-----\nREPLACE_WITH_THE_REAL_KEY\n-----END RSA PRIVATE KEY-----"
+}
+
+resource "aws_ssm_parameter" "openai_placeholder" {
+  name        = "/openai/signing"
+  type        = "String"
+  signing_key = "sk-placeholder-not-a-real-key-Q7xP2mZ9"
+}
+
+# Near misses: high-entropy values that are not secrets, in attributes not named like one.
+module "network" {
+  source = "git::ssh://git@github.com/acme-corp/terraform-modules.git//network?ref=9f2c7b1e4a"
+}
+
+resource "aws_lambda_function" "container_image" {
+  function_name = "api"
+  role          = "arn:aws:iam::123456789012:role/api"
+  image_uri     = "123456789012.dkr.ecr.eu-west-1.amazonaws.com/api@sha256:9b2e7f4a1c8d3e6f0a5b2c9d4e7f1a3b"
+}
+
+resource "aws_wafv2_regex_pattern_set" "token_shapes" {
+  name  = "token-shapes"
+  scope = "REGIONAL"
+
+  regular_expression {
+    regex_string = "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+  }
+}
+
+# Positives for the entropy fallback: random values in attributes named like a secret, under
+# names the exact credential list does not cover.
+
+resource "aws_ssm_parameter" "entropy_license_key" {
+  name  = "/entropy/license_key"
+  type  = "SecureString"
+  license_key = "Tq7Zp2Xw9Lk4Rm8Vn3Bc6Hd1Jf5Gs0Ae-_Yu7Io2"
+}
+
+resource "aws_ssm_parameter" "entropy_signing_key" {
+  name  = "/entropy/signing_key"
+  type  = "SecureString"
+  signing_key = "x8Qz!Lm2#Vp9@Rt4$Wn7%Yb1^Hd6&Kf3*Gs5"
+}
+
+resource "aws_ssm_parameter" "entropy_webhook_token_value" {
+  name  = "/entropy/webhook_token_value"
+  type  = "SecureString"
+  webhook_token_value = "pZ3$kW9!mQ2@vX7#nB4%cR8^tY1&hJ6*gF5(dL0)"
+}
+
+resource "aws_ssm_parameter" "entropy_master_key" {
+  name  = "/entropy/master_key"
+  type  = "SecureString"
+  master_key = "Vb8#Nm2$Qw7!Er4%Ty1^Ui6&Op3*As9Lk5"
+}
+
+resource "aws_ssm_parameter" "entropy_service_credentials" {
+  name  = "/entropy/service_credentials"
+  type  = "SecureString"
+  service_credentials = "Hk3Lp9Zx7Cv2Bn5Mq8Wf1Rt4Yg6Uj0Ik!7Tz"
 }

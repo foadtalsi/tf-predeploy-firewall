@@ -10,3 +10,6 @@ must_not_report:
   - {rule: hardcoded_credential, target: aws_rds_cluster.managed}
   - {rule: hardcoded_credential, target: aws_db_instance.generated}
   - {rule: hardcoded_credential, target: aws_iam_user_login_profile.operator}
+  - {rule: hardcoded_credential, target: aws_db_instance.replace_me}
+  - {rule: hardcoded_credential, target: cloudflare_api_token.dummy}
+  - {rule: hardcoded_credential, target: azurerm_mssql_server.change_me}

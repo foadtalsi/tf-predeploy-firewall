@@ -33,6 +33,20 @@ DATA = Path(__file__).parent / "data"
 #: SARIF rules are appended last, so no earlier ruleIndex moves.
 ADDED_CATEGORIES = ("incomplete_analysis", "unresolved_value")
 
+#: Categories whose help text was rewritten after the port, when their rules stopped reporting
+#: placeholders, measured entropy only under secret-like names, and judged IAM statements one by
+#: one. Their help is left out of the comparison; their ids, names and descriptions are not.
+REWRITTEN_HELP = ("tutorial_pattern", "permissive_iam")
+
+
+def _without_rewritten_help(rules: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [
+        {key: value for key, value in rule.items() if key != "help"}
+        if rule["id"] in REWRITTEN_HELP
+        else rule
+        for rule in rules
+    ]
+
 
 def _oracle_findings() -> list[Finding]:
     """Recreate the finding inputs used to generate the historical Go oracles."""
@@ -111,7 +125,8 @@ def test_sarif_matches_the_go_implementation() -> None:
     assert [rule["id"] for rule in got_driver["rules"][-len(ADDED_CATEGORIES) :]] == list(
         ADDED_CATEGORIES
     ), "rules added after the port are listed last"
-    got_driver["rules"] = got_driver["rules"][: -len(ADDED_CATEGORIES)]
+    got_driver["rules"] = _without_rewritten_help(got_driver["rules"][: -len(ADDED_CATEGORIES)])
+    driver["rules"] = _without_rewritten_help(driver["rules"])
     assert got == expected
 
 
@@ -178,4 +193,8 @@ def test_rule_docs_match_the_committed_go_generated_file(
     for category in ADDED_CATEGORIES:
         assert f"## {category}\n" in got_body, f"{category} is documented"
         got_body = re.sub(rf"## {category}\n.*?\n---\n\n", "", got_body, flags=re.S)
+    for category in REWRITTEN_HELP:
+        assert f"## {category}\n" in got_body, f"{category} is documented"
+        got_body = re.sub(rf"## {category}\n.*?\n---\n\n", "", got_body, flags=re.S)
+        want_body = re.sub(rf"## {category}\n.*?\n---\n\n", "", want_body, flags=re.S)
     assert got_body == want_body

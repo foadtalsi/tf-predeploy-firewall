@@ -26,7 +26,7 @@ from .unresolved import UnresolvedGuardRule, guard_rules
 #: and they do it by reading these definitions rather than by re-declaring the
 #: patterns — two divergent definitions of "looks like a secret" would be a bug
 #: waiting to happen.
-REQUIRED_IDS = ("hardcoded_credential", "open_cidr")
+REQUIRED_IDS = ("hardcoded_credential", "open_cidr", "credential_value_entropy")
 
 CREDENTIAL_VALUE_GROUP = "credential_value"
 
@@ -214,6 +214,14 @@ def match_credential_value_pattern(value: str) -> tuple[str, bool]:
             continue
         return spec.label, True
     return "", False
+
+
+def is_secret_like_attr_name(name: str) -> bool:
+    """Check whether a name is one the entropy fallback measures, read from its rule definition."""
+    entropy = _load_builtin().pack.by_id("credential_value_entropy")
+    assert entropy is not None and entropy.match is not None
+    pattern = entropy.match.attr_name_re
+    return pattern is not None and pattern.search(name) is not None
 
 
 def is_open_cidr(value: str) -> bool:

@@ -62,7 +62,7 @@ def test_static_scan_finds_and_blocks(tmp_path: Path) -> None:
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}\n'
         'resource "aws_db_instance" "prod" {\n  identifier = "prod-db"\n'
-        '  password   = "changeme"\n}',
+        '  password   = "Orders-db-2026-Pa55"\n}',
     )
 
     p = _run_scanner("--repo-dir", str(repo), "--base-ref", "HEAD~1", "--head-ref", "HEAD")
@@ -195,7 +195,7 @@ def test_write_baseline_records_and_exits_zero(tmp_path: Path) -> None:
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}',
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n}\n'
         'resource "aws_db_instance" "prod" {\n  identifier = "prod-db"\n'
-        '  password   = "changeme"\n}',
+        '  password   = "Orders-db-2026-Pa55"\n}',
     )
     out_path = tmp_path / "baseline.json"
 
@@ -236,7 +236,7 @@ def test_staged_mode_never_tries_to_post_a_comment(tmp_path: Path) -> None:
         'resource "aws_vpc" "main" {\n  cidr_block = "10.0.0.0/16"\n  enable_dns_support = true\n}',
     )
     (repo / "staged.tf").write_text(
-        'resource "aws_db_instance" "x" {\n  password = "changeme"\n}\n'
+        'resource "aws_db_instance" "x" {\n  password = "Orders-db-2026-Pa55"\n}\n'
     )
     _git(repo, "add", "staged.tf")
 

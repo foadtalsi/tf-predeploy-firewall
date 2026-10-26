@@ -53,6 +53,19 @@ BENIGN_PREFIXES = (
 _WHITESPACE = (" ", "\t", "\n")
 
 
+#: Words that mark a value as a stand-in for a secret rather than a secret. They are looked for in
+#: the value lowercased with everything but letters and digits removed, so "REPLACE ME",
+#: "change_me" and "not-a-real" all match.
+PLACEHOLDER_WORDS = ("dummy", "example", "placeholder", "replace", "changeme", "notareal")
+
+
+def looks_like_placeholder(value: str) -> bool:
+    """Recognize a value written to be replaced: REPLACE ME, changeme, sk-placeholder-..., the
+    AWS documentation keys (AKIAIOSFODNN7EXAMPLE)."""
+    letters_and_digits = "".join(character for character in value.lower() if character.isalnum())
+    return any(word in letters_and_digits for word in PLACEHOLDER_WORDS)
+
+
 def is_public_by_shape(value: str) -> bool:
     """Recognize values that are public by structure, regardless of entropy."""
     return value.lower().startswith(BENIGN_PREFIXES)

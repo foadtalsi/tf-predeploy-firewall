@@ -154,6 +154,18 @@ file does not remove it from history.
 **Open CIDRs:** narrow to the ranges that actually need access. If a public
 listener is the intent, that is what a suppression comment is for.
 
+### What this deliberately does not report
+
+A value written to be replaced. A value containing `dummy`, `example`,
+`placeholder`, `replace`, `changeme` or `not-a-real` — `REPLACE ME`, the AWS
+documentation keys — is a stand-in for a secret, not a secret.
+
+A high-entropy value in an attribute whose name does not announce a secret.
+Randomness alone is measured only under names containing `passw`, `secret`,
+`token`, `key` or `credential`; elsewhere it reports module sources, image
+digests and regular expressions. Known formats — an AWS key, a PEM block, a
+JWT, a GitHub token — are still recognized in any attribute.
+
 ### If you disagree
 
 Suppress one line with `# tf-firewall-ignore: tutorial_pattern`. A
@@ -362,10 +374,9 @@ A policy attached to this resource contains `Action: "*"` — every action in
 every AWS service — or names `Principal: "*"` with no `Condition` limiting
 who that is.
 
-The check reads the policy from source rather than from the resource model,
-because the form nearly everyone writes is `jsonencode({ … })`: a function
-call over an object, which no value matcher can see inside. Heredoc and
-plain-JSON policies are read the same way.
+A policy written as `jsonencode({ … })`, a heredoc or a JSON string is
+evaluated and judged statement by statement. One that depends on a variable
+cannot be evaluated, and is read as text instead.
 
 ### Why it matters
 
@@ -409,8 +420,13 @@ rule that flagged it would fire on a large share of correct policies. It is
 reported only alongside a wildcard action, where the pair means
 administrator.
 
-A `Principal: "*"` in a document that also carries a `Condition`. That is
-the org-wide pattern and it is correct.
+A `Deny` statement. Denying every action or every principal is a guardrail —
+`DenyHTTP`, deny-unencrypted-transport — and grants nothing.
+
+A `Principal: "*"` in a statement that carries a `Condition`. That is the
+org-wide pattern and it is correct. A condition narrows only its own
+statement; a policy read as text, whose statements cannot be told apart, is
+silent on the principal as soon as any condition appears.
 
 ### If you disagree
 

@@ -20,6 +20,7 @@ from .pack import (
     from_pack,
     is_credential_attr_name,
     is_open_cidr,
+    is_secret_like_attr_name,
     match_credential_value_pattern,
     rules_for_category,
 )
@@ -62,6 +63,7 @@ __all__ = [
     "from_pack",
     "is_credential_attr_name",
     "is_open_cidr",
+    "is_secret_like_attr_name",
     "looks_like_secret",
     "match_credential_value_pattern",
     "rules_for_category",

@@ -8,6 +8,7 @@ from .hcl.ast import Expression
 from .hcl.exprutil import expr_as_keyword, expr_map
 from .report.finding import Category, Finding, Severity
 from .rules import is_credential_attr_name, is_open_cidr, match_credential_value_pattern
+from .rules.entropy import looks_like_placeholder
 
 
 def scan_file(path: str, source: bytes) -> list[Finding]:
@@ -56,6 +57,10 @@ def _scan_map_expr(path: str, key_path: str, expr: Expression) -> list[Finding]:
             continue
         str_val = v.as_string()
         line = pair.value.range.start.line
+
+        # A placeholder is not a secret, under any name or in any format.
+        if looks_like_placeholder(str_val):
+            continue
 
         if key_name and str_val and is_credential_attr_name(key_name):
             findings.append(

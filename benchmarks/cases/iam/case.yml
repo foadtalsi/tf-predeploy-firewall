@@ -15,6 +15,7 @@ expect:
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_topic}
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_queue}
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.public_key}
+  - {rule: iam_wildcard, target: aws_s3_bucket_policy.public_next_to_a_guardrail}
 must_not_report:
   - {rule: iam_wildcard, target: aws_iam_policy.read_only_everywhere}
   - {rule: iam_wildcard, target: aws_s3_bucket_policy.organization_only}
@@ -26,3 +27,9 @@ must_not_report:
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.named_account}
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.service_principal}
   - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.principal_from_variable}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.deny_http}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.deny_unencrypted_transport}
+  - {rule: iam_document_wildcard_principal, target: data.aws_iam_policy_document.organization_principal}
+  - {rule: iam_document_wildcard_action, target: data.aws_iam_policy_document.deny_unencrypted_transport}
+  - {rule: iam_wildcard, target: aws_iam_policy.deny_outside_region}
+  - {rule: iam_wildcard, target: aws_s3_bucket_policy.deny_insecure_transport}

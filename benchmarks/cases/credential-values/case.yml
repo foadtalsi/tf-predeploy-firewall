@@ -20,9 +20,6 @@ expect:
   - {rule: credential_value_hex, target: aws_ssm_parameter.hex_value}
   - {rule: credential_value_hex, target: aws_lambda_function.hex_description}
   - {rule: credential_value_hex, target: aws_codebuild_project.hex_description}
-  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_value}
-  - {rule: credential_value_entropy, target: aws_lambda_function.entropy_description}
-  - {rule: credential_value_entropy, target: aws_codebuild_project.entropy_description}
   - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.aws_access_key_extra_4}
   - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.aws_access_key_extra_5}
   - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.aws_secret_key_extra_4}
@@ -35,8 +32,11 @@ expect:
   - {rule: credential_value_github_token, target: aws_ssm_parameter.github_token_extra_5}
   - {rule: credential_value_hex, target: aws_ssm_parameter.hex_extra_4}
   - {rule: credential_value_hex, target: aws_ssm_parameter.hex_extra_5}
-  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_extra_4}
-  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_extra_5}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_license_key}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_signing_key}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_webhook_token_value}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_master_key}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_service_credentials}
 must_not_report:
   - {rule: credential_value_aws_access_key, target: aws_lambda_function.access_key_mentioned}
   - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.access_key_lowercase}
@@ -57,6 +57,13 @@ must_not_report:
   - {rule: credential_value_hex, target: aws_ssm_parameter.hex_too_short}
   - {rule: credential_value_hex, target: aws_s3_object.hex_etag}
   - {rule: credential_value_hex, target: aws_lambda_function.hex_source_code_hash}
+  - {rule: credential_value_aws_access_key, target: aws_ssm_parameter.aws_documentation_access_key}
+  - {rule: credential_value_aws_secret_key, target: aws_ssm_parameter.aws_documentation_secret_key}
+  - {rule: credential_value_pem, target: aws_ssm_parameter.pem_placeholder}
+  - {rule: credential_value_entropy, target: aws_ssm_parameter.openai_placeholder}
+  - {rule: credential_value_entropy, target: module.network}
+  - {rule: credential_value_entropy, target: aws_lambda_function.container_image}
+  - {rule: credential_value_entropy, target: aws_wafv2_regex_pattern_set.token_shapes}
   - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_sentence}
   - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_url}
   - {rule: credential_value_entropy, target: aws_ssm_parameter.entropy_arn}

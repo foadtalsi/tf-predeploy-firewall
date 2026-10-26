@@ -7,8 +7,13 @@ import json
 from . import hcl
 from .hcl import HCLParseError, Value
 from .report.finding import Category, Finding, Severity
-from .rules import is_credential_attr_name, is_open_cidr, match_credential_value_pattern
-from .rules.entropy import byte_len, looks_like_secret
+from .rules import (
+    is_credential_attr_name,
+    is_open_cidr,
+    is_secret_like_attr_name,
+    match_credential_value_pattern,
+)
+from .rules.entropy import byte_len, looks_like_placeholder, looks_like_secret
 
 #: Wording note: the same scan runs pre-commit (--staged/--uncommitted) and on
 #: a PR, and the right advice differs. Before the commit the fix is simply
@@ -102,7 +107,11 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
             )
         ]
 
-    if is_credential_attr_name(leaf):
+    # A placeholder is not a secret, under any name or in any format. Only the open-CIDR check
+    # below still applies to it.
+    placeholder = looks_like_placeholder(value)
+
+    if is_credential_attr_name(leaf) and not placeholder:
         return finding(
             "tfvars_credential_name",
             Severity.CRITICAL,
@@ -110,7 +119,7 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
         )
 
     label, ok = match_credential_value_pattern(value)
-    if ok:
+    if ok and not placeholder:
         return finding(
             "tfvars_credential_value",
             Severity.CRITICAL,
@@ -124,8 +133,9 @@ def _judge_string(path: str, name: str, value: str, line: int) -> list[Finding]:
             f'"{name}" is {value}, open to the entire internet — narrow this range',
         )
 
+    # Measured only under a name that announces a secret, as in .tf files.
     bits, ok = looks_like_secret(value)
-    if ok:
+    if ok and not placeholder and is_secret_like_attr_name(leaf):
         return finding(
             "tfvars_high_entropy",
             Severity.HIGH,

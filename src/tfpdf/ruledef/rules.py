@@ -32,6 +32,12 @@ _PUBLIC_NAME_BODY = (
 # leading regex case flag.
 NOT_A_SECRET_BY_NAME = f"(?i)(?:{_CREDENTIAL_NAME_BODY})|(?:{_PUBLIC_NAME_BODY})"
 
+# The names the entropy fallback measures. A statistic is evidence only where a secret is
+# expected: measuring every attribute reported module sources, image digests and regular
+# expressions. The exact credential names are left to hardcoded_credential, which reports any
+# literal under them.
+SECRET_LIKE_NAMES = r"(?i)(passw|secret|token|key|credential)"
+
 PLACEHOLDER_NAMES = (
     r"(?i)^(example|test|demo|foo|bar|my[-_]?bucket|my[-_]?app|sample|tmp|temp"
     r"|placeholder)([-_].*)?$"
@@ -52,6 +58,7 @@ def credential_value_match(**conditions: object) -> Match:
         # Inspect the whole value for public forms before searching credential-shaped
         # substrings.
         value_not_public=True,
+        value_not_placeholder=True,
         **conditions,  # type: ignore[arg-type]
     )
 
@@ -98,6 +105,8 @@ RULES: list[Rule] = [
             # Bools and empties are never credentials.
             # manage_master_user_password = true is the opposite of a leak.
             value_not_one_of=["", "true", "false"],
+            # Nor is a value written to be replaced: password = "REPLACE ME".
+            value_not_placeholder=True,
         ),
         fix=Fix(
             action="replace_attr_line",
@@ -220,6 +229,7 @@ RULES: list[Rule] = [
         group="credential_value",
         message="{location}{attr_q} value is a high-entropy string ({bits} bits/char over {length} chars){via} — this is the statistical signature of a machine-generated secret; if it is one, move it out of source and rotate it",
         match=credential_value_match(
+            attr_name_matches=SECRET_LIKE_NAMES,
             predicate="looks_like_secret",
         ),
     ),
@@ -628,6 +638,8 @@ RULES: list[Rule] = [
             scope="block_attribute",
             resource_types=["aws_iam_policy_document"],
             block_types=["statement"],
+            # A deny of every action is a guardrail, not a grant.
+            skip_when_block_attribute_equals={"effect": "Deny"},
             attr_names=["actions"],
             literal=True,
             value_matches="^\\*$",
@@ -647,6 +659,10 @@ RULES: list[Rule] = [
             scope="block_attribute",
             resource_types=["aws_iam_policy_document"],
             block_types=["principals"],
+            # Denying every principal is how DenyHTTP and deny-unencrypted-transport guardrails
+            # are written, and a condition in the statement narrows who the wildcard is.
+            skip_when_block_attribute_equals={"effect": "Deny"},
+            skip_when_block_contains=["condition"],
             attr_names=["identifiers"],
             literal=True,
             value_matches="^\\*$",
@@ -859,6 +875,18 @@ DOCS: list[CategoryDoc] = [
             "\n"
             "**Open CIDRs:** narrow to the ranges that actually need access. If a public\n"
             "listener is the intent, that is what a suppression comment is for.\n"
+            "\n"
+            "## What this deliberately does not report\n"
+            "\n"
+            "A value written to be replaced. A value containing `dummy`, `example`,\n"
+            "`placeholder`, `replace`, `changeme` or `not-a-real` — `REPLACE ME`, the AWS\n"
+            "documentation keys — is a stand-in for a secret, not a secret.\n"
+            "\n"
+            "A high-entropy value in an attribute whose name does not announce a secret.\n"
+            "Randomness alone is measured only under names containing `passw`, `secret`,\n"
+            "`token`, `key` or `credential`; elsewhere it reports module sources, image\n"
+            "digests and regular expressions. Known formats — an AWS key, a PEM block, a\n"
+            "JWT, a GitHub token — are still recognized in any attribute.\n"
             "\n"
             "## If you disagree\n"
             "\n"
@@ -1153,10 +1181,9 @@ DOCS: list[CategoryDoc] = [
             'every AWS service — or names `Principal: "*"` with no `Condition` limiting\n'
             "who that is.\n"
             "\n"
-            "The check reads the policy from source rather than from the resource model,\n"
-            "because the form nearly everyone writes is `jsonencode({ … })`: a function\n"
-            "call over an object, which no value matcher can see inside. Heredoc and\n"
-            "plain-JSON policies are read the same way.\n"
+            "A policy written as `jsonencode({ … })`, a heredoc or a JSON string is\n"
+            "evaluated and judged statement by statement. One that depends on a variable\n"
+            "cannot be evaluated, and is read as text instead.\n"
             "\n"
             "## Why it matters\n"
             "\n"
@@ -1200,8 +1227,13 @@ DOCS: list[CategoryDoc] = [
             "reported only alongside a wildcard action, where the pair means\n"
             "administrator.\n"
             "\n"
-            'A `Principal: "*"` in a document that also carries a `Condition`. That is\n'
-            "the org-wide pattern and it is correct.\n"
+            "A `Deny` statement. Denying every action or every principal is a guardrail —\n"
+            "`DenyHTTP`, deny-unencrypted-transport — and grants nothing.\n"
+            "\n"
+            'A `Principal: "*"` in a statement that carries a `Condition`. That is the\n'
+            "org-wide pattern and it is correct. A condition narrows only its own\n"
+            "statement; a policy read as text, whose statements cannot be told apart, is\n"
+            "silent on the principal as soon as any condition appears.\n"
             "\n"
             "## If you disagree\n"
             "\n"

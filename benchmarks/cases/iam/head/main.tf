@@ -267,3 +267,104 @@ data "aws_iam_policy_document" "principal_from_variable" {
     }
   }
 }
+
+# Near misses reported from real repositories: deny statements are guardrails, and a condition
+# narrows who the wildcard principal is.
+data "aws_iam_policy_document" "deny_http" {
+  statement {
+    sid     = "DenyHTTP"
+    effect  = "Deny"
+    actions = ["s3:*"]
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "deny_unencrypted_transport" {
+  statement {
+    effect  = "Deny"
+    actions = ["*"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "organization_principal" {
+  statement {
+    actions = ["s3:GetObject"]
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:PrincipalOrgID"
+      values   = ["o-example12345"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "deny_outside_region" {
+  name = "deny-outside-region"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Deny"
+      Action    = "*"
+      Resource  = "*"
+      Condition = { StringNotEquals = { "aws:RequestedRegion" = "eu-west-1" } }
+    }]
+  })
+}
+
+resource "aws_s3_bucket_policy" "deny_insecure_transport" {
+  bucket = "acme-data"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Deny"
+      Principal = "*"
+      Action    = "s3:*"
+      Resource  = "arn:aws:s3:::acme-data/*"
+      Condition = { Bool = { "aws:SecureTransport" = "false" } }
+    }]
+  })
+}
+
+# A positive the text-wide check missed: a condition on one statement silenced the
+# unconditional wildcard principal on another.
+resource "aws_s3_bucket_policy" "public_next_to_a_guardrail" {
+  bucket = "acme-site"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource  = "arn:aws:s3:::acme-site/*"
+        Condition = { Bool = { "aws:SecureTransport" = "false" } }
+      },
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "arn:aws:s3:::acme-site/*"
+      },
+    ]
+  })
+}

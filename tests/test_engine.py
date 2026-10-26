@@ -134,7 +134,7 @@ resource "aws_db_instance" "prod" {
 def test_run_scope_resolution_is_off_without_a_repo_dir(kb: KnowledgeBase) -> None:
     """Without repo_dir, scope resolution must not read unrelated directories."""
     source = b"""
-variable "db_password" { default = "changeme" }
+variable "db_password" { default = "Orders-db-2026-Pa55" }
 resource "aws_db_instance" "prod" {
   identifier = "x"
   password   = var.db_password
@@ -148,7 +148,7 @@ resource "aws_db_instance" "prod" {
 def test_run_scope_resolution_with_a_repo_dir(tmp_path: Path, kb: KnowledgeBase) -> None:
     """Resolve literal defaults and explain the reference behind the finding."""
     source = b"""
-variable "db_password" { default = "changeme" }
+variable "db_password" { default = "Orders-db-2026-Pa55" }
 resource "aws_db_instance" "prod" {
   identifier = "x"
   password   = var.db_password

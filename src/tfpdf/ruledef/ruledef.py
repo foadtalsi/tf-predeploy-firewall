@@ -91,6 +91,12 @@ class Match:
     #: Skips a resource when any of these top-level attributes is set to exactly this literal
     #: value, such as `type = "egress"` on a security group rule.
     skip_when_attribute_equals: dict[str, str] = field(default_factory=dict)
+    #: Skips a nested attribute when a block enclosing it has one of these attributes set to
+    #: exactly this literal value, such as `effect = "Deny"` on a policy statement.
+    skip_when_block_attribute_equals: dict[str, str] = field(default_factory=dict)
+    #: Skips a nested attribute when a block enclosing it contains a block of one of these
+    #: types, such as a `condition` block in a policy statement.
+    skip_when_block_contains: list[str] = field(default_factory=list)
 
     attr_names: list[str] = field(default_factory=list)
     attr_name_matches: str = ""
@@ -110,6 +116,9 @@ class Match:
     # Reject whole values that are public by shape before unanchored patterns inspect
     # substrings.
     value_not_public: bool = False
+    #: Skips a value written to be replaced (REPLACE ME, changeme, dummy-..., *EXAMPLE*): a
+    #: placeholder in source is not a leaked secret.
+    value_not_placeholder: bool = False
 
     #: Applies to scope: resource_name.
     name_matches: str = ""
@@ -429,6 +438,11 @@ def _match_from_dict(d: dict[str, Any]) -> Match:
             str(name): str(value)
             for name, value in (d.get("skip_when_attribute_equals") or {}).items()
         },
+        skip_when_block_attribute_equals={
+            str(name): str(value)
+            for name, value in (d.get("skip_when_block_attribute_equals") or {}).items()
+        },
+        skip_when_block_contains=_as_str_list(d.get("skip_when_block_contains")),
         attr_names=_as_str_list(d.get("attr_names")),
         attr_name_matches=str(d.get("attr_name_matches", "")),
         attr_name_not_matches=str(d.get("attr_name_not_matches", "")),
@@ -438,6 +452,8 @@ def _match_from_dict(d: dict[str, Any]) -> Match:
         value_matches=str(d.get("value_matches", "")),
         value_contains=str(d.get("value_contains", "")),
         value_not_one_of=_as_str_list(d.get("value_not_one_of")),
+        value_not_public=bool(d.get("value_not_public", False)),
+        value_not_placeholder=bool(d.get("value_not_placeholder", False)),
         name_matches=str(d.get("name_matches", "")),
         confirm=str(d.get("confirm", "")),
         predicate=str(d.get("predicate", "")),

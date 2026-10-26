@@ -10,7 +10,7 @@ from ..report.finding import Category, Finding, Fix, Severity
 from ..ruledef import Match, Rule
 from ..schema import KnowledgeBase
 from .base import FileInput
-from .entropy import byte_len, is_public_by_shape
+from .entropy import byte_len, is_public_by_shape, looks_like_placeholder
 from .fix import credential_var_name, replace_attr_line, via_suffix
 from .predicates import CONFIRM_PREDICATES, VALUE_PREDICATES
 from .template import expand, expand_all, go_quote
@@ -24,6 +24,9 @@ class AttrLocation:
     attribute: Attribute
     #: None for a top-level attribute.
     block: NestedBlock | None = None
+    #: The block holding the attribute and every block around it, innermost first. Empty for a
+    #: top-level attribute.
+    enclosing: tuple[NestedBlock, ...] = ()
 
 
 class DeclarativeRule:
@@ -61,11 +64,16 @@ class DeclarativeRule:
                 for name in sorted(resource.attributes)
             )
         if matcher.scope in ("block_attribute", "any_attribute"):
-            for block in all_nested_blocks(resource):
+            for block, enclosing in nested_blocks_with_enclosing(resource):
                 if matcher.block_types and block.type not in matcher.block_types:
                     continue
                 locations.extend(
-                    AttrLocation(name=name, attribute=block.attributes[name], block=block)
+                    AttrLocation(
+                        name=name,
+                        attribute=block.attributes[name],
+                        block=block,
+                        enclosing=enclosing,
+                    )
                     for name in sorted(block.attributes)
                 )
         return locations
@@ -77,6 +85,8 @@ class DeclarativeRule:
         for spec in self.specs:
             matcher = spec.match
             if matcher is None or not matches_resource(matcher, resource):
+                continue
+            if skipped_by_enclosing_blocks(matcher, location.enclosing):
                 continue
             bits, ok = matches_attr(matcher, location.name, location.attribute)
             if not ok:
@@ -169,6 +179,36 @@ def build_fix(
     )
 
 
+def nested_blocks_with_enclosing(
+    resource: Resource,
+) -> list[tuple[NestedBlock, tuple[NestedBlock, ...]]]:
+    """Return every nested block of a resource, outermost first, each with itself and the blocks
+    around it, innermost first."""
+    out: list[tuple[NestedBlock, tuple[NestedBlock, ...]]] = []
+
+    def visit(block: NestedBlock, around: tuple[NestedBlock, ...]) -> None:
+        enclosing = (block, *around)
+        out.append((block, enclosing))
+        for child in block.blocks:
+            visit(child, enclosing)
+
+    for block in resource.blocks:
+        visit(block, ())
+    return out
+
+
+def skipped_by_enclosing_blocks(m: Match, enclosing: tuple[NestedBlock, ...]) -> bool:
+    """Whether a block around the attribute carries a value or a block the rule is told to skip."""
+    for block in enclosing:
+        for name, value in m.skip_when_block_attribute_equals.items():
+            attribute = block.attributes.get(name)
+            if attribute is not None and attribute.is_literal and attribute.raw_value == value:
+                return True
+        if any(child.type in m.skip_when_block_contains for child in block.blocks):
+            return True
+    return False
+
+
 def all_nested_blocks(resource: Resource) -> list[NestedBlock]:
     """Return every nested block of a resource at any depth, outermost first."""
     return [nested for block in resource.blocks for nested in block.walk()]
@@ -217,6 +257,8 @@ def matches_attr(m: Match, name: str, attribute: Attribute) -> tuple[float, bool
     # Reject public whole values before an unanchored pattern selects a credential-shaped
     # substring.
     if m.value_not_public and is_public_by_shape(attribute.raw_value):
+        return 0.0, False
+    if m.value_not_placeholder and looks_like_placeholder(attribute.raw_value):
         return 0.0, False
     if m.value_not_one_of and attribute.raw_value in m.value_not_one_of:
         return 0.0, False

@@ -99,7 +99,7 @@ def test_a_secret_buried_in_a_larger_value_is_still_found(kb: KnowledgeBase) -> 
     """Whitespace must not hide known credentials embedded in scripts or larger values."""
     source = """resource "aws_instance" "app" {
   ami       = "ami-0abcdef1234567890"
-  user_data = "#!/bin/bash\\nexport AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\\necho ok\\n"
+  user_data = "#!/bin/bash\\nexport AWS_ACCESS_KEY_ID=AKIA0Y9X18KP0M9Z1Q8T\\necho ok\\n"
 }
 """
     assert [f for f in _scan(kb, source) if f.rule_name == "credential_value_aws_access_key"]

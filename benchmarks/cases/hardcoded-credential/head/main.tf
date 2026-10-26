@@ -64,3 +64,19 @@ resource "aws_iam_user_login_profile" "operator" {
   user            = "operator"
   password_length = 24
 }
+
+# Near misses reported from real repositories: placeholders, not credentials.
+resource "aws_db_instance" "replace_me" {
+  identifier = "staging"
+  password   = "REPLACE ME"
+}
+
+resource "cloudflare_api_token" "dummy" {
+  name      = "ci"
+  api_token = "dummy-cloudflare-tokens-0123456789abcdef"
+}
+
+resource "azurerm_mssql_server" "change_me" {
+  name                         = "acme-sql"
+  administrator_login_password = "changeme"
+}

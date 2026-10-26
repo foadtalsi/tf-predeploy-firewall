@@ -80,5 +80,13 @@ The corpus measures the rules on the inputs it contains. Some limits hold for ev
 - Only the built-in provider packs (AWS and Azure) give schema-based checks
   (`unknown_attribute`, `force_new_change`, `missing_lifecycle`). Other providers get value
   checks only, and the scan says so.
-- IAM policies are checked as text. A `Condition` anywhere in a policy silences the principal
-  check for the whole policy, and the effect of a statement (`Allow` or `Deny`) is not read.
+- An IAM policy built from variables cannot be evaluated and is read as text: there, a
+  `Condition` anywhere silences the principal check for the whole policy, and the effect of a
+  statement is not read. A literal policy (`jsonencode` of literals, a heredoc, a JSON string)
+  is judged statement by statement.
+- The entropy fallback measures only attributes whose name contains `passw`, `secret`,
+  `token`, `key` or `credential`. A random secret stored under any other name is found only
+  if it has a known format (AWS key, PEM, JWT, GitHub token, hex, 40-character base64).
+- Values containing `dummy`, `example`, `placeholder`, `replace`, `changeme` or `not-a-real`
+  are treated as placeholders by every credential rule, so a real secret that happens to
+  contain one of those words is not reported.

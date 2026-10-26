@@ -62,13 +62,39 @@ def test_catches_credential_shapes_and_entropy() -> None:
         scan_file(
             "terraform.tfvars",
             b"""
-some_opaque_setting = "AKIAIOSFODNN7EXAMPLE"
-another_setting     = "Vt5wYq2Jn8RkLp3zXcB7dHm4gFa9eSu6TbNr"
+some_opaque_setting = "AKIA0Y9X18KP0M9Z1Q8T"
+vendor_signing_key  = "Vt5wYq2Jn8RkLp3zXcB7dHm4gFa9eSu6TbNr"
 """,
         )
     )
     assert "AWS access key" in got
     assert "high-entropy" in got
+
+
+def test_measures_entropy_only_under_a_secret_like_name() -> None:
+    """A statistic is evidence only where a secret is expected; elsewhere it reports digests,
+    image references and generated identifiers."""
+    findings = scan_file(
+        "terraform.tfvars",
+        b"""
+build_reference = "Vt5wYq2Jn8RkLp3zXcB7dHm4gFa9eSu6TbNr"
+""",
+    )
+    assert findings == [], messages(findings)
+
+
+def test_ignores_placeholders_under_any_name() -> None:
+    findings = scan_file(
+        "terraform.tfvars",
+        b"""
+db_password        = "REPLACE ME"
+cloudflare_token   = "dummy-cloudflare-tokens-0123456789abcdef"
+openai_signing_key = "sk-placeholder-not-a-real-key"
+access_key_id      = "AKIAIOSFODNN7EXAMPLE"
+admin_password     = "change_me"
+""",
+    )
+    assert findings == [], messages(findings)
 
 
 def test_stays_quiet_on_ordinary_values() -> None:

@@ -66,6 +66,27 @@ release; see the [usage guide](docs/usage.md) for current behavior.
   (zizmor) and the locked dependencies (pip-audit). Dependabot proposes updates to every
   pin after a 14-day cooldown.
 
+- Fewer false positives on credentials and IAM, from findings reported on real
+  repositories:
+  - A value written to be replaced is no longer reported as a credential: anything
+    containing `dummy`, `example`, `placeholder`, `replace`, `changeme` or `not-a-real`
+    (`REPLACE ME`, `sk-placeholder-not-a-real-key`, the AWS documentation keys), in `.tf`,
+    `.tfvars` and Terragrunt files.
+  - `credential_value_entropy` and `tfvars_high_entropy` measure only attributes named
+    like a secret (`passw`, `secret`, `token`, `key`, `credential`). They reported module
+    `source` URLs, image digests and WAF regular expressions. Known credential formats are
+    still recognized under any name.
+  - `iam_document_wildcard_principal` no longer reports a `Deny` statement or one with a
+    `condition` block, and `iam_document_wildcard_action` no longer reports a `Deny`:
+    `DenyHTTP` and deny-unencrypted-transport statements are guardrails.
+  - `iam_wildcard` evaluates a literal policy and judges each statement: a `Deny` grants
+    nothing, and a `Condition` narrows only its own statement. A public `Allow` next to a
+    conditioned `Deny`, which the text-wide check missed, is now reported. A policy built
+    from variables is still read as text.
+- The rule format accepts `value_not_placeholder`, `skip_when_block_attribute_equals` and
+  `skip_when_block_contains` in a `match` block. `value_not_public` now survives
+  `--print-rules`, which dropped it.
+
 ### Fixed
 
 - **The parser looped forever on an unterminated quoted string at the end of a line**,

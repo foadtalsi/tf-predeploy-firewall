@@ -15,6 +15,7 @@ import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -162,12 +163,24 @@ RETIRED_SARIF_RULES = frozenset({"cost_impact"})
 ADDED_SARIF_RULES = frozenset({"incomplete_analysis", "unresolved_value"})
 
 
+#: Rules whose help text was rewritten after the port; see REWRITTEN_HELP in
+#: test_report_parity. Their help is left out of the comparison.
+REWRITTEN_HELP = frozenset({"tutorial_pattern", "permissive_iam"})
+
+
 def _without_rules(sarif: str, rule_ids: frozenset[str]) -> dict[str, object]:
-    """A SARIF document without the named rules in its driver."""
+    """A SARIF document without the named rules in its driver, and without the help text of
+    the rules rewritten after the port."""
     document = json.loads(sarif)
     for run in document["runs"]:
         driver = run["tool"]["driver"]
-        driver["rules"] = [rule for rule in driver["rules"] if rule["id"] not in rule_ids]
+        driver["rules"] = [
+            {key: value for key, value in rule.items() if key != "help"}
+            if rule["id"] in REWRITTEN_HELP
+            else rule
+            for rule in driver["rules"]
+            if rule["id"] not in rule_ids
+        ]
     return document
 
 
@@ -233,10 +246,45 @@ def test_the_python_report_is_stable_across_runs(repo: Path, tmp_path: Path) -> 
     assert len(digests) == 1
 
 
+#: Credential findings the Go oracle reports on its fixture corpus and this scanner no longer
+#: does, on purpose, keyed by file and line. Four are values written to be replaced (the AWS
+#: documentation keys, "changeme"); one is a random value under `value`, an attribute name the
+#: entropy fallback no longer measures. Any other difference still fails the comparison.
+RETIRED_CORPUS_FINDINGS = frozenset(
+    {
+        ("testdata/fixtures/credential_values.tf", 5),
+        ("testdata/fixtures/tutorial_golden.tf", 23),
+        ("testdata/fixtures/tutorial_golden.tf", 144),
+        ("testdata/fixtures/tutorial_golden.tf", 150),
+        ("testdata/fixtures/tutorial_golden.tf", 184),
+        ("testdata/fixtures/tutorial_pattern.tf", 4),
+    }
+)
+
+
+def _retired(category: str, path: str, line: int) -> bool:
+    return category == "tutorial_pattern" and (path, line) in RETIRED_CORPUS_FINDINGS
+
+
+def _sarif_without_retired_findings(document: dict[str, Any]) -> dict[str, Any]:
+    for run in document["runs"]:
+        run["results"] = [
+            result
+            for result in run["results"]
+            if not _retired(
+                result["ruleId"],
+                result["locations"][0]["physicalLocation"]["artifactLocation"]["uri"],
+                result["locations"][0]["physicalLocation"]["region"]["startLine"],
+            )
+        ]
+    return document
+
+
 def test_full_repo_scan_agrees_over_the_go_fixture_corpus(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    """Compare the larger historical Go fixture corpus when its checkout is available."""
+    """Compare the larger historical Go fixture corpus when its checkout is available, except for
+    the credential findings retired on purpose."""
     core = Path(__file__).resolve().parents[2] / "core"
     if not (core / ".git").exists() or shutil.which("git") is None:
         pytest.skip("the sibling core/ git tree is not available")
@@ -248,14 +296,32 @@ def test_full_repo_scan_agrees_over_the_go_fixture_corpus(
 
     go_sarif = _mask_pack_versions((out / "go.sarif.json").read_text(encoding="utf-8"))
     py_sarif = _mask_pack_versions((out / "py.sarif.json").read_text(encoding="utf-8"))
-    assert _without_rules(go_sarif, RETIRED_SARIF_RULES) == _without_rules(
-        py_sarif, ADDED_SARIF_RULES
-    )
-    assert _mask_pack_versions((out / "go.cq.json").read_text(encoding="utf-8")) == (
-        _mask_pack_versions((out / "py.cq.json").read_text(encoding="utf-8"))
-    )
+    assert _sarif_without_retired_findings(
+        _without_rules(go_sarif, RETIRED_SARIF_RULES)
+    ) == _without_rules(py_sarif, ADDED_SARIF_RULES)
 
-    go, py = _rows(out / "go.md"), _rows(out / "py.md")
+    # Compared as data rather than bytes once findings are removed: the byte-level encoding is
+    # pinned by test_machine_readable_output_is_byte_identical.
+    go_quality = json.loads(_mask_pack_versions((out / "go.cq.json").read_text(encoding="utf-8")))
+    py_quality = json.loads(_mask_pack_versions((out / "py.cq.json").read_text(encoding="utf-8")))
+    go_quality = [
+        issue
+        for issue in go_quality
+        if not _retired(
+            issue["check_name"], issue["location"]["path"], issue["location"]["lines"]["begin"]
+        )
+    ]
+    assert go_quality == py_quality
+
+    go = [
+        row
+        for row in _rows(out / "go.md")
+        if not (
+            row[3] == "Tutorial-copy pattern"
+            and (row[1].strip("`"), int(row[2])) in RETIRED_CORPUS_FINDINGS
+        )
+    ]
+    py = _rows(out / "py.md")
     assert len(go) > 50, "expected the fixture corpus to produce a substantial report"
     assert Counter(go) == Counter(py)
     assert [(r[1], int(r[2])) for r in go] == [(r[1], int(r[2])) for r in py]

@@ -13,14 +13,14 @@ precision ≥ 95% and recall ≥ 90%.
 
 | Rule | Maturity | Cases | Positives | Near misses | TP | FP | FN | Precision | Recall |
 |---|---|---|---|---|---|---|---|---|---|
-| `hardcoded_credential` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
-| `credential_value_aws_access_key` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
-| `credential_value_pem` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `hardcoded_credential` | stable | 1 | 5 | 7 | 5 | 0 | 0 | 100% | 100% |
+| `credential_value_aws_access_key` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
+| `credential_value_pem` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_jwt` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_github_token` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
-| `credential_value_aws_secret_key` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `credential_value_aws_secret_key` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_hex` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
-| `credential_value_entropy` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `credential_value_entropy` | stable | 1 | 5 | 7 | 5 | 0 | 0 | 100% | 100% |
 | `open_cidr` | stable | 2 | 5 | 7 | 5 | 0 | 0 | 100% | 100% |
 | `open_cidr_in_block` | stable | 2 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
 | `placeholder_resource_name` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
@@ -38,9 +38,9 @@ precision ≥ 95% and recall ≥ 90%.
 | `weak_tls_policy` | stable | 1 | 6 | 4 | 6 | 0 | 0 | 100% | 100% |
 | `audit_logging_disabled` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `skip_final_snapshot` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
-| `iam_wildcard` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
-| `iam_document_wildcard_action` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
-| `iam_document_wildcard_principal` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `iam_wildcard` | stable | 1 | 6 | 6 | 6 | 0 | 0 | 100% | 100% |
+| `iam_document_wildcard_action` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
+| `iam_document_wildcard_principal` | stable | 1 | 5 | 6 | 5 | 0 | 0 | 100% | 100% |
 | `s3_force_destroy` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `confirmed_replace` | stable | 1 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
 | `unexpected_drift` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
@@ -50,7 +50,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `unsupported_file_format` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `unresolved_guard_value` | experimental | 1 | 6 | 4 | 6 | 0 | 0 | 100% | 100% |
 
-All rules: 185 positives, 136 near misses, 185 true positives, 0 false positives, 0 false negatives.
+All rules: 186 positives, 152 near misses, 186 true positives, 0 false positives, 0 false negatives.
 
 ## Known misses
 

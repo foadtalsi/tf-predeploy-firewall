@@ -107,3 +107,18 @@ inputs = {
 def test_invalid_hcl_raises() -> None:
     with pytest.raises(HCLParseError):
         scan_file("terragrunt.hcl", b"inputs = { this is not valid HCL")
+
+
+def test_ignores_placeholders() -> None:
+    """A value written to be replaced is not a leaked secret, whatever its key."""
+    findings = scan_file(
+        "terragrunt.hcl",
+        b"""
+inputs = {
+  db_password   = "REPLACE ME"
+  api_token     = "dummy-cloudflare-tokens-0123456789abcdef"
+  access_key_id = "AKIAIOSFODNN7EXAMPLE"
+}
+""",
+    )
+    assert findings == []
