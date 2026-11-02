@@ -3,7 +3,7 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
-## [v1.4.0] — 2026-10-26
+## [v1.4.0] — 2026-11-02
 
 ### Added
 
@@ -68,10 +68,13 @@ release; see the [usage guide](docs/usage.md) for current behavior.
 
 - Fewer false positives on credentials and IAM, from findings reported on real
   repositories:
-  - A value written to be replaced is no longer reported as a credential: anything
-    containing `dummy`, `example`, `placeholder`, `replace`, `changeme` or `not-a-real`
-    (`REPLACE ME`, `sk-placeholder-not-a-real-key`, the AWS documentation keys), in `.tf`,
-    `.tfvars` and Terragrunt files.
+  - A value written to be replaced is no longer reported as a credential, in `.tf`,
+    `.tfvars` and Terragrunt files: a value in angle brackets (`<YOUR_API_KEY>`), one made
+    only of `*`, or one containing `dummy`, `example`, `placeholder`, `replace`,
+    `changeme`, `changeit`, `not-a-real`, `your`, `insert`, `redacted`, `todo`, `fake`,
+    `sample` or `xxxx` (`REPLACE ME`, `your-api-key-here`, `sk-placeholder-not-a-real-key`,
+    the AWS documentation keys). A weak password written in full, such as `password123`,
+    is still reported.
   - `credential_value_entropy` and `tfvars_high_entropy` measure only attributes named
     like a secret (`passw`, `secret`, `token`, `key`, `credential`). They reported module
     `source` URLs, image digests and WAF regular expressions. Known credential formats are

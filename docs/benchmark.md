@@ -87,6 +87,7 @@ The corpus measures the rules on the inputs it contains. Some limits hold for ev
 - The entropy fallback measures only attributes whose name contains `passw`, `secret`,
   `token`, `key` or `credential`. A random secret stored under any other name is found only
   if it has a known format (AWS key, PEM, JWT, GitHub token, hex, 40-character base64).
-- Values containing `dummy`, `example`, `placeholder`, `replace`, `changeme` or `not-a-real`
-  are treated as placeholders by every credential rule, so a real secret that happens to
-  contain one of those words is not reported.
+- Placeholders are skipped by every credential rule: a value in angle brackets, one made only
+  of `*`, or one containing `dummy`, `example`, `placeholder`, `replace`, `changeme`,
+  `changeit`, `not-a-real`, `your`, `insert`, `redacted`, `todo`, `fake`, `sample` or `xxxx`.
+  A real secret that happens to contain one of those words is not reported.

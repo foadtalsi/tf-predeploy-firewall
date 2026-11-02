@@ -13,7 +13,7 @@ precision ≥ 95% and recall ≥ 90%.
 
 | Rule | Maturity | Cases | Positives | Near misses | TP | FP | FN | Precision | Recall |
 |---|---|---|---|---|---|---|---|---|---|
-| `hardcoded_credential` | stable | 1 | 5 | 7 | 5 | 0 | 0 | 100% | 100% |
+| `hardcoded_credential` | stable | 1 | 8 | 19 | 8 | 0 | 0 | 100% | 100% |
 | `credential_value_aws_access_key` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_pem` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_jwt` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
@@ -50,7 +50,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `unsupported_file_format` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `unresolved_guard_value` | experimental | 1 | 6 | 4 | 6 | 0 | 0 | 100% | 100% |
 
-All rules: 186 positives, 152 near misses, 186 true positives, 0 false positives, 0 false negatives.
+All rules: 189 positives, 164 near misses, 189 true positives, 0 false positives, 0 false negatives.
 
 ## Known misses
 

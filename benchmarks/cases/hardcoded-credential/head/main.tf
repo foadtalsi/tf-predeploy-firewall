@@ -80,3 +80,80 @@ resource "azurerm_mssql_server" "change_me" {
   name                         = "acme-sql"
   administrator_login_password = "changeme"
 }
+
+# Near misses: more spellings of a value written to be replaced.
+resource "aws_db_instance" "placeholder_angle_brackets" {
+  identifier = "placeholder-angle-brackets"
+  password   = "<YOUR_API_KEY>"
+}
+
+resource "aws_db_instance" "placeholder_your_key_here" {
+  identifier = "placeholder-your-key-here"
+  password   = "your-api-key-here"
+}
+
+resource "aws_db_instance" "placeholder_your_secret" {
+  identifier = "placeholder-your-secret"
+  password   = "YOUR_SECRET"
+}
+
+resource "aws_db_instance" "placeholder_insert_here" {
+  identifier = "placeholder-insert-here"
+  password   = "insert-token-here"
+}
+
+resource "aws_db_instance" "placeholder_x_run" {
+  identifier = "placeholder-x-run"
+  password   = "xxxxxxxxxxxxxxxx"
+}
+
+resource "aws_db_instance" "placeholder_masked" {
+  identifier = "placeholder-masked"
+  password   = "********"
+}
+
+resource "aws_db_instance" "placeholder_redacted" {
+  identifier = "placeholder-redacted"
+  password   = "REDACTED"
+}
+
+resource "aws_db_instance" "placeholder_redacted_brackets" {
+  identifier = "placeholder-redacted-brackets"
+  password   = "<redacted>"
+}
+
+resource "aws_db_instance" "placeholder_todo" {
+  identifier = "placeholder-todo"
+  password   = "TODO"
+}
+
+resource "aws_db_instance" "placeholder_fake" {
+  identifier = "placeholder-fake"
+  password   = "fake-password"
+}
+
+resource "aws_db_instance" "placeholder_sample" {
+  identifier = "placeholder-sample"
+  password   = "sample-key"
+}
+
+resource "aws_db_instance" "placeholder_change_it" {
+  identifier = "placeholder-change-it"
+  password   = "CHANGE_IT"
+}
+
+# Positives: weak passwords written in full are still credentials in source.
+resource "aws_db_instance" "weak_password" {
+  identifier = "weak-password"
+  password   = "password123"
+}
+
+resource "aws_db_instance" "weak_default" {
+  identifier = "weak-default"
+  password   = "default-password"
+}
+
+resource "aws_db_instance" "word_secret" {
+  identifier = "word-secret"
+  password   = "secret"
+}

@@ -156,9 +156,12 @@ listener is the intent, that is what a suppression comment is for.
 
 ### What this deliberately does not report
 
-A value written to be replaced. A value containing `dummy`, `example`,
-`placeholder`, `replace`, `changeme` or `not-a-real` — `REPLACE ME`, the AWS
-documentation keys — is a stand-in for a secret, not a secret.
+A value written to be replaced: one in angle brackets (`<YOUR_API_KEY>`),
+one made only of `*`, or one containing `dummy`, `example`, `placeholder`,
+`replace`, `changeme`, `changeit`, `not-a-real`, `your`, `insert`,
+`redacted`, `todo`, `fake`, `sample` or `xxxx` — `REPLACE ME`, the AWS
+documentation keys. It is a stand-in for a secret, not a secret. A weak
+password written in full, such as `password123`, is still reported.
 
 A high-entropy value in an attribute whose name does not announce a secret.
 Randomness alone is measured only under names containing `passw`, `secret`,

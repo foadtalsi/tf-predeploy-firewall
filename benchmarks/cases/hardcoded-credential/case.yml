@@ -5,6 +5,9 @@ expect:
   - {rule: hardcoded_credential, target: aws_elasticache_replication_group.sessions}
   - {rule: hardcoded_credential, target: aws_dms_endpoint.source}
   - {rule: hardcoded_credential, target: azurerm_kubernetes_cluster.platform}
+  - {rule: hardcoded_credential, target: aws_db_instance.weak_password}
+  - {rule: hardcoded_credential, target: aws_db_instance.weak_default}
+  - {rule: hardcoded_credential, target: aws_db_instance.word_secret}
 must_not_report:
   - {rule: hardcoded_credential, target: aws_db_instance.from_variable}
   - {rule: hardcoded_credential, target: aws_rds_cluster.managed}
@@ -13,3 +16,15 @@ must_not_report:
   - {rule: hardcoded_credential, target: aws_db_instance.replace_me}
   - {rule: hardcoded_credential, target: cloudflare_api_token.dummy}
   - {rule: hardcoded_credential, target: azurerm_mssql_server.change_me}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_angle_brackets}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_your_key_here}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_your_secret}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_insert_here}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_x_run}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_masked}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_redacted}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_redacted_brackets}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_todo}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_fake}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_sample}
+  - {rule: hardcoded_credential, target: aws_db_instance.placeholder_change_it}

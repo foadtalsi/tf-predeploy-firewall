@@ -44,6 +44,19 @@ def _findings(kb: KnowledgeBase, source: str, rule_name: str) -> list[Finding]:
         "not_a_real_secret",
         "AKIAIOSFODNN7EXAMPLE",
         "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        "<YOUR_API_KEY>",
+        "<redacted>",
+        "your-api-key-here",
+        "YOUR_SECRET",
+        "insert-token-here",
+        "xxxxxxxxxxxxxxxx",
+        "XXXXXXXXXXXXXXXXXXXX",
+        "********",
+        "REDACTED",
+        "TODO",
+        "fake-password",
+        "sample-key",
+        "CHANGE_IT",
     ],
 )
 def test_placeholders_are_recognized(value: str) -> None:
@@ -52,7 +65,17 @@ def test_placeholders_are_recognized(value: str) -> None:
 
 @pytest.mark.parametrize(
     "value",
-    ["Orders-db-2026-Pa55", "AKIA0Y9X18KP0M9Z1Q8T", "x8Qz!Lm2#Vp9@Rt4$Wn7%Yb1^Hd6&Kf3*Gs5"],
+    [
+        "Orders-db-2026-Pa55",
+        "AKIA0Y9X18KP0M9Z1Q8T",
+        "x8Qz!Lm2#Vp9@Rt4$Wn7%Yb1^Hd6&Kf3*Gs5",
+        # Weak passwords written in full are real credentials, however poor.
+        "password123",
+        "secret",
+        "default-password",
+        "my-secret-token",
+        "",
+    ],
 )
 def test_real_looking_values_are_not_placeholders(value: str) -> None:
     assert not looks_like_placeholder(value)

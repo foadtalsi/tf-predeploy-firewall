@@ -55,14 +55,43 @@ _WHITESPACE = (" ", "\t", "\n")
 
 #: Words that mark a value as a stand-in for a secret rather than a secret. They are looked for in
 #: the value lowercased with everything but letters and digits removed, so "REPLACE ME",
-#: "change_me" and "not-a-real" all match.
-PLACEHOLDER_WORDS = ("dummy", "example", "placeholder", "replace", "changeme", "notareal")
+#: "change_me", "not-a-real" and "your-api-key-here" all match.
+#:
+#: A weak password written in full (password123, secret, default-password) is not on this
+#: list: it is a real credential in source, however poor.
+PLACEHOLDER_WORDS = (
+    "dummy",
+    "example",
+    "placeholder",
+    "replace",
+    "changeme",
+    "changeit",
+    "notareal",
+    "your",
+    "insert",
+    "redacted",
+    "todo",
+    "fake",
+    "sample",
+    "xxxx",
+)
+
+#: Characters a masked value is made of: "********", "••••••••".
+_MASK_CHARACTERS = frozenset("*•")
 
 
 def looks_like_placeholder(value: str) -> bool:
-    """Recognize a value written to be replaced: REPLACE ME, changeme, sk-placeholder-..., the
-    AWS documentation keys (AKIAIOSFODNN7EXAMPLE)."""
-    letters_and_digits = "".join(character for character in value.lower() if character.isalnum())
+    """Recognize a value written to be replaced: REPLACE ME, <YOUR_API_KEY>, changeme, xxxxxxxx,
+    ********, sk-placeholder-..., the AWS documentation keys (AKIAIOSFODNN7EXAMPLE)."""
+    stripped = value.strip()
+    if not stripped:
+        return False
+    # <YOUR_API_KEY>, <redacted>: a name in angle brackets is a slot to fill in.
+    if stripped.startswith("<") and stripped.endswith(">"):
+        return True
+    if set(stripped) <= _MASK_CHARACTERS:
+        return True
+    letters_and_digits = "".join(character for character in stripped.lower() if character.isalnum())
     return any(word in letters_and_digits for word in PLACEHOLDER_WORDS)
 
 
