@@ -74,14 +74,24 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
-      # Build the Go revision used as the compatibility oracle. Match the Python package version
-      # so SARIF comparisons do not fail on version metadata alone.
+      # The Go revision used as the compatibility oracle, checked out and built inside its own
+      # module. `go install <module>@<commit>` asked the module proxy for the module's latest
+      # tagged version first, and the Python releases (v1.4.0 onward) have no go.mod at the
+      # root: the lookup failed with a 404 and so did every run after a release.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: cf0bdd32d03866e3db023bd8223f848bfe89af8f
+          path: go-oracle
+          persist-credentials: false
+
+      # Match the Python package version so SARIF comparisons do not fail on version metadata
+      # alone.
       - name: Build the Go scanner
         run: |
           version=$(python -c 'import importlib.metadata as m; print(m.version("tf-predeploy-firewall"))')
-          go install -ldflags "-X main.version=$version" \
-            github.com/foadtalsi/tf-predeploy-firewall/cmd/tf-predeploy-firewall@cf0bdd32d03866e3db023bd8223f848bfe89af8f
-          echo "TFPDF_GO_BINARY=$(go env GOPATH)/bin/tf-predeploy-firewall" >> "$GITHUB_ENV"
+          go build -C go-oracle -ldflags "-X main.version=$version" \
+            -o "$RUNNER_TEMP/tf-predeploy-firewall" ./cmd/tf-predeploy-firewall
+          echo "TFPDF_GO_BINARY=$RUNNER_TEMP/tf-predeploy-firewall" >> "$GITHUB_ENV"
 
       - name: Parity tests
         run: pytest -q tests/test_cli_parity.py

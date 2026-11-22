@@ -7,6 +7,7 @@ these tests skip. The former neighboring Go checkout is optional.
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -14,6 +15,7 @@ import shutil
 import subprocess
 import sys
 from collections import Counter
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -165,7 +167,34 @@ ADDED_SARIF_RULES = frozenset({"incomplete_analysis", "unresolved_value"})
 
 #: Rules whose help text was rewritten after the port; see REWRITTEN_HELP in
 #: test_report_parity. Their help is left out of the comparison.
-REWRITTEN_HELP = frozenset({"tutorial_pattern", "permissive_iam"})
+REWRITTEN_HELP = frozenset(
+    {"tutorial_pattern", "permissive_iam", "public_exposure", "missing_lifecycle"}
+)
+
+#: Base packs this scanner embeds and the Go oracle never had, by provider. The stderr banner
+#: lists them last, as packs and providers are sorted and they sort after aws and azurerm.
+ADDED_BASE_PACKS = {"google": "google-base"}
+
+
+def _without_added_packs(err: str) -> str:
+    """The stderr banner as the Go oracle writes it: without the added packs, their provider
+    and their resource types. A banner that does not have the expected shape is left as it
+    is, so the comparison fails."""
+    for provider, pack_id in ADDED_BASE_PACKS.items():
+        shipped = resources.files("tfpdf.schema") / "data" / f"pack_{provider}_base.json.gz"
+        types = len(json.loads(gzip.decompress(shipped.read_bytes()))["resources"])
+        banner = re.compile(
+            rf"rule packs \[(.*?) {re.escape(pack_id)}\] "
+            rf"\((.*?), {re.escape(provider)} \d+\.\d+\.\d+; (\d+) resource types\)"
+        )
+        err = banner.sub(
+            lambda found, types=types: (
+                f"rule packs [{found.group(1)}] "
+                f"({found.group(2)}; {int(found.group(3)) - types} resource types)"
+            ),
+            err,
+        )
+    return err
 
 
 def _without_rules(sarif: str, rule_ids: frozenset[str]) -> dict[str, object]:
@@ -188,11 +217,13 @@ def _without_rules(sarif: str, rule_ids: frozenset[str]) -> dict[str, object]:
 def test_machine_readable_output_is_byte_identical(both: Path, artefact: str) -> None:
     """Compare SARIF, Code Quality, and coverage output against the Go oracle byte for byte,
     except for SARIF rules this scanner retired on purpose and the provider version each pack
-    stamps into documentation links, and SARIF rules added after the port. Match the oracle's
+    stamps into documentation links, and SARIF rules and base packs added after the port. Match the oracle's
     stamped version to the installed Python package.
     """
     go = _mask_pack_versions((both / f"go.{artefact}").read_text(encoding="utf-8"))
-    py = _mask_pack_versions((both / f"py.{artefact}").read_text(encoding="utf-8"))
+    py = _mask_pack_versions(
+        _without_added_packs((both / f"py.{artefact}").read_text(encoding="utf-8"))
+    )
     if artefact == "sarif.json":
         # Retired and added rules are the deliberate differences from the Go oracle. Every other
         # rule, every result and every ruleIndex must still match.
