@@ -15,7 +15,7 @@ import (
 
 func main() {
 	var (
-		provider   = flag.String("provider", "aws", "provider name (aws, azurerm); selects the extractor and labels the index")
+		provider   = flag.String("provider", "aws", "provider name (aws, azurerm, google, google-beta); selects the extractor and labels the index")
 		sourcePath = flag.String("provider-src", "", "provider source checkout path (required)")
 		version    = flag.String("provider-version", "", "provider version recorded in the index")
 		outputPath = flag.String("out", "", "output JSON path (required)")

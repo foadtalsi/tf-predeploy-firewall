@@ -71,6 +71,11 @@ class ResourceChange:
         """Distinguish managed resources from data-source reads."""
         return self.mode == "managed"
 
+    def provider_type(self) -> str:
+        """Return the provider type from provider_name:
+        "registry.terraform.io/hashicorp/google-beta" gives "google-beta"."""
+        return self.provider_name.rsplit("/", 1)[-1]
+
 
 @dataclass(slots=True)
 class PlanFile:

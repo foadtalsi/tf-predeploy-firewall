@@ -118,7 +118,7 @@ jobs:
       - name: The wheel carries its rule packs
         run: |
           python -m zipfile -l dist/*.whl > /tmp/contents.txt
-          for f in pack_aws_base.json.gz pack_azurerm_base.json.gz default.yml; do
+          for f in pack_aws_base.json.gz pack_azurerm_base.json.gz pack_google_base.json.gz default.yml; do
             grep -q "$f" /tmp/contents.txt || { echo "$f missing from wheel"; exit 1; }
           done
           echo "packs and configuration present"

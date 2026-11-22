@@ -77,9 +77,11 @@ The corpus measures the rules on the inputs it contains. Some limits hold for ev
 - Values assigned by a `.tfvars` file, a module caller or the command line are not read into
   resources. A guard set from such a value is reported as `unresolved_value`, which is
   experimental and never blocks.
-- Only the built-in provider packs (AWS and Azure) give schema-based checks
+- Only the built-in provider packs (AWS, Azure and Google Cloud) give schema-based checks
   (`unknown_attribute`, `force_new_change`, `missing_lifecycle`). Other providers get value
-  checks only, and the scan says so.
+  checks only, and the scan says so. A Google Cloud resource with `provider = google-beta`
+  gets `missing_lifecycle` but not the other two unless the google-beta pack is loaded,
+  which takes a license key.
 - An IAM policy built from variables cannot be evaluated and is read as text: there, a
   `Condition` anywhere silences the principal check for the whole policy, and the effect of a
   statement is not read. A literal policy (`jsonencode` of literals, a heredoc, a JSON string)

@@ -25,7 +25,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `open_cidr_in_block` | stable | 2 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
 | `placeholder_resource_name` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
 | `placeholder_attribute_value` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
-| `unknown_attribute` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
+| `unknown_attribute` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
 | `force_new_change` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `missing_lifecycle` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `unpinned_version` | stable | 1 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
@@ -42,6 +42,14 @@ precision ≥ 95% and recall ≥ 90%.
 | `iam_document_wildcard_action` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `iam_document_wildcard_principal` | stable | 1 | 5 | 6 | 5 | 0 | 0 | 100% | 100% |
 | `s3_force_destroy` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `open_source_ranges` | experimental | 1 | 5 | 6 | 5 | 0 | 0 | 100% | 100% |
+| `open_authorized_network` | experimental | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
+| `public_iam_member` | experimental | 1 | 6 | 6 | 6 | 0 | 0 | 100% | 100% |
+| `public_gcs_acl` | experimental | 1 | 7 | 4 | 7 | 0 | 0 | 100% | 100% |
+| `basic_role_granted` | experimental | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
+| `gke_legacy_abac` | experimental | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
+| `deletion_protection_disabled` | experimental | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
+| `destroy_deletes_contents` | experimental | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `confirmed_replace` | stable | 1 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
 | `unexpected_drift` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `large_blast_radius` | stable | 8 | 5 | 6 | 5 | 0 | 0 | 100% | 100% |
@@ -50,7 +58,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `unsupported_file_format` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `unresolved_guard_value` | experimental | 1 | 6 | 4 | 6 | 0 | 0 | 100% | 100% |
 
-All rules: 189 positives, 164 near misses, 189 true positives, 0 false positives, 0 false negatives.
+All rules: 234 positives, 201 near misses, 234 true positives, 0 false positives, 0 false negatives.
 
 ## Known misses
 

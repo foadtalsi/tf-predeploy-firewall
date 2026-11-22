@@ -6,6 +6,7 @@ import re
 import sys
 
 from ..diff import ChangedFile
+from ..providerversion import PROVIDER_VARIANTS
 from ..schema import Coverage
 
 #: Every provider a rule pack exists for — both the free pack shipped with the
@@ -19,7 +20,7 @@ from ..schema import Coverage
 #: of its pack produces the worst outcome available: the scan warns that
 #: coverage "falls back to the embedded pack" for a provider that has no
 #: embedded pack, which reads as degraded coverage where there is none at all.
-FETCHABLE_PROVIDERS = frozenset({"aws", "azurerm"})
+FETCHABLE_PROVIDERS = frozenset({"aws", "azurerm", "google", "google-beta"})
 
 #: Providers that declare no cloud infrastructure worth a rule pack, so their
 #: absence from one is not a coverage gap worth reporting. `random`, `tls`,
@@ -49,6 +50,12 @@ SCHEMALESS_PROVIDERS = frozenset(
 #: providers because the registry itself enforces it.
 _PROVIDER_PREFIX = re.compile(rb'^\s*(?:resource|data)\s+"([a-z][a-z0-9]*)_', re.MULTILINE)
 
+#: Pulls the local name out of a `provider = google-beta.west` meta-argument,
+#: quoted or not. Only variants are kept from it (see PROVIDER_VARIANTS):
+#: google-beta resources carry google_* types, so the type prefix alone would
+#: never reveal that the google-beta pack is needed.
+_PROVIDER_ARGUMENT = re.compile(rb'^\s*provider\s*=\s*"?([a-z][a-z0-9-]*)', re.MULTILINE)
+
 
 def resolve_providers(flag_value: str, files: list[ChangedFile]) -> list[str]:
     """Resolve --providers from an explicit list or detected providers with available packs."""
@@ -65,17 +72,40 @@ def detect_providers(files: list[ChangedFile]) -> list[str]:
     for changed_file in files:
         for match in _PROVIDER_PREFIX.finditer(changed_file.head_content):
             seen.add(match.group(1).decode())
+        for match in _PROVIDER_ARGUMENT.finditer(changed_file.head_content):
+            local_name = match.group(1).decode()
+            if local_name in PROVIDER_VARIANTS:
+                seen.add(local_name)
     return sorted(seen)
 
 
 def warn_uncovered_providers(files: list[ChangedFile], cov: Coverage) -> None:
     """Warn about providers without schemas. Schema-independent value checks still run."""
     covered = {provider.name for provider in cov.providers}
+    detected = detect_providers(files)
     uncovered = [
         provider
-        for provider in detect_providers(files)
-        if provider not in covered and provider not in SCHEMALESS_PROVIDERS
+        for provider in detected
+        if provider not in covered
+        and provider not in SCHEMALESS_PROVIDERS
+        and provider not in PROVIDER_VARIANTS
     ]
+    uncovered_variants = [
+        provider
+        for provider in detected
+        if provider in PROVIDER_VARIANTS and provider not in covered
+    ]
+    for variant in uncovered_variants:
+        # Narrower than the message below: a google-beta resource still gets
+        # the prevent_destroy check, because the critical list is shared with
+        # google. Only the schema-derived checks are skipped.
+        print(
+            f"tf-predeploy-firewall: no rule pack for {variant} — resources with "
+            f"`provider = {variant}` were checked by every rule except unknown arguments "
+            f"and destroy/recreate traps, which need the {variant} schema (it ships with "
+            "a license key)",
+            file=sys.stderr,
+        )
     if not uncovered:
         return
     print(

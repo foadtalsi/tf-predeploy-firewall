@@ -231,6 +231,8 @@ def matches_resource(m: Match, res: Resource) -> bool:
         return False
     if res.type in m.skip_resource_types:
         return False
+    if any(block.type in m.skip_when_resource_contains for block in res.blocks):
+        return False
     for name, value in m.skip_when_attribute_equals.items():
         attribute = res.attributes.get(name)
         if attribute is not None and attribute.is_literal and attribute.raw_value == value:

@@ -687,6 +687,211 @@ RULES: list[Rule] = [
         ),
     ),
     # ---------------------------------------------------------------------
+    # Google Cloud. The AWS and Azure rules above match the names those providers use
+    # (`cidr_blocks`, `publicly_accessible`, `acl`); Google spells the same decisions
+    # differently. The same discipline holds: every rule matches a value written down,
+    # never an absence.
+    #
+    # Experimental until their findings have been reviewed on real repositories, as every
+    # new rule starts: they report and never block. The benchmark cases gcp-* hold their
+    # positives and near misses.
+    # ---------------------------------------------------------------------
+    #
+    # The GCP firewall rule. An ingress rule from 0.0.0.0/0 is the same tutorial
+    # copy-paste as an open security group. A `deny` block turns the same range into a
+    # guardrail, an egress rule names destinations rather than sources, and a disabled
+    # rule opens nothing.
+    Rule(
+        id="open_source_ranges",
+        category="tutorial_pattern",
+        severity="high",
+        maturity="experimental",
+        message="{attr_q} includes 0.0.0.0/0 on {resource} — this firewall rule admits the whole internet; narrow it to the ranges that need access, or to 35.235.240.0/20 for SSH through IAP",
+        match=Match(
+            scope="attribute",
+            resource_types=["google_compute_firewall"],
+            skip_when_attribute_equals={"direction": "EGRESS", "disabled": "true"},
+            skip_when_resource_contains=["deny"],
+            attr_names=["source_ranges"],
+            literal=True,
+            value_contains="0.0.0.0/0",
+        ),
+    ),
+    # Cloud SQL authorized networks and the GKE control plane's authorized networks. Both
+    # exist to say who may connect; 0.0.0.0/0 there says everyone, and leaves the
+    # database password or the cluster credentials as the only barrier.
+    Rule(
+        id="open_authorized_network",
+        category="public_exposure",
+        severity="high",
+        maturity="experimental",
+        message='"{attr} (inside {block} block)" authorizes 0.0.0.0/0 on {resource} — every address on the internet may connect, and credentials become the only barrier; list the networks that need access, or use private IP',
+        match=Match(
+            scope="block_attribute",
+            resource_types=["google_sql_database_instance", "google_container_cluster"],
+            block_types=["authorized_networks", "cidr_blocks"],
+            attr_names=["value", "cidr_block"],
+            literal=True,
+            value_contains="0.0.0.0/0",
+        ),
+    ),
+    # allUsers is anyone on the internet, allAuthenticatedUsers anyone with a Google
+    # account: neither is "everyone in the organisation". Matched on member and members
+    # of every IAM resource, and of the google_iam_policy data source's bindings.
+    #
+    # Cloud Run services and Cloud Functions are left out: granting the invoker role to
+    # allUsers is how a public HTTP endpoint is built, and the endpoint authenticates its
+    # callers itself.
+    Rule(
+        id="public_iam_member",
+        category="public_exposure",
+        severity="high",
+        maturity="experimental",
+        message="{location}{attr} = {value_q} on {resource} grants the role to allUsers (anyone on the internet) or allAuthenticatedUsers (anyone with a Google account) — neither means your organisation",
+        match=Match(
+            scope="any_attribute",
+            skip_resource_types=[
+                "google_cloud_run_service_iam_binding",
+                "google_cloud_run_service_iam_member",
+                "google_cloud_run_service_iam_policy",
+                "google_cloud_run_v2_service_iam_binding",
+                "google_cloud_run_v2_service_iam_member",
+                "google_cloud_run_v2_service_iam_policy",
+                "google_cloudfunctions2_function_iam_binding",
+                "google_cloudfunctions2_function_iam_member",
+                "google_cloudfunctions2_function_iam_policy",
+                "google_cloudfunctions_function_iam_binding",
+                "google_cloudfunctions_function_iam_member",
+                "google_cloudfunctions_function_iam_policy",
+            ],
+            attr_names=["member", "members"],
+            literal=True,
+            # A list renders comma-separated: match the principal as a whole element.
+            value_matches="(^|,)(allUsers|allAuthenticatedUsers)(,|$)",
+        ),
+    ),
+    # The Cloud Storage ACL forms of the same grant: a canned ACL, a ROLE:entity pair, or an
+    # access-control entity. Uniform bucket-level access makes them inert, but a written ACL
+    # still says what the author meant.
+    Rule(
+        id="public_gcs_acl",
+        category="public_exposure",
+        severity="high",
+        maturity="experimental",
+        message="{attr} = {value_q} on {resource} opens the bucket or object to allUsers (anyone on the internet) or allAuthenticatedUsers (anyone with a Google account)",
+        match=Match(
+            scope="attribute",
+            resource_types=[
+                "google_storage_bucket_acl",
+                "google_storage_object_acl",
+                "google_storage_default_object_acl",
+                "google_storage_bucket_access_control",
+                "google_storage_object_access_control",
+                "google_storage_default_object_access_control",
+            ],
+            attr_names=["predefined_acl", "role_entity", "entity"],
+            literal=True,
+            value_matches=(
+                "^(publicRead|publicReadWrite|authenticatedRead)$"
+                "|(^|[:,])(allUsers|allAuthenticatedUsers)(,|$)"
+            ),
+        ),
+    ),
+    # Basic roles. Owner and Editor grant nearly every permission in every service of the
+    # project, folder or organisation. Google recommends against them; a predefined role
+    # names what is actually needed. Medium: break-glass administrator groups are a real
+    # use, and the people who have one know it.
+    Rule(
+        id="basic_role_granted",
+        category="permissive_iam",
+        severity="medium",
+        maturity="experimental",
+        message="{location}role = {value_q} on {resource} is a basic role — it grants nearly every permission in every service; grant the predefined roles the member actually needs",
+        match=Match(
+            scope="any_attribute",
+            resource_types=[
+                "google_project_iam_member",
+                "google_project_iam_binding",
+                "google_folder_iam_member",
+                "google_folder_iam_binding",
+                "google_organization_iam_member",
+                "google_organization_iam_binding",
+                "google_iam_policy",
+            ],
+            attr_names=["role"],
+            literal=True,
+            value_matches="^roles/(owner|editor)$",
+        ),
+    ),
+    # Legacy ABAC gives every identity in the cluster, service accounts and nodes
+    # included, permissions that RBAC would refuse. It is off by default and has no
+    # reason to be turned on in a new cluster.
+    Rule(
+        id="gke_legacy_abac",
+        category="permissive_iam",
+        severity="high",
+        maturity="experimental",
+        message="enable_legacy_abac = true on {resource} — legacy ABAC grants broad permissions to every identity in the cluster, including its service accounts and nodes, and bypasses RBAC",
+        match=Match(
+            scope="attribute",
+            resource_types=["google_container_cluster"],
+            attr_names=["enable_legacy_abac"],
+            literal=True,
+            value_matches="^true$",
+        ),
+        fix=Fix(
+            action="replace_attr_line",
+            lines=["{attr} = false"],
+        ),
+    ),
+    # deletion_protection is on by default for these data stores, so `false` is the
+    # written decision to let a destroy through. Same concern as skip_final_snapshot:
+    # nothing then stands between a mistaken apply and the data.
+    Rule(
+        id="deletion_protection_disabled",
+        category="missing_lifecycle",
+        severity="medium",
+        maturity="experimental",
+        message="deletion_protection = false on {resource} — the provider protects this data store by default, and this setting lets a destroy or a replacement delete it",
+        match=Match(
+            scope="attribute",
+            resource_types=[
+                "google_alloydb_cluster",
+                "google_bigquery_table",
+                "google_bigtable_instance",
+                "google_spanner_database",
+                "google_sql_database_instance",
+            ],
+            attr_names=["deletion_protection"],
+            literal=True,
+            value_matches="^false$",
+        ),
+        fix=Fix(
+            action="replace_attr_line",
+            lines=["{attr} = true"],
+        ),
+    ),
+    # The Cloud Storage and BigQuery forms of s3_force_destroy. A separate rule because
+    # --cloud-read-access adjusts s3_force_destroy against S3, which knows nothing of these.
+    Rule(
+        id="destroy_deletes_contents",
+        category="missing_lifecycle",
+        severity="medium",
+        maturity="experimental",
+        message="{attr} = true on {resource} lets a destroy delete everything it holds — without it the destroy fails on a non-empty bucket or dataset, and that failure is the last thing standing between a mistaken apply and permanent loss",
+        match=Match(
+            scope="attribute",
+            resource_types=["google_storage_bucket", "google_bigquery_dataset"],
+            attr_names=["force_destroy", "delete_contents_on_destroy"],
+            literal=True,
+            value_matches="^true$",
+        ),
+        fix=Fix(
+            action="replace_attr_line",
+            lines=["{attr} = false"],
+        ),
+    ),
+    # ---------------------------------------------------------------------
     # Plan-based. These read terraform's own JSON plan rather than source, so
     # they have no line to anchor to and no source to match against.
     # ---------------------------------------------------------------------
@@ -876,6 +1081,11 @@ DOCS: list[CategoryDoc] = [
             "**Open CIDRs:** narrow to the ranges that actually need access. If a public\n"
             "listener is the intent, that is what a suppression comment is for.\n"
             "\n"
+            "**Google Cloud firewall rules** (`source_ranges`): the same. For SSH and RDP,\n"
+            "allow only `35.235.240.0/20` and connect through Identity-Aware Proxy. A\n"
+            "rule with a `deny` block, an `EGRESS` rule and a disabled rule are not\n"
+            "reported.\n"
+            "\n"
             "## What this deliberately does not report\n"
             "\n"
             "A value written to be replaced: one in angle brackets (`<YOUR_API_KEY>`),\n"
@@ -973,6 +1183,13 @@ DOCS: list[CategoryDoc] = [
             "it: intentionally destroying the resource later means removing the guard in\n"
             "its own commit, which is the point — it makes the deletion an explicit,\n"
             "reviewable act.\n"
+            "\n"
+            "On Google Cloud, `deletion_protection = false` on a Cloud SQL instance, a\n"
+            "BigQuery table, a Spanner database, a Bigtable instance or an AlloyDB\n"
+            "cluster turns off a protection the provider enables by default: remove the\n"
+            "line. `force_destroy = true` on a bucket and\n"
+            "`delete_contents_on_destroy = true` on a BigQuery dataset let a destroy\n"
+            "empty them: set them to `false`.\n"
             "\n"
             "## If you disagree\n"
             "\n"
@@ -1117,6 +1334,15 @@ DOCS: list[CategoryDoc] = [
             "  with a switch off, that guarantee is gone.\n"
             '- `http_tokens = "optional"` → `"required"`. IMDSv2 needs a PUT to obtain a\n'
             "  token first, which an SSRF cannot perform.\n"
+            '- `member = "allUsers"` or `"allAuthenticatedUsers"` on a Google Cloud IAM\n'
+            "  resource, or the same principals in a Cloud Storage ACL → grant a group or\n"
+            "  a service account instead. `allAuthenticatedUsers` means anyone with a\n"
+            "  Google account, not your organisation. Invoker grants on Cloud Run services\n"
+            "  and Cloud Functions are not reported: that is how a public endpoint is\n"
+            "  built.\n"
+            "- `0.0.0.0/0` in a Cloud SQL `authorized_networks` or a GKE\n"
+            "  `master_authorized_networks_config` → list the networks that need access,\n"
+            "  or use private IP and a private control-plane endpoint.\n"
             "\n"
             "## If you disagree\n"
             "\n"
@@ -1221,6 +1447,10 @@ DOCS: list[CategoryDoc] = [
             '  StringEquals = { "aws:PrincipalOrgID" = "o-example" }\n'
             "}\n"
             "```\n"
+            "\n"
+            "On Google Cloud, replace `roles/owner` and `roles/editor` with the predefined\n"
+            "roles the member needs, and keep `enable_legacy_abac` off: RBAC is what\n"
+            "authorizes requests in a current GKE cluster.\n"
             "\n"
             "## What this deliberately does not report\n"
             "\n"

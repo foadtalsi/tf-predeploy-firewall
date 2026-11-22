@@ -18,6 +18,11 @@ type packageIndex struct {
 	consts  map[string]string                   // const name -> string value
 	vars    map[string]*ast.CompositeLit        // package-level var -> map[string]*schema.Schema literal
 	files   []*ast.File
+
+	// followSchemaHelpers makes the SDKv2 walker resolve nested schemas built
+	// by same-package helper functions. Only the Google extractor sets it; see
+	// schemaHelperLiteral.
+	followSchemaHelpers bool
 }
 
 func parsePackage(dir string) (*packageIndex, error) {

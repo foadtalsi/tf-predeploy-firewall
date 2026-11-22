@@ -1,0 +1,22 @@
+description: Google Cloud basic roles and GKE legacy ABAC, and predefined roles and explicit opt-outs that look like them.
+expect:
+  - {rule: basic_role_granted, target: google_project_iam_member.owner}
+  - {rule: basic_role_granted, target: google_project_iam_member.editor}
+  - {rule: basic_role_granted, target: google_project_iam_binding.editors}
+  - {rule: basic_role_granted, target: google_folder_iam_member.owner}
+  - {rule: basic_role_granted, target: google_organization_iam_binding.owners}
+  - {rule: basic_role_granted, target: data.google_iam_policy.project_owner}
+  - {rule: gke_legacy_abac, target: google_container_cluster.abac}
+  - {rule: gke_legacy_abac, target: google_container_cluster.abac_autoscaled}
+  - {rule: gke_legacy_abac, target: google_container_cluster.abac_private}
+  - {rule: gke_legacy_abac, target: google_container_cluster.abac_zonal}
+  - {rule: gke_legacy_abac, target: google_container_cluster.abac_legacy_app}
+must_not_report:
+  - {rule: basic_role_granted, target: google_project_iam_member.viewer}
+  - {rule: basic_role_granted, target: google_project_iam_member.predefined}
+  - {rule: basic_role_granted, target: google_project_iam_member.custom_role}
+  - {rule: basic_role_granted, target: google_storage_bucket_iam_member.legacy_owner}
+  - {rule: basic_role_granted, target: google_project_iam_member.from_variable}
+  - {rule: gke_legacy_abac, target: google_container_cluster.rbac}
+  - {rule: gke_legacy_abac, target: google_container_cluster.default}
+  - {rule: gke_legacy_abac, target: google_container_cluster.from_variable}

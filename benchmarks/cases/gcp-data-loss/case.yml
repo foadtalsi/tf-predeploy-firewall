@@ -1,0 +1,21 @@
+description: Google Cloud data stores whose default deletion protection is switched off, and buckets and datasets set to delete their contents on destroy.
+expect:
+  - {rule: deletion_protection_disabled, target: google_sql_database_instance.unprotected}
+  - {rule: deletion_protection_disabled, target: google_bigquery_table.unprotected}
+  - {rule: deletion_protection_disabled, target: google_spanner_database.unprotected}
+  - {rule: deletion_protection_disabled, target: google_bigtable_instance.unprotected}
+  - {rule: deletion_protection_disabled, target: google_alloydb_cluster.unprotected}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.force_destroy}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.force_destroy_logs}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.force_destroy_backups}
+  - {rule: destroy_deletes_contents, target: google_bigquery_dataset.delete_contents}
+  - {rule: destroy_deletes_contents, target: google_bigquery_dataset.delete_contents_raw}
+must_not_report:
+  - {rule: deletion_protection_disabled, target: google_sql_database_instance.protected}
+  - {rule: deletion_protection_disabled, target: google_sql_database_instance.default}
+  - {rule: deletion_protection_disabled, target: google_compute_instance.unprotected_vm}
+  - {rule: deletion_protection_disabled, target: google_sql_database_instance.from_variable}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.kept}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.default}
+  - {rule: destroy_deletes_contents, target: google_bigquery_dataset.kept}
+  - {rule: destroy_deletes_contents, target: google_storage_bucket.from_variable}

@@ -158,8 +158,11 @@ def test_the_console_scripts_point_at_functions_that_exist() -> None:
         "tfpdf/config/default.yml",
         "tfpdf/schema/data/pack_aws_base.json.gz",
         "tfpdf/schema/data/pack_azurerm_base.json.gz",
+        "tfpdf/schema/data/pack_google_base.json.gz",
         "tfpdf/schema/curated/base_pack_types.json",
         "tfpdf/schema/curated/critical_stateful_resources.json",
+        "tfpdf/schema/curated/google/base_pack_types.json",
+        "tfpdf/schema/curated/google/critical_stateful_resources.json",
     ],
 )
 def test_the_detection_data_is_reachable_as_package_data(resource: str) -> None:

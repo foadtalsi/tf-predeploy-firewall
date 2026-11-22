@@ -35,8 +35,9 @@ ADDED_CATEGORIES = ("incomplete_analysis", "unresolved_value")
 
 #: Categories whose help text was rewritten after the port, when their rules stopped reporting
 #: placeholders, measured entropy only under secret-like names, and judged IAM statements one by
-#: one. Their help is left out of the comparison; their ids, names and descriptions are not.
-REWRITTEN_HELP = ("tutorial_pattern", "permissive_iam")
+#: one, and when the Google Cloud rules joined them. Their help is left out of the comparison;
+#: their ids, names and descriptions are not.
+REWRITTEN_HELP = ("tutorial_pattern", "permissive_iam", "public_exposure", "missing_lifecycle")
 
 
 def _without_rewritten_help(rules: list[dict[str, object]]) -> list[dict[str, object]]:

@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from importlib import resources
 from typing import IO, Any
 
+from ..providerversion import provider_of
+
 #: The on-disk pack layout this build understands. A pack declaring a newer
 #: version is rejected rather than half-read: a pack is security-relevant data,
 #: and silently ignoring fields we don't recognise could turn a blocking
@@ -22,6 +24,8 @@ PACK_FORMAT_VERSION = 1
 REGISTRY_NAMESPACE = {
     "aws": "hashicorp",
     "azurerm": "hashicorp",
+    "google": "hashicorp",
+    "google-beta": "hashicorp",
 }
 
 
@@ -152,23 +156,35 @@ class KnowledgeBase:
 
     # --- lookups ----------------------------------------------------------
 
-    def _lookup(self, r_type: str) -> _PackResource | None:
+    def _lookup(self, r_type: str, provider: str = "") -> _PackResource | None:
+        """Find a resource type in the packs of one provider, the type's prefix by
+        default.
+
+        Only that provider's packs are consulted. google and google-beta packs
+        describe the same type names with different schemas, and a
+        google-beta resource must never be judged against the google pack.
+        """
+        wanted = provider or provider_of(r_type)
         for pack in reversed(self._packs):
+            if pack.provider != wanted:
+                continue
             resource = pack.resource(r_type)
             if resource is not None:
                 return resource
         return None
 
-    def resource_schema(self, r_type: str) -> ResourceSchema | None:
-        """Return a resource type's valid attribute schema."""
-        resource = self._lookup(r_type)
+    def resource_schema(self, r_type: str, provider: str = "") -> ResourceSchema | None:
+        """Return a resource type's valid attribute schema under a provider, the
+        type's prefix by default."""
+        resource = self._lookup(r_type, provider)
         if resource is None or not resource.top_level:
             return None
         return ResourceSchema(top_level=resource.top_level, nested_blocks=resource.nested_blocks)
 
-    def force_new(self, r_type: str) -> ForceNewSpec | None:
-        """Return a resource type's ForceNew attributes."""
-        resource = self._lookup(r_type)
+    def force_new(self, r_type: str, provider: str = "") -> ForceNewSpec | None:
+        """Return a resource type's ForceNew attributes under a provider, the type's
+        prefix by default."""
+        resource = self._lookup(r_type, provider)
         if resource is None or (not resource.force_new_top_level and not resource.force_new_nested):
             return None
         return ForceNewSpec(
@@ -176,9 +192,18 @@ class KnowledgeBase:
         )
 
     def is_critical(self, r_type: str) -> bool:
-        """Check whether the resource type is stateful and should have prevent_destroy protection."""
-        resource = self._lookup(r_type)
-        return resource is not None and resource.critical
+        """Check whether the resource type is stateful and should have prevent_destroy protection.
+
+        Unlike the schema lookups, this asks every loaded pack. Whether a type
+        holds data does not depend on the provider release or variant serving
+        it, and google-beta reads the google critical list, so a google-beta
+        Cloud SQL instance still needs prevent_destroy in the free tier.
+        """
+        for pack in reversed(self._packs):
+            resource = pack.resource(r_type)
+            if resource is not None:
+                return resource.critical
+        return False
 
     def coverage(self) -> Coverage:
         seen: set[str] = set()
@@ -202,27 +227,34 @@ class KnowledgeBase:
 
     # --- documentation links ---------------------------------------------
 
-    def _pack_for(self, r_type: str) -> _LoadedPack | None:
+    def _pack_for(self, r_type: str, provider: str = "") -> _LoadedPack | None:
         """Find the pack supplying a resource type so documentation links use its actual provider
         version.
         """
+        wanted = provider or provider_of(r_type)
         for pack in reversed(self._packs):
-            if pack.resource(r_type) is not None:
+            if pack.provider == wanted and pack.resource(r_type) is not None:
                 return pack
         return None
 
-    def doc_url(self, r_type: str, data_source: bool = False) -> str:
+    def doc_url(self, r_type: str, data_source: bool = False, provider: str = "") -> str:
         """Return the resource type's Terraform Registry page, or an empty string when uncovered."""
-        pack = self._pack_for(r_type)
+        pack = self._pack_for(r_type, provider)
+        if pack is None and provider:
+            # A google-beta resource scanned without the google-beta pack: the
+            # google page documents the same type.
+            pack = self._pack_for(r_type)
         if pack is None:
             return ""
 
         namespace = REGISTRY_NAMESPACE.get(pack.provider, "hashicorp")
         version = pack.provider_version or "latest"
 
-        # Registry doc slugs drop the provider prefix: aws_db_instance is
-        # documented at .../docs/resources/db_instance.
-        prefix = pack.provider + "_"
+        # Registry doc slugs drop the resource type prefix: aws_db_instance is
+        # documented at .../docs/resources/db_instance. The prefix is the
+        # type's, not the pack's: google-beta documents google_container_cluster
+        # at .../google-beta/<version>/docs/resources/container_cluster.
+        prefix = provider_of(r_type) + "_"
         slug = r_type[len(prefix) :] if r_type.startswith(prefix) else r_type
         section = "data-sources" if data_source else "resources"
 

@@ -125,3 +125,25 @@ def provider_of(resource_type: str) -> str:
     """Return the prefix before the first underscore, such as aws for aws_eip."""
     prefix, separator, _ = resource_type.partition("_")
     return prefix if separator else ""
+
+
+#: Providers that serve another provider's resource types under a schema of
+#: their own. google-beta ships every google_* type, plus arguments and types
+#: that only exist in beta: a google_container_cluster with
+#: `provider = google-beta` can carry tpu_config, which the google schema does
+#: not know. Judging it against the google pack would report valid Terraform
+#: as hallucinated.
+PROVIDER_VARIANTS: dict[str, str] = {"google-beta": "google"}
+
+
+def schema_provider_of(resource_type: str, provider_reference: str = "") -> str:
+    """Return the provider whose schema describes a resource.
+
+    That is the resource type's prefix, unless the resource's `provider`
+    meta-argument names a variant of that provider: `provider = google-beta`
+    (or `google-beta.west`) on a google_* resource gives google-beta.
+    """
+    prefix = provider_of(resource_type)
+    if provider_reference and PROVIDER_VARIANTS.get(provider_reference) == prefix:
+        return provider_reference
+    return prefix

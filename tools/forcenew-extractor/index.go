@@ -96,8 +96,11 @@ func writeForceNewIndex(path, provider, providerVersion string, index *forceNewI
 // underneath is shared; what differs is how a resource type string is matched
 // to its schema function.
 func extractorFor(provider string) func(string) (*forceNewIndex, error) {
-	if provider == "azurerm" {
+	switch provider {
+	case "azurerm":
 		return extractForceNewAzurerm
+	case "google", "google-beta":
+		return extractForceNewGoogle
 	}
 	return extractForceNew
 }

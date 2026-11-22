@@ -1,0 +1,36 @@
+{
+  "_comment": "Google Cloud resource types whose destruction loses data (or DNS control, or secrets, or keys) that cannot be recovered by re-applying. Same inclusion criterion as the AWS and Azure lists: after `terraform destroy` + `terraform apply`, is the resource's *content* gone? Deletion protection and soft-delete windows (Cloud SQL, Spanner, Firestore, Secret Manager) don't exempt a type: they are routinely turned off, and a recovery window is not a guarantee. Stateless things that simply get recreated (google_compute_instance, google_container_cluster, google_cloud_run_v2_service: workloads and data live elsewhere) deliberately do not belong here. Every entry is validated against the provider schema at pack-generation time.",
+
+  "resource_types": [
+    "google_alloydb_cluster",
+    "google_alloydb_instance",
+    "google_artifact_registry_repository",
+    "google_backup_dr_backup_vault",
+    "google_bigquery_dataset",
+    "google_bigquery_table",
+    "google_bigtable_instance",
+    "google_bigtable_table",
+    "google_compute_disk",
+    "google_compute_region_disk",
+    "google_dataproc_metastore_service",
+    "google_dns_managed_zone",
+    "google_filestore_instance",
+    "google_firestore_database",
+    "google_healthcare_dataset",
+    "google_healthcare_fhir_store",
+    "google_kms_crypto_key",
+    "google_kms_key_ring",
+    "google_logging_project_bucket_config",
+    "google_netapp_volume",
+    "google_pubsub_subscription",
+    "google_redis_cluster",
+    "google_redis_instance",
+    "google_secret_manager_regional_secret",
+    "google_secret_manager_secret",
+    "google_spanner_database",
+    "google_spanner_instance",
+    "google_sql_database",
+    "google_sql_database_instance",
+    "google_storage_bucket"
+  ]
+}

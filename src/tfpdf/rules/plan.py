@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .. import cloudname, ignore, planjson
+from .. import cloudname, ignore, planjson, providerversion
 from ..report.finding import Category, Finding, Severity
 from ..schema import KnowledgeBase
 from .changedattrs import ChangedAttrKey, bare_resource_address
@@ -150,7 +150,12 @@ class DriftRule:
             if not resource_change.is_managed() or not resource_change.change.is_pure_update():
                 continue
             spec = (
-                knowledge_base.force_new(resource_change.type)
+                knowledge_base.force_new(
+                    resource_change.type,
+                    providerversion.schema_provider_of(
+                        resource_change.type, resource_change.provider_type()
+                    ),
+                )
                 if knowledge_base is not None
                 else None
             )

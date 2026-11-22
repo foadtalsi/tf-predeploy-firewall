@@ -1,0 +1,26 @@
+description: Google Cloud IAM members and Cloud Storage ACLs granted to allUsers or allAuthenticatedUsers, and public endpoints and private grants that look like them.
+expect:
+  - {rule: public_iam_member, target: google_storage_bucket_iam_member.public_read}
+  - {rule: public_iam_member, target: google_storage_bucket_iam_binding.public_among_others}
+  - {rule: public_iam_member, target: google_project_iam_member.any_google_account}
+  - {rule: public_iam_member, target: google_pubsub_topic_iam_member.public_publish}
+  - {rule: public_iam_member, target: google_bigquery_dataset_iam_member.public_dataset}
+  - {rule: public_iam_member, target: data.google_iam_policy.public_bucket}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.public_read}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.public_read_write}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.authenticated_read}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.role_entity_all_users}
+  - {rule: public_gcs_acl, target: google_storage_default_object_acl.all_authenticated}
+  - {rule: public_gcs_acl, target: google_storage_object_access_control.public_object}
+  - {rule: public_gcs_acl, target: google_storage_bucket_access_control.public_bucket}
+must_not_report:
+  - {rule: public_iam_member, target: google_cloud_run_v2_service_iam_member.public_api}
+  - {rule: public_iam_member, target: google_cloudfunctions2_function_iam_member.webhook}
+  - {rule: public_iam_member, target: google_storage_bucket_iam_member.group_read}
+  - {rule: public_iam_member, target: google_project_iam_member.domain}
+  - {rule: public_iam_member, target: google_storage_bucket_iam_member.user_named_like_it}
+  - {rule: public_iam_member, target: google_storage_bucket_iam_member.from_variable}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.private}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.project_private}
+  - {rule: public_gcs_acl, target: google_storage_object_access_control.group}
+  - {rule: public_gcs_acl, target: google_storage_bucket_acl.owner_entities}

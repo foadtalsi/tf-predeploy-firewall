@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .. import cloudname
+from .. import cloudname, providerversion
 from ..parser import Attribute, Kind, NestedBlock
 from ..report.finding import Category, Finding, Severity
 from ..schema import KnowledgeBase
@@ -23,7 +23,10 @@ class UnknownAttributeRule:
             # there is nothing to validate an argument name against.
             if resource.kind is not Kind.RESOURCE:
                 continue
-            res_schema = knowledge_base.resource_schema(resource.type)
+            res_schema = knowledge_base.resource_schema(
+                resource.type,
+                providerversion.schema_provider_of(resource.type, resource.provider_reference),
+            )
             if res_schema is None:
                 continue
 
@@ -98,7 +101,10 @@ class ForceNewChangeRule:
             if base is None:
                 continue
 
-            spec = knowledge_base.force_new(resource.type)
+            spec = knowledge_base.force_new(
+                resource.type,
+                providerversion.schema_provider_of(resource.type, resource.provider_reference),
+            )
             if spec is None:
                 continue
 

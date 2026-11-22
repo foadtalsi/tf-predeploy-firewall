@@ -174,6 +174,11 @@ func walkSDKSchemaMap(m *ast.CompositeLit, path, resourceType string, servicePac
 		}
 		body := asStructLit(entry.Value)
 		if body == nil {
+			// `"node_config": schemaNodeConfig()` — the attribute's schema is
+			// built by a helper in the same package.
+			body = schemaHelperLiteral(entry.Value, servicePackage)
+		}
+		if body == nil {
 			continue
 		}
 
@@ -193,6 +198,12 @@ func walkSDKSchemaMap(m *ast.CompositeLit, path, resourceType string, servicePac
 				}
 			case "Elem":
 				nested := nestedResourceSchema(fkv.Value)
+				if nested == nil {
+					// `Elem: instanceSchedulingNodeAffinitiesElemSchema()`.
+					if helper := schemaHelperLiteral(fkv.Value, servicePackage); helper != nil {
+						nested = nestedResourceSchema(helper)
+					}
+				}
 				if nested == nil {
 					continue
 				}
@@ -222,6 +233,42 @@ func nestedResourceSchema(expression ast.Expr) *ast.CompositeLit {
 		}
 		if identifier, ok := entry.Key.(*ast.Ident); ok && identifier.Name == "Schema" {
 			return asMapLit(entry.Value)
+		}
+	}
+	return nil
+}
+
+// schemaHelperLiteral resolves a call to a same-package helper that returns a
+// schema literal, such as `schemaNodeConfig()` returning &schema.Schema{...} or
+// `fooElemSchema()` returning &schema.Resource{...}, and returns that literal.
+//
+// Only packages that opt in through followSchemaHelpers get this. The Google
+// providers build hundreds of nested blocks this way, GKE's node_config among
+// them. AWS and azurerm do not need it, and turning it on for them would change
+// their packs at the next refresh without anyone having asked for that.
+func schemaHelperLiteral(expression ast.Expr, servicePackage *packageIndex) *ast.CompositeLit {
+	if !servicePackage.followSchemaHelpers {
+		return nil
+	}
+	call, ok := expression.(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	functionName, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		return nil
+	}
+	function, ok := servicePackage.funcs[functionName.Name]
+	if !ok || function.Body == nil {
+		return nil
+	}
+	for _, statement := range function.Body.List {
+		returnStatement, ok := statement.(*ast.ReturnStmt)
+		if !ok || len(returnStatement.Results) != 1 {
+			continue
+		}
+		if literal := asStructLit(returnStatement.Results[0]); literal != nil {
+			return literal
 		}
 	}
 	return nil

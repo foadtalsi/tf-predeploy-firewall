@@ -64,8 +64,24 @@ resource "aws_instance" "recent_arguments" {
   }
 }
 
-resource "google_storage_bucket" "uncovered_provider" {
+resource "digitalocean_droplet" "uncovered_provider" {
+  name    = "acme-web"
+  image   = "ubuntu-24-04-x64"
+  made_up = true
+}
+
+resource "google_storage_bucket" "invented" {
   name     = "acme-gcs"
   location = "EU"
   made_up  = true
+}
+
+# Valid only under google-beta: multi_writer is not in the google schema, and
+# the free tier carries no google-beta pack. The resource must be skipped, not
+# judged against the google schema.
+resource "google_compute_disk" "beta_arguments" {
+  provider     = google-beta
+  name         = "acme-shared"
+  zone         = "europe-west1-b"
+  multi_writer = true
 }

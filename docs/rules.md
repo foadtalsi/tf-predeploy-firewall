@@ -154,6 +154,11 @@ file does not remove it from history.
 **Open CIDRs:** narrow to the ranges that actually need access. If a public
 listener is the intent, that is what a suppression comment is for.
 
+**Google Cloud firewall rules** (`source_ranges`): the same. For SSH and RDP,
+allow only `35.235.240.0/20` and connect through Identity-Aware Proxy. A
+rule with a `deny` block, an `EGRESS` rule and a disabled rule are not
+reported.
+
 ### What this deliberately does not report
 
 A value written to be replaced: one in angle brackets (`<YOUR_API_KEY>`),
@@ -256,6 +261,13 @@ it: intentionally destroying the resource later means removing the guard in
 its own commit, which is the point — it makes the deletion an explicit,
 reviewable act.
 
+On Google Cloud, `deletion_protection = false` on a Cloud SQL instance, a
+BigQuery table, a Spanner database, a Bigtable instance or an AlloyDB
+cluster turns off a protection the provider enables by default: remove the
+line. `force_destroy = true` on a bucket and
+`delete_contents_on_destroy = true` on a BigQuery dataset let a destroy
+empty them: set them to `false`.
+
 ### If you disagree
 
 Ephemeral environments are the real exception. Scope the exemption to them
@@ -306,6 +318,15 @@ breach.
   with a switch off, that guarantee is gone.
 - `http_tokens = "optional"` → `"required"`. IMDSv2 needs a PUT to obtain a
   token first, which an SSRF cannot perform.
+- `member = "allUsers"` or `"allAuthenticatedUsers"` on a Google Cloud IAM
+  resource, or the same principals in a Cloud Storage ACL → grant a group or
+  a service account instead. `allAuthenticatedUsers` means anyone with a
+  Google account, not your organisation. Invoker grants on Cloud Run services
+  and Cloud Functions are not reported: that is how a public endpoint is
+  built.
+- `0.0.0.0/0` in a Cloud SQL `authorized_networks` or a GKE
+  `master_authorized_networks_config` → list the networks that need access,
+  or use private IP and a private control-plane endpoint.
 
 ### If you disagree
 
@@ -414,6 +435,10 @@ Condition = {
   StringEquals = { "aws:PrincipalOrgID" = "o-example" }
 }
 ```
+
+On Google Cloud, replace `roles/owner` and `roles/editor` with the predefined
+roles the member needs, and keep `enable_legacy_abac` off: RBAC is what
+authorizes requests in a current GKE cluster.
 
 ### What this deliberately does not report
 

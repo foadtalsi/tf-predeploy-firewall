@@ -3,6 +3,41 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
+## [Unreleased]
+
+### Added
+
+- Google Cloud. The scanner embeds a `google` pack (provider 8.12.0) covering 42 resource
+  types: compute, networking, load balancing, GKE, Cloud SQL, Cloud Storage, IAM, KMS,
+  Secret Manager, Pub/Sub, Cloud Run, Cloud Functions, BigQuery, DNS and Artifact
+  Registry. 30 Google types are marked stateful, so they need `prevent_destroy`. A
+  license key fetches the full `google` pack (1,423 types) and a `google-beta` pack
+  (1,531 types).
+- Eight Google Cloud rules, `experimental` like every new rule: they report and never
+  block until their findings have been reviewed on real repositories.
+  `open_source_ranges` (a firewall rule admitting 0.0.0.0/0), `open_authorized_network`
+  (0.0.0.0/0 in Cloud SQL or GKE authorized networks), `public_iam_member` (`allUsers`
+  or `allAuthenticatedUsers`, outside Cloud Run and Cloud Functions invokers),
+  `public_gcs_acl`, `basic_role_granted` (`roles/owner`, `roles/editor`),
+  `gke_legacy_abac`, `deletion_protection_disabled` and `destroy_deletes_contents`. Each
+  has at least five positives and three near misses in the benchmark (`gcp-*` cases).
+- The rule format accepts `skip_when_resource_contains` in a `match` block: the resource
+  is skipped when it has a top-level block of one of the listed types, such as `deny`.
+- The ForceNew extractor reads the Google providers: their `registry.Schema`
+  registrations, IAM schemas merged from `tpgiamresource`, nested blocks built by helper
+  functions, and Plugin Framework resources.
+
+### Changed
+
+- Unknown-argument and ForceNew checks use the provider named by a resource's
+  `provider` meta-argument when it is a variant of the type's provider. A google_*
+  resource with `provider = google-beta` is checked against the google-beta pack, or
+  skipped by those two checks when that pack is not loaded, never against the google
+  pack. `missing_lifecycle` still applies to it. Its findings follow the `google-beta`
+  version constraint and link to the google-beta documentation.
+- `--providers auto` detects `provider = google-beta` and fetches the google-beta pack.
+  Without that pack, the scan says which checks were skipped.
+
 ## [v1.4.0] — 2026-11-02
 
 ### Added

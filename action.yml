@@ -81,9 +81,9 @@ inputs:
     default: ""
   providers:
     description: >
-      Comma-separated providers to fetch extended rule packs for ("aws,azurerm"),
-      or "auto" (default) to detect them from the resource types in the scanned
-      files. Only meaningful with a license key — it decides which extended packs
+      Comma-separated providers to fetch extended rule packs for
+      ("aws,azurerm,google,google-beta"), or "auto" (default) to detect them from
+      the resource types and `provider` arguments in the scanned files. Only meaningful with a license key — it decides which extended packs
       are fetched, never what the embedded base packs cover.
     required: false
     default: "auto"

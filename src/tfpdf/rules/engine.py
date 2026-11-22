@@ -139,6 +139,9 @@ def run(
     inline_by_file: dict[str, dict[int, set[str]]] = {}
     changed_attrs: dict[str, set[ChangedAttrKey]] = {}
     constraints_by_file: dict[str, dict[str, str]] = {}
+    #: (file, address) -> the provider whose schema judged the resource, for
+    #: the resources whose `provider` argument picks a variant (google-beta).
+    schema_provider_by_resource: dict[tuple[str, str], str] = {}
 
     scopes = ScopeCache(
         options.repo_dir,
@@ -188,6 +191,15 @@ def run(
             findings.extend(rule.check(file_input, knowledge_base))
 
         for head_resource in head_resources:
+            schema_provider = providerversion.schema_provider_of(
+                head_resource.type, head_resource.provider_reference
+            )
+            if schema_provider != providerversion.provider_of(head_resource.type):
+                schema_provider_by_resource[(changed_file.path, head_resource.address())] = (
+                    schema_provider
+                )
+
+        for head_resource in head_resources:
             base_resource = base_resources_by_address.get(head_resource.address())
             if base_resource is not None:
                 changed_attrs[head_resource.address()] = changed_attrs_for_resource(
@@ -198,11 +210,11 @@ def run(
         adjust_severity_against_the_cloud(findings)
 
     notes = drop_findings_the_pinned_provider_contradicts(
-        findings, constraints_by_file, knowledge_base
+        findings, constraints_by_file, knowledge_base, schema_provider_by_resource
     )
 
     retained_findings = ignore.apply(findings, inline_by_file, options.global_ignore)
-    attach_doc_urls(retained_findings, knowledge_base)
+    attach_doc_urls(retained_findings, knowledge_base, schema_provider_by_resource)
 
     return Result(findings=retained_findings, changed_attrs=changed_attrs, notes=notes)
 
@@ -216,6 +228,7 @@ def drop_findings_the_pinned_provider_contradicts(
     findings: list[Finding],
     constraints_by_file: dict[str, dict[str, str]],
     knowledge_base: KnowledgeBase | None,
+    schema_provider_by_resource: dict[tuple[str, str], str] | None = None,
 ) -> list[str]:
     """Remove schema claims incompatible with pinned provider versions and return explanatory
     warnings.
@@ -229,7 +242,7 @@ def drop_findings_the_pinned_provider_contradicts(
     silenced: dict[tuple[str, str, str], None] = {}
     retained_findings: list[Finding] = []
     for finding in findings:
-        provider = _provider_the_finding_judges(finding)
+        provider = _provider_the_finding_judges(finding, schema_provider_by_resource or {})
         constraint = constraints_by_file.get(finding.file, {}).get(provider, "")
         schema_version = versions_by_provider.get(provider, "")
         if (
@@ -254,10 +267,16 @@ def drop_findings_the_pinned_provider_contradicts(
     ]
 
 
-def _provider_the_finding_judges(finding: Finding) -> str:
+def _provider_the_finding_judges(
+    finding: Finding, schema_provider_by_resource: dict[tuple[str, str], str]
+) -> str:
     """Resolve the finding's provider from its resource address, or return an empty string for
-    findings without one.
+    findings without one. A resource whose `provider` argument picks a variant is judged by
+    that variant: a google-beta resource is held to the google-beta version constraint.
     """
+    variant = schema_provider_by_resource.get((finding.file, finding.resource))
+    if variant:
+        return variant
     resource_type, _, recognised = type_from_address(finding.resource)
     if not recognised:
         return ""
@@ -312,19 +331,26 @@ def adjust_severity_against_the_cloud(findings: list[Finding]) -> None:
         finding.severity = Severity(severity)
 
 
-def attach_doc_urls(findings: list[Finding], knowledge_base: KnowledgeBase | None) -> None:
+def attach_doc_urls(
+    findings: list[Finding],
+    knowledge_base: KnowledgeBase | None,
+    schema_provider_by_resource: dict[tuple[str, str], str] | None = None,
+) -> None:
     """Attach provider documentation URLs based on resource addresses."""
     if knowledge_base is None:
         return
-    url_by_resource: dict[str, str] = {}
+    variants = schema_provider_by_resource or {}
+    url_by_resource: dict[tuple[str, str], str] = {}
     for finding in findings:
         if finding.doc_url or not finding.resource:
             continue
-        url = url_by_resource.get(finding.resource)
+        provider = variants.get((finding.file, finding.resource), "")
+        cache_key = (finding.resource, provider)
+        url = url_by_resource.get(cache_key)
         if url is None:
             url = ""
             resource_type, is_data_source, recognised = type_from_address(finding.resource)
             if recognised:
-                url = knowledge_base.doc_url(resource_type, is_data_source)
-            url_by_resource[finding.resource] = url
+                url = knowledge_base.doc_url(resource_type, is_data_source, provider)
+            url_by_resource[cache_key] = url
         finding.doc_url = url

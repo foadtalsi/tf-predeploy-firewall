@@ -194,11 +194,11 @@ def test_resolve_providers_only_fetches_providers_with_shipped_packs() -> None:
         "auto",
         _files(
             '\nresource "random_pet" "name" {}\nresource "tls_private_key" "k" {}\n'
-            'resource "google_sql_database_instance" "db" {}\n'
+            'resource "oci_database_autonomous_database" "db" {}\n'
             'resource "aws_db_instance" "prod" {}\n'
         ),
     )
-    assert got == ["aws"], "google ships no pack and must not be fetched"
+    assert got == ["aws"], "oci ships no pack and must not be fetched"
 
 
 def test_resolve_providers_empty_for_module_only_changes() -> None:

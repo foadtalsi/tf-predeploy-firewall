@@ -65,6 +65,12 @@ def _block_to_resource(
     for attr_name, attribute in block.body.attributes.items():
         resource.attributes[attr_name] = _attr_to_attribute(attr_name, attribute, context)
 
+    provider_attribute = block.body.attributes.get("provider")
+    if provider_attribute is not None and kind is not Kind.MODULE:
+        resource.provider_reference = _provider_reference(
+            provider_attribute, resource.attributes["provider"]
+        )
+
     for nested in block.body.blocks:
         if nested.type == "lifecycle":
             resource.has_lifecycle_block = True
@@ -79,6 +85,21 @@ def _block_to_resource(
         resource.blocks.append(_nested_block(nested, context))
 
     return resource
+
+
+def _provider_reference(attribute: hcl.Attribute, parsed_attribute: Attribute) -> str:
+    """Return the provider local name a `provider` meta-argument points at.
+
+    `provider = google-beta.west` is a reference, and its root is the local
+    name. The quoted form, `provider = "google-beta.west"`, is what Terraform
+    0.11 wrote and later versions still accept.
+    """
+    for traversal in attribute.expr.variables():
+        if traversal.root_name:
+            return traversal.root_name
+    if parsed_attribute.is_literal:
+        return parsed_attribute.raw_value.partition(".")[0]
+    return ""
 
 
 def _nested_block(block: Block, context: EvalContext | None) -> NestedBlock:

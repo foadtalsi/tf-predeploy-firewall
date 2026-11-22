@@ -254,7 +254,7 @@ def test_doc_url_pins_the_provider_version(kb: schema.KnowledgeBase) -> None:
 
 def test_doc_url_empty_for_uncovered_type(kb: schema.KnowledgeBase) -> None:
     """Do not invent documentation URLs for uncovered types."""
-    assert kb.doc_url("google_storage_bucket") == ""
+    assert kb.doc_url("digitalocean_droplet") == ""
 
 
 def test_doc_url_uses_the_overlaid_packs_version() -> None:

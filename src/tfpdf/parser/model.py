@@ -101,6 +101,12 @@ class Resource:
     #: block it needs to add a setting to, rather than at the whole resource.
     lifecycle_range: Range = field(default_factory=Range)
 
+    #: The provider local name the `provider` meta-argument points at:
+    #: "google-beta" for `provider = google-beta.west`. Empty when the block
+    #: has no `provider` argument and uses the default configuration of the
+    #: provider its type prefix names.
+    provider_reference: str = ""
+
     def address(self) -> str:
         """Return the canonical Terraform address."""
         if self.kind is Kind.MODULE:

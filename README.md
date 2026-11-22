@@ -90,7 +90,7 @@ See [the Action inputs](action.yml) and [usage guide](docs/usage.md).
 | Unknown arguments | An attribute absent from the loaded provider schema |
 | Replacement risks | A changed `ForceNew` attribute on an existing resource |
 | Credentials | Hardcoded passwords, known token formats, high-entropy secrets |
-| Destruction guards | Missing `prevent_destroy`, S3 `force_destroy = true` |
+| Destruction guards | Missing `prevent_destroy`, `force_destroy = true`, `deletion_protection = false` |
 | Version constraints | Unpinned modules or providers |
 | Unsafe configuration | Public access, disabled encryption, broad IAM permissions |
 | Optional plan checks | Confirmed replacement, unexplained drift, large blast radius |
@@ -100,7 +100,11 @@ Severity is ordered **low → medium → high → critical**. By default, an una
 finding at **high** or **critical** makes the scan fail.
 
 Static analysis has limits. Unresolved expressions are not guessed. Schema checks
-cover the resource types in the loaded packs. If a module's provider constraint
+cover the resource types in the loaded packs: the scanner embeds packs for AWS, Azure
+(`azurerm`) and Google Cloud (`google`). A resource with `provider = google-beta` is
+not judged against the `google` schema, because google-beta accepts arguments the GA
+provider does not have: its unknown-argument and ForceNew checks need the google-beta
+pack, which a license key fetches. If a module's provider constraint
 excludes the loaded schema version, the scanner warns and skips unknown-attribute
 and ForceNew findings for that provider; other checks still run. It does not fetch
 an older matching schema or replace `terraform validate` and plan review.

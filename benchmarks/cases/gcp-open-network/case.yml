@@ -1,0 +1,23 @@
+description: Google Cloud firewall rules and authorized networks open to 0.0.0.0/0, and the guardrails and private ranges that look like them.
+expect:
+  - {rule: open_source_ranges, target: google_compute_firewall.ssh_from_anywhere}
+  - {rule: open_source_ranges, target: google_compute_firewall.rdp_from_anywhere}
+  - {rule: open_source_ranges, target: google_compute_firewall.explicit_ingress}
+  - {rule: open_source_ranges, target: google_compute_firewall.mixed_ranges}
+  - {rule: open_source_ranges, target: google_compute_firewall.all_protocols}
+  - {rule: open_authorized_network, target: google_sql_database_instance.open}
+  - {rule: open_authorized_network, target: google_sql_database_instance.open_among_others}
+  - {rule: open_authorized_network, target: google_sql_database_instance.open_replica}
+  - {rule: open_authorized_network, target: google_container_cluster.open_control_plane}
+  - {rule: open_authorized_network, target: google_container_cluster.open_among_others}
+must_not_report:
+  - {rule: open_source_ranges, target: google_compute_firewall.deny_from_anywhere}
+  - {rule: open_source_ranges, target: google_compute_firewall.egress_to_anywhere}
+  - {rule: open_source_ranges, target: google_compute_firewall.disabled}
+  - {rule: open_source_ranges, target: google_compute_firewall.iap_only}
+  - {rule: open_source_ranges, target: google_compute_firewall.internal}
+  - {rule: open_source_ranges, target: google_compute_firewall.from_variable}
+  - {rule: open_authorized_network, target: google_sql_database_instance.office_only}
+  - {rule: open_authorized_network, target: google_sql_database_instance.private_ip}
+  - {rule: open_authorized_network, target: google_container_cluster.vpn_only}
+  - {rule: open_authorized_network, target: google_container_cluster.from_variable}

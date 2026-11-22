@@ -5,8 +5,10 @@ expect:
   - {rule: unknown_attribute, target: aws_db_instance.invented}
   - {rule: unknown_attribute, target: aws_dynamodb_table.invented}
   - {rule: unknown_attribute, target: azurerm_storage_account.invented}
+  - {rule: unknown_attribute, target: google_storage_bucket.invented}
 must_not_report:
   - {rule: unknown_attribute, target: aws_s3_bucket.valid}
   - {rule: unknown_attribute, target: aws_instance.meta_arguments}
   - {rule: unknown_attribute, target: aws_instance.recent_arguments}
-  - {rule: unknown_attribute, target: google_storage_bucket.uncovered_provider}
+  - {rule: unknown_attribute, target: digitalocean_droplet.uncovered_provider}
+  - {rule: unknown_attribute, target: google_compute_disk.beta_arguments}

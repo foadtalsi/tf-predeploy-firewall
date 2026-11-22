@@ -148,8 +148,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--providers",
         default=_env_or("TFPDF_PROVIDERS", "auto"),
-        help='comma-separated providers to fetch extended rule packs for ("aws,azurerm"), '
-        'or "auto" to detect them from the resource types in the scanned files.',
+        help="comma-separated providers to fetch extended rule packs for "
+        '("aws,azurerm,google,google-beta"), or "auto" to detect them from the resource '
+        "types and provider arguments in the scanned files.",
     )
     flag_bool(
         "--staged",
