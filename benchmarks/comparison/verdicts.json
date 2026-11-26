@@ -1,0 +1,1760 @@
+{
+ "rds-db-name-rename": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.68
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 3.13
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.42
+  }
+ },
+ "dynamodb-hash-key-change": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.43
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 3.0
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.34
+  }
+ },
+ "s3-bucket-rename": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.8
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 7,
+   "seconds": 2.92
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 0.34
+  }
+ },
+ "efs-enable-encryption": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.36
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 2.77
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.42
+  }
+ },
+ "azure-storage-account-rename": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 6.27
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.2
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 10,
+   "seconds": 7.94
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.41
+  }
+ },
+ "prevent-destroy-removed": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "missing_lifecycle"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 14.36
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.16
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_139"
+   ],
+   "alerts": 7,
+   "seconds": 3.88
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0343"
+   ],
+   "alerts": 3,
+   "seconds": 0.45
+  }
+ },
+ "rds-engine-version-bump": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.75
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.27
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 3.1
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.42
+  }
+ },
+ "rds-identifier-rename": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 13.29
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.16
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 3.69
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.58
+  }
+ },
+ "rds-instance-class-change": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 13.55
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.58
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 4.8
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.97
+  }
+ },
+ "dynamodb-billing-mode-change": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 14.04
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.16
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 4.12
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.56
+  }
+ },
+ "rds-hallucinated-deletion-protection": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 1,
+   "seconds": 13.49
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 9,
+   "seconds": 3.37
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 4,
+   "seconds": 0.36
+  }
+ },
+ "lambda-memory-typo": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 1,
+   "seconds": 13.65
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 5,
+   "seconds": 3.13
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.41
+  }
+ },
+ "s3-hallucinated-versioning": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 1,
+   "seconds": 13.83
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.5
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 7,
+   "seconds": 3.69
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 0.64
+  }
+ },
+ "security-group-nested-typo": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 1,
+   "seconds": 13.12
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 3.63
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.4
+  }
+ },
+ "aks-removed-argument": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 2,
+   "seconds": 5.95
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.55
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 15,
+   "seconds": 4.13
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 7,
+   "seconds": 0.73
+  }
+ },
+ "ec2-rare-valid-arguments": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.89
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 3.46
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.34
+  }
+ },
+ "lambda-valid-arguments": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.65
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 5,
+   "seconds": 2.94
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.32
+  }
+ },
+ "rds-valid-deletion-protection": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 13.8
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.68
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.31
+  }
+ },
+ "rds-literal-password": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 14.57
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.87
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.38
+  }
+ },
+ "variable-default-password": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.72
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.87
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.36
+  }
+ },
+ "tfvars-api-key": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.35
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 2.76
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.38
+  }
+ },
+ "provider-access-keys": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 3,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 11.56
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.3
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_41",
+    "CKV_SECRET_2",
+    "CKV_SECRET_6"
+   ],
+   "alerts": 4,
+   "seconds": 3.4
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "aws-access-key-id"
+   ],
+   "alerts": 2,
+   "seconds": 0.49
+  }
+ },
+ "module-input-github-token": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.23
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_SECRET_6"
+   ],
+   "alerts": 2,
+   "seconds": 2.95
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.61
+  }
+ },
+ "password-from-random-password": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.36
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.19
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.85
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.34
+  }
+ },
+ "password-from-secrets-manager": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.4
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.88
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.36
+  }
+ },
+ "sensitive-variable-no-default": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.47
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.77
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.32
+  }
+ },
+ "rds-managed-master-password": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.31
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 6,
+   "seconds": 2.77
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.35
+  }
+ },
+ "ssh-open-to-internet": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.23
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_24"
+   ],
+   "alerts": 3,
+   "seconds": 2.83
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0107"
+   ],
+   "alerts": 2,
+   "seconds": 0.31
+  }
+ },
+ "rds-publicly-accessible": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "public_exposure"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.67
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_17"
+   ],
+   "alerts": 9,
+   "seconds": 2.87
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0180"
+   ],
+   "alerts": 4,
+   "seconds": 0.35
+  }
+ },
+ "s3-public-read-acl": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "public_exposure"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.43
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.67
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0092"
+   ],
+   "alerts": 9,
+   "seconds": 0.32
+  }
+ },
+ "s3-public-access-block-off": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "public_exposure"
+   ],
+   "alerts": 5,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.35
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_53",
+    "CKV_AWS_54",
+    "CKV_AWS_55",
+    "CKV_AWS_56"
+   ],
+   "alerts": 11,
+   "seconds": 2.66
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0086",
+    "AWS-0087",
+    "AWS-0091",
+    "AWS-0093"
+   ],
+   "alerts": 7,
+   "seconds": 0.31
+  }
+ },
+ "https-from-private-range": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.41
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 2.67
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.3
+  }
+ },
+ "iam-admin-wildcard": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "permissive_iam"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.54
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV2_AWS_40",
+    "CKV_AWS_286",
+    "CKV_AWS_287",
+    "CKV_AWS_288",
+    "CKV_AWS_289",
+    "CKV_AWS_290",
+    "CKV_AWS_355",
+    "CKV_AWS_62",
+    "CKV_AWS_63"
+   ],
+   "alerts": 9,
+   "seconds": 2.8
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.3
+  }
+ },
+ "iam-trust-anyone": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "permissive_iam"
+   ],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.48
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_60"
+   ],
+   "alerts": 1,
+   "seconds": 2.66
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.3
+  }
+ },
+ "iam-scoped-read": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.18
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.88
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.31
+  }
+ },
+ "ebs-unencrypted": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "encryption_disabled"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.43
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_189",
+    "CKV_AWS_3"
+   ],
+   "alerts": 2,
+   "seconds": 2.87
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0026"
+   ],
+   "alerts": 2,
+   "seconds": 0.31
+  }
+ },
+ "rds-storage-unencrypted": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "encryption_disabled"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.19
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_16"
+   ],
+   "alerts": 9,
+   "seconds": 2.68
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0080"
+   ],
+   "alerts": 4,
+   "seconds": 0.31
+  }
+ },
+ "rds-skip-final-snapshot": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "missing_lifecycle"
+   ],
+   "alerts": 2,
+   "seconds": 0.23
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.29
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 2.65
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 3,
+   "seconds": 0.3
+  }
+ },
+ "s3-force-destroy": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "missing_lifecycle"
+   ],
+   "alerts": 2,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.37
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 7,
+   "seconds": 2.7
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 0.32
+  }
+ },
+ "module-without-version": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unpinned_version"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 13.67
+  },
+  "tflint": {
+   "hit": true,
+   "ids": [
+    "terraform_module_version"
+   ],
+   "alerts": 1,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_TF_1",
+    "CKV_TF_2"
+   ],
+   "alerts": 2,
+   "seconds": 2.74
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.46
+  }
+ },
+ "module-git-branch-ref": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unpinned_version"
+   ],
+   "alerts": 1,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 13.53
+  },
+  "tflint": {
+   "hit": true,
+   "ids": [
+    "terraform_module_pinned_source"
+   ],
+   "alerts": 1,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_TF_1",
+    "CKV_TF_2"
+   ],
+   "alerts": 2,
+   "seconds": 2.75
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.43
+  }
+ },
+ "module-git-commit-ref": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 2,
+   "seconds": 0.78
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.7
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 1.08
+  }
+ },
+ "imds-v1-allowed": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "public_exposure"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.55
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_AWS_79"
+   ],
+   "alerts": 4,
+   "seconds": 2.69
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0028"
+   ],
+   "alerts": 1,
+   "seconds": 0.3
+  }
+ },
+ "gcp-sql-instance-rename": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "force_new_change"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.92
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 12,
+   "seconds": 2.87
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 8,
+   "seconds": 0.38
+  }
+ },
+ "gcp-gke-hallucinated-argument": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "unknown_attribute"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": true,
+   "ids": [
+    "Unsupported argument"
+   ],
+   "alerts": 1,
+   "seconds": 2.84
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.15
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 12,
+   "seconds": 2.72
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 6,
+   "seconds": 0.35
+  }
+ },
+ "gcp-firewall-ssh-open": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "tutorial_pattern"
+   ],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.75
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_GCP_2"
+   ],
+   "alerts": 1,
+   "seconds": 2.73
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "GCP-0027",
+    "GCP-0071"
+   ],
+   "alerts": 3,
+   "seconds": 0.34
+  }
+ },
+ "gcp-bucket-all-users": {
+  "ours": {
+   "hit": true,
+   "ids": [
+    "public_exposure"
+   ],
+   "alerts": 2,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.8
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.13
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_GCP_28"
+   ],
+   "alerts": 4,
+   "seconds": 2.67
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "GCP-0001"
+   ],
+   "alerts": 4,
+   "seconds": 0.3
+  }
+ },
+ "cloud-run-secret-reference": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.22
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 2.8
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": true,
+   "ids": [
+    "CKV_SECRET_6"
+   ],
+   "alerts": 1,
+   "seconds": 2.66
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.3
+  }
+ },
+ "efs-creation-token": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.68
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 2.75
+  },
+  "trivy": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.35
+  }
+ },
+ "rds-cluster-default-key-encryption": {
+  "ours": {
+   "hit": false,
+   "ids": [],
+   "alerts": 1,
+   "seconds": 0.21
+  },
+  "validate": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 12.33
+  },
+  "tflint": {
+   "hit": false,
+   "ids": [],
+   "alerts": 0,
+   "seconds": 0.14
+  },
+  "checkov": {
+   "hit": false,
+   "ids": [],
+   "alerts": 6,
+   "seconds": 2.76
+  },
+  "trivy": {
+   "hit": true,
+   "ids": [
+    "AWS-0079"
+   ],
+   "alerts": 2,
+   "seconds": 0.32
+  }
+ }
+}

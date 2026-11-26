@@ -8,9 +8,9 @@ from tfpdf.cli.config import load_config
 
 CONFIG = Path(__file__).parent.parent / "config" / "default.yml"
 
-#: The only trees holding Terraform that is insecure on purpose: test fixtures and the labelled
-#: benchmark cases.
-FIXTURE_ROOTS = ("tests/data/", "benchmarks/cases/")
+#: The only trees holding Terraform that is insecure on purpose: test fixtures, the labelled
+#: benchmark cases, and the corpus of the comparison with other tools.
+FIXTURE_ROOTS = ("tests/data/", "benchmarks/cases/", "benchmarks/comparison/corpus/")
 
 
 def test_the_repo_scans_itself_clean() -> None:

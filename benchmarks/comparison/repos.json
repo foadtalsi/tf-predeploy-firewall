@@ -1,0 +1,170 @@
+{
+ "terraform-aws-eks": {
+  "ours": {
+   "seconds": 1.66,
+   "findings": 125,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\ntf-predeploy-firewall: no rule pack for helm \u2014 those resources were still checked for hardcoded credentials, open CIDRs and your custom rules, but NOT for unknown arguments, destroy/recreate traps or missing prevent_destroy\n"
+  },
+  "checkov": {
+   "seconds": 41.19,
+   "findings": 92,
+   "exit": 1,
+   "stderr": "modules flag is required)\n2026-11-26 16:50:48,088 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/key-pair/aws:~> 2.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 16:50:48,088 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/eks/aws:~> 21.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 4.27,
+   "findings": 107,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 2.95,
+   "findings": 2,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 87,
+  "tf_lines": 15824
+ },
+ "terraform-aws-rds": {
+  "ours": {
+   "seconds": 0.81,
+   "findings": 27,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  },
+  "checkov": {
+   "seconds": 16.97,
+   "findings": 136,
+   "exit": 1,
+   "stderr": "ules flag is required)\n2026-11-26 16:52:32,683 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/lambda/aws:~> 8.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 16:52:32,683 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/s3-bucket/aws:~> 5.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 4.24,
+   "findings": 79,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 3.42,
+   "findings": 0,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 104,
+  "tf_lines": 7044
+ },
+ "terraform-aws-s3-bucket": {
+  "ours": {
+   "seconds": 0.95,
+   "findings": 29,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  },
+  "checkov": {
+   "seconds": 30.34,
+   "findings": 170,
+   "exit": 1,
+   "stderr": "d)\n2026-11-26 16:54:22,196 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/security-group/aws:~> 6.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 16:54:22,196 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/iam/aws//modules/iam-role:~> 6.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 1.53,
+   "findings": 60,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 2.38,
+   "findings": 0,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 105,
+  "tf_lines": 8633
+ },
+ "terraform-aws-vpc": {
+  "ours": {
+   "seconds": 1.45,
+   "findings": 74,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  },
+  "checkov": {
+   "seconds": 37.18,
+   "findings": 42,
+   "exit": 1,
+   "stderr": "6:56:26,627 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/cloudwatch/aws//modules/log-group:~> 5.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 16:56:26,627 [ThreadPoolEx] [WARNI]  Failed to download module terraform-aws-modules/iam/aws//modules/iam-role:~> 6.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 2.86,
+   "findings": 27,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 2.12,
+   "findings": 0,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 77,
+  "tf_lines": 13418
+ },
+ "terraform-azurerm-avm-res-containerservice-managedcluster": {
+  "ours": {
+   "seconds": 1.4,
+   "findings": 0,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\ntf-predeploy-firewall: no rule pack for azapi \u2014 those resources were still checked for hardcoded credentials, open CIDRs and your custom rules, but NOT for unknown arguments, destroy/recreate traps or missing prevent_destroy\n"
+  },
+  "checkov": {
+   "seconds": 20.77,
+   "findings": 43,
+   "exit": 1,
+   "stderr": "d)\n2026-11-26 16:58:06,591 [ThreadPoolEx] [WARNI]  Failed to download module Azure/avm-res-insights-actiongroup/azurerm:0.1.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 16:58:06,591 [ThreadPoolEx] [WARNI]  Failed to download module Azure/avm-res-insights-activitylogalert/azurerm:0.2.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 115.97,
+   "findings": 0,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 1.82,
+   "findings": 0,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 90,
+  "tf_lines": 11022
+ },
+ "terraform-google-kubernetes-engine": {
+  "ours": {
+   "seconds": 6.23,
+   "findings": 911,
+   "exit": 0,
+   "stderr": "ider = google-beta` were checked by every rule except unknown arguments and destroy/recreate traps, which need the google-beta schema (it ships with a license key)\ntf-predeploy-firewall: no rule pack for kind, kubernetes \u2014 those resources were still checked for hardcoded credentials, open CIDRs and your custom rules, but NOT for unknown arguments, destroy/recreate traps or missing prevent_destroy\n"
+  },
+  "checkov": {
+   "seconds": 31.07,
+   "findings": 320,
+   "exit": 1,
+   "stderr": "17:06:10,696 [ThreadPoolEx] [WARNI]  Failed to download module terraform-google-modules/gcloud/google:~> 4.0 (for external modules, the --download-external-modules flag is required)\n2026-11-26 17:06:10,697 [ThreadPoolEx] [WARNI]  Failed to download module terraform-google-modules/gcloud/google//modules/kubectl-wrapper:~> 4.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "seconds": 146.62,
+   "findings": 494,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "seconds": 6.94,
+   "findings": 537,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tf_files": 536,
+  "tf_lines": 60030
+ }
+}

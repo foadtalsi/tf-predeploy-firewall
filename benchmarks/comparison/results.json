@@ -1,0 +1,6006 @@
+{
+ "rds-db-name-rename": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.13,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.42,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.68,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 7,
+     "resource": null,
+     "message": "\"db_name\" changed from \"appdb\" to \"app_production\" \u2014 this attribute is ForceNew on aws_db_instance and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "dynamodb-hash-key-change": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_28",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Ensure DynamoDB point in time recovery (backup) is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_119",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Ensure DynamoDB Tables are encrypted using a KMS Customer Managed CMK",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.0,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0024",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Point in time recovery should be enabled to protect DynamoDB table",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0025",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "DynamoDB tables should use at rest encryption with a Customer Managed Key",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.34,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.43,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 4,
+     "resource": null,
+     "message": "\"hash_key\" changed from \"id\" to \"session_id\" \u2014 this attribute is ForceNew on aws_dynamodb_table and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_dynamodb_table is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "s3-bucket-rename": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV2_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure S3 buckets should have event notifications enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure that S3 bucket has a Public Access block",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure that an S3 bucket has a lifecycle configuration",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_144",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure that S3 bucket has cross-region replication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_18",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure the S3 bucket has access logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_145",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "Ensure that S3 buckets are encrypted with KMS by default",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.92,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0086",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Access block should block public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0087",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Access block should block public policy",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0089",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Bucket Logging",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0090",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Data should be versioned",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0091",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Access Block should Ignore Public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0093",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 Access block should restrict public bucket to limit access",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0094",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 buckets should each define an aws_s3_bucket_public_access_block",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0132",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.uploads",
+     "message": "S3 encryption should use Customer Managed Keys",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.34,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.8,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "\"bucket\" changed from \"acme-uploads\" to \"acme-uploads-production\" \u2014 this attribute is ForceNew on aws_s3_bucket and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_s3_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "efs-enable-encryption": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_184",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_efs_file_system.shared",
+     "message": "Ensure resource is encrypted by KMS using a customer managed Key (CMK)",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.77,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.42,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 3,
+     "resource": null,
+     "message": "\"encrypted\" changed from \"false\" to \"true\" \u2014 this attribute is ForceNew on aws_efs_file_system and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_efs_file_system is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "azure-storage-account-rename": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AZURE_33",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure Storage logging is enabled for Queue service for read, write and delete requests",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_59",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure that Storage accounts disallow public access",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_44",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure Storage Account is using the latest version of TLS encryption",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_190",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure that Storage blobs restrict public access",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_41",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure storage account is configured with SAS expiration policy",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_38",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure soft-delete is enabled on Azure storage account",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_33",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure storage account is configured with private endpoint",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_1",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure storage for critical data are encrypted with Customer Managed Key",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_40",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure storage account is not configured with Shared Key authorization",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_47",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Ensure storage account is configured without blob anonymous access",
+     "on_target": true
+    }
+   ],
+   "seconds": 7.94,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AZU-0012",
+     "level": "CRITICAL",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "The default action on Storage account network rules should be set to deny",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0057",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Storage account should have logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0061",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_storage_account.data",
+     "message": "Storage account should have infrastructure encryption enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.41,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [
+    {
+     "id": "azurerm_resources_missing_prevent_destroy",
+     "level": "warning",
+     "file": "corpus/azure-storage-account-rename/head/main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "Resource is missing lifecycle { prevent_destroy = true }. This resource contains data that should be protected from accidental deletion.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.2,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 6.27,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "\"name\" changed from \"acmedata\" to \"acmedataprod\" \u2014 this attribute is ForceNew on azurerm_storage_account and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "azurerm_storage_account is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "prevent-destroy-removed": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_313",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster configured to copy tags to snapshots",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_162",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_327",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS Clusters are encrypted using KMS CMKs",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_139",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS clusters have deletion protection enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_324",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS Cluster log capture is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_27",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure Postgres RDS as aws_rds_cluster has Query Logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_8",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS clusters has backup plan of AWS Backup",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.88,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0079",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "There is no encryption specified or encryption is disabled on the RDS Cluster.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0343",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "RDS Cluster Deletion Protection Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.45,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.16,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 14.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_rds_cluster is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-engine-version-bump": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.1,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.42,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.27,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.75,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-identifier-rename": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.69,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.58,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.16,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 13.29,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-instance-class-change": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 4.8,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.97,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.58,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 13.55,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "dynamodb-billing-mode-change": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_28",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Ensure DynamoDB point in time recovery (backup) is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_119",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Ensure DynamoDB Tables are encrypted using a KMS Customer Managed CMK",
+     "on_target": true
+    }
+   ],
+   "seconds": 4.12,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0024",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "Point in time recovery should be enabled to protect DynamoDB table",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0025",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_dynamodb_table.sessions",
+     "message": "DynamoDB tables should use at rest encryption with a Customer Managed Key",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.56,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.16,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 14.04,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_dynamodb_table is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-hallucinated-deletion-protection": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_293",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that AWS database instances have deletion protection enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.37,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0177",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Deletion Protection Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 11,
+     "resource": null,
+     "message": "An argument named \"enable_deletion_protection\" is not expected here.",
+     "on_target": true
+    }
+   ],
+   "seconds": 13.49,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 11,
+     "resource": null,
+     "message": "attribute \"enable_deletion_protection\" is not a known argument of aws_db_instance \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "lambda-memory-typo": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_50",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "X-Ray tracing is enabled for Lambda",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_117",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured inside a VPC",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_116",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_272",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure AWS Lambda function is configured to validate code-signing",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_115",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured for function-level concurrent execution limit",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.13,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0066",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Lambda functions should have X-Ray tracing enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.41,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 7,
+     "resource": null,
+     "message": "An argument named \"memory\" is not expected here.",
+     "on_target": true
+    }
+   ],
+   "seconds": 13.65,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 7,
+     "resource": null,
+     "message": "attribute \"memory\" is not a known argument of aws_lambda_function \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "s3-hallucinated-versioning": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV2_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure S3 buckets should have event notifications enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure that S3 bucket has a Public Access block",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure that an S3 bucket has a lifecycle configuration",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_145",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure that S3 buckets are encrypted with KMS by default",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_144",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure that S3 bucket has cross-region replication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_18",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "Ensure the S3 bucket has access logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.69,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0086",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Access block should block public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0087",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Access block should block public policy",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0089",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Bucket Logging",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0090",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Data should be versioned",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0091",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Access Block should Ignore Public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0093",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 Access block should restrict public bucket to limit access",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0094",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 buckets should each define an aws_s3_bucket_public_access_block",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0132",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.audit",
+     "message": "S3 encryption should use Customer Managed Keys",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.64,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.5,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 3,
+     "resource": null,
+     "message": "An argument named \"versioning_enabled\" is not expected here.",
+     "on_target": true
+    }
+   ],
+   "seconds": 13.83,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 3,
+     "resource": null,
+     "message": "attribute \"versioning_enabled\" is not a known argument of aws_s3_bucket \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_s3_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "security-group-nested-typo": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_23",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.api",
+     "message": "Ensure every security group and rule has a description",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_5",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.api",
+     "message": "Ensure that Security Groups are attached to another resource",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.63,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0099",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_security_group.api",
+     "message": "Missing description for security group.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0124",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 5,
+     "resource": "aws_security_group.api",
+     "message": "Missing description for security group rule.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.4,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 9,
+     "resource": null,
+     "message": "An argument named \"cidr_block\" is not expected here. Did you mean \"cidr_blocks\"?",
+     "on_target": true
+    }
+   ],
+   "seconds": 13.12,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 9,
+     "resource": null,
+     "message": "attribute \"cidr_block\" inside ingress block is not a known argument \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "aks-removed-argument": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AZURE_170",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that AKS use the Paid Sku for its SLA",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_172",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure autorotation of Secrets Store CSI Driver secrets for AKS clusters",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_141",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS local admin account is disabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_115",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that AKS enables private clusters",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_117",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that AKS uses disk encryption set",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_7",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has Network Policy configured",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_232",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that only critical system pods run on system nodes",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure ephemeral disks are used for OS disks",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_116",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that AKS uses Azure Policies Add-on",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS has an API Server Authorized IP Ranges enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_171",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster upgrade channel is chosen",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_168",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure Azure Kubernetes Cluster (AKS) nodes should use a minimum number of 50 pods.",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_4",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS logging to Azure Monitoring is Configured",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AZURE_227",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure that the AKS cluster encrypt temp disks, caches, and data flows between Compute and Storage resources",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AZURE_29",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has Azure CNI networking enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 4.13,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AZU-0040",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS logging to Azure Monitoring is Configured",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0041",
+     "level": "CRITICAL",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS has an API Server Authorized IP Ranges enabled",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0042",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure RBAC is enabled on AKS clusters",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0043",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has Network Policy configured",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0065",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has private cluster enabled",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0066",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has Azure Policy add-on enabled",
+     "on_target": true
+    },
+    {
+     "id": "AZU-0067",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "azurerm_kubernetes_cluster.main",
+     "message": "Ensure AKS cluster has disk encryption set ID configured",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.73,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.55,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "An argument named \"enable_auto_scaling\" is not expected here.",
+     "on_target": true
+    },
+    {
+     "id": "Insufficient node_provisioning_profile blocks",
+     "level": "error",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "At least 1 \"node_provisioning_profile\" blocks are required.",
+     "on_target": true
+    }
+   ],
+   "seconds": 5.95,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "attribute \"enable_auto_scaling\" inside default_node_pool block is not a known argument \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "ec2-rare-valid-arguments": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_126",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.batch",
+     "message": "Ensure that detailed monitoring is enabled for EC2 instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_135",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.batch",
+     "message": "Ensure that EC2 is EBS optimized",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_41",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.batch",
+     "message": "Ensure an IAM role is attached to EC2 instance",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.46,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.34,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.89,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "lambda-valid-arguments": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_50",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "X-Ray tracing is enabled for Lambda",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_117",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured inside a VPC",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_116",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured for a Dead Letter Queue(DLQ)",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_272",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure AWS Lambda function is configured to validate code-signing",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_115",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Ensure that AWS Lambda function is configured for function-level concurrent execution limit",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.94,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0066",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_lambda_function.worker",
+     "message": "Lambda functions should have X-Ray tracing enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.32,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.65,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-valid-deletion-protection": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.68,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 13.8,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-literal-password": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.87,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.38,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 14.57,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "main.tf",
+     "line": 9,
+     "resource": null,
+     "message": "\"password\" resolves to a hardcoded string literal, not a secret reference \u2014 credentials must not be committed in plain text",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "variable-default-password": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.87,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.72,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "main.tf",
+     "line": 9,
+     "resource": null,
+     "message": "\"password\" resolves to a hardcoded string literal (via var.db_password), not a secret reference \u2014 credentials must not be committed in plain text",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "tfvars-api-key": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_337",
+     "file": "/main.tf",
+     "line": 6,
+     "resource": "aws_ssm_parameter.datadog",
+     "message": "Ensure SSM parameters are using KMS CMK",
+     "on_target": false
+    }
+   ],
+   "seconds": 2.76,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.38,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "terraform.tfvars",
+     "line": 1,
+     "resource": null,
+     "message": "\"datadog_api_key\" is a hardcoded credential in a .tfvars file \u2014 variable values belong outside the repository (a TF_VAR_ environment variable, a gitignored tfvars file, or your secret manager). If this file is already committed, the value i",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "module-input-github-token": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_TF_1",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "runner",
+     "message": "Ensure Terraform module sources use a commit hash",
+     "on_target": true
+    },
+    {
+     "id": "CKV_SECRET_6",
+     "file": "/main.tf",
+     "line": 5,
+     "resource": "39a42534f86ab3b5b7442d04f0aceb56ae8dd45a",
+     "message": "Base64 High Entropy String",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.95,
+   "exit": 1,
+   "stderr": "2026-11-26 16:42:01,658 [ThreadPoolEx] [WARNI]  Failed to download module cloudposse/github-runners/aws:0.1.0 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.61,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "init-failed",
+     "file": null,
+     "line": null,
+     "resource": null,
+     "message": "registry.terraform.io.",
+     "on_target": false
+    },
+    {
+     "id": "Module not installed",
+     "level": "error",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "This module is not yet installed. Run \"terraform init\" to install all modules required by this configuration.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.23,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "main.tf",
+     "line": 5,
+     "resource": null,
+     "message": "\"github_token\" resolves to a hardcoded string literal, not a secret reference \u2014 credentials must not be committed in plain text",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "password-from-random-password": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.85,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.34,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.19,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "password-from-secrets-manager": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.88,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.36,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.4,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "sensitive-variable-no-default": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.77,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.32,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.47,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-managed-master-password": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_313",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster configured to copy tags to snapshots",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_162",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_327",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS Clusters are encrypted using KMS CMKs",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_324",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS Cluster log capture is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_27",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure Postgres RDS as aws_rds_cluster has Query Logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_8",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS clusters has backup plan of AWS Backup",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.77,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0079",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "There is no encryption specified or encryption is disabled on the RDS Cluster.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_rds_cluster is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "ssh-open-to-internet": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_24",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.bastion",
+     "message": "Ensure no security groups allow ingress from 0.0.0.0:0 to port 22",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_23",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.bastion",
+     "message": "Ensure every security group and rule has a description",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_5",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.bastion",
+     "message": "Ensure that Security Groups are attached to another resource",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.83,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0099",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_security_group.bastion",
+     "message": "Missing description for security group.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0107",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "aws_security_group.bastion",
+     "message": "Security groups should not allow unrestricted ingress to SSH or RDP from any IP address.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.23,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "\"cidr_blocks (inside ingress block)\" includes 0.0.0.0/0 (open to the entire internet) \u2014 common tutorial copy-paste, narrow this range",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-publicly-accessible": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_17",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure all data stored in RDS is not publicly accessible",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.87,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0180",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Publicly Accessible",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.67,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "aws_db_instance.primary sets publicly_accessible = true \u2014 this attaches a public IP and puts the data store on the internet, where only its security group stands between it and the world",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "s3-public-read-acl": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV2_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure S3 buckets should have event notifications enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV2_AWS_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 bucket has a Public Access block",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_20",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Bucket has an ACL defined which allows public READ access.",
+     "on_target": false
+    },
+    {
+     "id": "CKV2_AWS_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that an S3 bucket has a lifecycle configuration",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_144",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 bucket has cross-region replication enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_18",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure the S3 bucket has access logging enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_145",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 buckets are encrypted with KMS by default",
+     "on_target": false
+    }
+   ],
+   "seconds": 2.67,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0086",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Access block should block public ACL",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0087",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Access block should block public policy",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0089",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Bucket Logging",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0090",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Data should be versioned",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0091",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Access Block should Ignore Public ACL",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0092",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 7,
+     "resource": "aws_s3_bucket_acl.assets",
+     "message": "S3 Buckets not publicly accessible through ACL.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0093",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Access block should restrict public bucket to limit access",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0094",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 buckets should each define an aws_s3_bucket_public_access_block",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0132",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 encryption should use Customer Managed Keys",
+     "on_target": false
+    }
+   ],
+   "seconds": 0.32,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.43,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_s3_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": false
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 7,
+     "resource": null,
+     "message": "acl = \"public-read\" grants access outside this account \u2014 \"public-read\" and \"public-read-write\" are open to anyone on the internet, and \"authenticated-read\" is open to every AWS user everywhere, not just yours",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "s3-public-access-block-off": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_53",
+     "file": "/main.tf",
+     "line": 5,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "Ensure S3 bucket has block public ACLS enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_54",
+     "file": "/main.tf",
+     "line": 5,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "Ensure S3 bucket has block public policy enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_55",
+     "file": "/main.tf",
+     "line": 5,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "Ensure S3 bucket has ignore public ACLs enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_56",
+     "file": "/main.tf",
+     "line": 5,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "Ensure S3 bucket has 'restrict_public_buckets' enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure S3 buckets should have event notifications enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV2_AWS_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that an S3 bucket has a lifecycle configuration",
+     "on_target": false
+    },
+    {
+     "id": "CKV2_AWS_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 bucket has a Public Access block",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_145",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 buckets are encrypted with KMS by default",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_144",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure that S3 bucket has cross-region replication enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_18",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure the S3 bucket has access logging enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "on_target": false
+    }
+   ],
+   "seconds": 2.66,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0086",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 7,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "S3 Access block should block public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0087",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 8,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "S3 Access block should block public policy",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0089",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Bucket Logging",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0090",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 Data should be versioned",
+     "on_target": false
+    },
+    {
+     "id": "AWS-0091",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 9,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "S3 Access Block should Ignore Public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0093",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "aws_s3_bucket_public_access_block.assets",
+     "message": "S3 Access block should restrict public bucket to limit access",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0132",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.assets",
+     "message": "S3 encryption should use Customer Managed Keys",
+     "on_target": false
+    }
+   ],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_s3_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": false
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 7,
+     "resource": null,
+     "message": "block_public_acls = false on aws_s3_bucket_public_access_block.assets \u2014 this resource exists to stop the bucket being made public by any future ACL or policy, and this switch removes that guarantee",
+     "on_target": true
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 8,
+     "resource": null,
+     "message": "block_public_policy = false on aws_s3_bucket_public_access_block.assets \u2014 this resource exists to stop the bucket being made public by any future ACL or policy, and this switch removes that guarantee",
+     "on_target": true
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 9,
+     "resource": null,
+     "message": "ignore_public_acls = false on aws_s3_bucket_public_access_block.assets \u2014 this resource exists to stop the bucket being made public by any future ACL or policy, and this switch removes that guarantee",
+     "on_target": true
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "restrict_public_buckets = false on aws_s3_bucket_public_access_block.assets \u2014 this resource exists to stop the bucket being made public by any future ACL or policy, and this switch removes that guarantee",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "https-from-private-range": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_23",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.internal",
+     "message": "Ensure every security group and rule has a description",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_5",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_security_group.internal",
+     "message": "Ensure that Security Groups are attached to another resource",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.67,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0099",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_security_group.internal",
+     "message": "Missing description for security group.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0124",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 5,
+     "resource": "aws_security_group.internal",
+     "message": "Missing description for security group rule.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.41,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "iam-admin-wildcard": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_288",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies does not allow data exfiltration",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_290",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies does not allow write access without constraints",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_287",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies does not allow credentials exposure",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_63",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure no IAM policies documents allow \"*\" as a statement's actions",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_289",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies does not allow permissions management / resource exposure without constraints",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies that allow full \"*-*\" administrative privileges are not created",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_355",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure no IAM policies documents allow \"*\" as a statement's resource for restrictable actions",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_286",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure IAM policies does not allow privilege escalation",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_40",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_policy.ci",
+     "message": "Ensure AWS IAM policy does not allow full IAM privileges",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.8,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.54,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "permissive_iam",
+     "level": "error",
+     "file": "main.tf",
+     "line": 5,
+     "resource": null,
+     "message": "the IAM policy on aws_iam_policy.ci grants Action \"*\" on Resource \"*\" \u2014 this is unrestricted administrator access to the account, which is almost never what a service needs",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "iam-trust-anyone": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_iam_role.deployer",
+     "message": "Ensure IAM role allows only specific services or principals to assume it",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.66,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.48,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "permissive_iam",
+     "level": "error",
+     "file": "main.tf",
+     "line": 8,
+     "resource": null,
+     "message": "the policy on aws_iam_role.deployer names Principal \"*\" with no Condition \u2014 this grants the listed actions to every AWS account on earth, not to every principal in yours",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "iam-scoped-read": {
+  "checkov": {
+   "findings": [],
+   "seconds": 2.88,
+   "exit": 0,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.18,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "ebs-unencrypted": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_189",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_ebs_volume.data",
+     "message": "Ensure EBS Volume is encrypted by KMS using a customer managed Key (CMK)",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_3",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_ebs_volume.data",
+     "message": "Ensure all data stored in the EBS is securely encrypted",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.87,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0026",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 4,
+     "resource": "aws_ebs_volume.data",
+     "message": "EBS volumes must be encrypted",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0027",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_ebs_volume.data",
+     "message": "EBS volume encryption should use Customer Managed Keys",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.43,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_ebs_volume is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    },
+    {
+     "id": "encryption_disabled",
+     "level": "error",
+     "file": "main.tf",
+     "line": 4,
+     "resource": null,
+     "message": "encrypted = false disables encryption at rest on aws_ebs_volume.data \u2014 on most types this cannot be turned on later without replacing the resource, so it is decided here or not at all",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-storage-unencrypted": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_16",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure all data stored in the RDS is securely encrypted at rest",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.68,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0080",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS encryption has not been enabled at a DB Instance level.",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.31,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.19,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    },
+    {
+     "id": "encryption_disabled",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "storage_encrypted = false disables encryption at rest on aws_db_instance.primary \u2014 on most types this cannot be turned on later without replacing the resource, so it is decided here or not at all",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-skip-final-snapshot": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_161",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS database has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_353",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have performance insights enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_157",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that RDS instances have Multi-AZ enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_129",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that respective logs of Amazon Relational Database Service (Amazon RDS) are enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_226",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure DB instance gets all minor upgrades automatically",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_118",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure that enhanced monitoring is enabled for Amazon RDS instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_60",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure RDS instance with copy tags to snapshots is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_30",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Ensure Postgres RDS as aws_db_instance has Query Logging enabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.65,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0133",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "Enable Performance Insights to detect potential problems",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0176",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_db_instance.primary",
+     "message": "RDS IAM Database Authentication Disabled",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.29,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_db_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 12,
+     "resource": null,
+     "message": "skip_final_snapshot = true on aws_db_instance.primary \u2014 a destroy of this database keeps nothing, so recovery after a mistaken apply is impossible rather than slow",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.23,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "s3-force-destroy": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV2_AWS_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure S3 buckets should have event notifications enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure that S3 bucket has a Public Access block",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure that an S3 bucket has a lifecycle configuration",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_144",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure that S3 bucket has cross-region replication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_18",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure the S3 bucket has access logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure all data stored in the S3 bucket have versioning enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_145",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "Ensure that S3 buckets are encrypted with KMS by default",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.7,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0086",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Access block should block public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0087",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Access block should block public policy",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0089",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Bucket Logging",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0090",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Data should be versioned",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0091",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Access Block should Ignore Public ACL",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0093",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 Access block should restrict public bucket to limit access",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0094",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 buckets should each define an aws_s3_bucket_public_access_block",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0132",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_s3_bucket.backups",
+     "message": "S3 encryption should use Customer Managed Keys",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.32,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.37,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_s3_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 3,
+     "resource": null,
+     "message": "force_destroy = true on aws_s3_bucket.backups allows a destroy to delete every object in the bucket \u2014 without it the destroy fails on a non-empty bucket, and that failure is the last thing standing between a mistaken apply and permanent los",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "module-without-version": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_TF_1",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "vpc",
+     "message": "Ensure Terraform module sources use a commit hash",
+     "on_target": true
+    },
+    {
+     "id": "CKV_TF_2",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "vpc",
+     "message": "Ensure Terraform module sources use a tag with a version number",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.74,
+   "exit": 1,
+   "stderr": "2026-11-26 16:46:21,194 [ThreadPoolEx] [WARNI]  Unable to load module (terraform-aws-modules/vpc/aws): list index out of range\n"
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0178",
+     "level": "MEDIUM",
+     "file": "terraform-aws-modules/vpc/aws/main.tf",
+     "line": 28,
+     "resource": "module.vpc",
+     "message": "VPC Flow Logs is a feature that enables you to capture information about the IP traffic going to and from network interfaces in your VPC. After you've created a flow log, you can view and retrieve its data in Amazon CloudWatch Logs. It is r",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.46,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [
+    {
+     "id": "terraform_module_version",
+     "level": "warning",
+     "file": "corpus/module-without-version/head/main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "module \"vpc\" should specify a version",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 13.67,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unpinned_version",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "registry module \"terraform-aws-modules/vpc/aws\" declares no version \u2014 Terraform will take the newest release each time the module is re-initialised",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "module-git-branch-ref": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_TF_1",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "vpc",
+     "message": "Ensure Terraform module sources use a commit hash",
+     "on_target": true
+    },
+    {
+     "id": "CKV_TF_2",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "vpc",
+     "message": "Ensure Terraform module sources use a tag with a version number",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.75,
+   "exit": 1,
+   "stderr": "2026-11-26 16:46:38,592 [ThreadPoolEx] [WARNI]  Failed to download module git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=master (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0178",
+     "level": "MEDIUM",
+     "file": "git::https:/github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=master/main.tf",
+     "line": 28,
+     "resource": "module.vpc",
+     "message": "VPC Flow Logs is a feature that enables you to capture information about the IP traffic going to and from network interfaces in your VPC. After you've created a flow log, you can view and retrieve its data in Amazon CloudWatch Logs. It is r",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.43,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [
+    {
+     "id": "terraform_module_pinned_source",
+     "level": "warning",
+     "file": "corpus/module-git-branch-ref/head/main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "Module source \"git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=master\" uses a default branch as ref (master)",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 13.53,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unpinned_version",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "module source pins ?ref=master, which is a moving branch \u2014 whoever can push to it decides what runs against your cloud account",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "module-git-commit-ref": {
+  "checkov": {
+   "findings": [],
+   "seconds": 2.7,
+   "exit": 0,
+   "stderr": "2026-11-26 16:46:55,781 [ThreadPoolEx] [WARNI]  Failed to download module git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=a1b2c3d4e5f60718293a4b5c6d7e8f9012345678 (for external modules, the --download-external-modules flag is required)\n"
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 1.08,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "init-failed",
+     "file": null,
+     "line": null,
+     "resource": null,
+     "message": "(a1b2c3d4e5f60718293a4b5c6d7e8f9012345678)",
+     "on_target": false
+    },
+    {
+     "id": "Module not installed",
+     "level": "error",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "This module is not yet installed. Run \"terraform init\" to install all modules required by this configuration.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.78,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "imds-v1-allowed": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_79",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.web",
+     "message": "Ensure Instance Metadata Service Version 1 is not enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_126",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.web",
+     "message": "Ensure that detailed monitoring is enabled for EC2 instances",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_135",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.web",
+     "message": "Ensure that EC2 is EBS optimized",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_41",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_instance.web",
+     "message": "Ensure an IAM role is attached to EC2 instance",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.69,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0028",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 6,
+     "resource": "aws_instance.web",
+     "message": "aws_instance should activate session tokens for Instance Metadata Service.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.55,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "public_exposure",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 6,
+     "resource": null,
+     "message": "metadata_options.http_tokens = \"optional\" on aws_instance.web allows IMDSv1 \u2014 any SSRF in software running on this instance can then read its IAM credentials from 169.254.169.254",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "gcp-sql-instance-rename": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_GCP_52",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure PostgreSQL database 'log_connections' flag is set to 'on'",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_108",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure hostnames are logged for GCP PostgreSQL databases",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_6",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure all Cloud SQL database instance requires all incoming connections to use SSL",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_79",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure SQL database is using latest Major version",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_110",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure pgAudit is enabled for your GCP PostgreSQL database",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_51",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure PostgreSQL database 'log_checkpoints' flag is set to 'on'",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_53",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure PostgreSQL database 'log_disconnections' flag is set to 'on'",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_109",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure the GCP PostgreSQL database log levels are set to ERROR or lower",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_111",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure GCP PostgreSQL logs SQL statements",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_54",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure PostgreSQL database 'log_lock_waits' flag is set to 'on'",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_14",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure all Cloud SQL database instance have backup configuration enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_GCP_13",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure PostgreSQL database flag 'log_duration' is set to 'on'",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.87,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "GCP-0014",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Temporary file logging should be enabled for all temporary files.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0015",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "SSL connections to a SQL database instance should be enforced.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0016",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure that logging of connections is enabled.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0017",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure that Cloud SQL Database Instances are not publicly exposed",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0020",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure that logging of lock waits is enabled.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0022",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure that logging of disconnections is enabled.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0024",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Enable automated backups to recover from data-loss",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0025",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_sql_database_instance.main",
+     "message": "Ensure that logging of checkpoints is enabled.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.38,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 2.92,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "force_new_change",
+     "level": "error",
+     "file": "main.tf",
+     "line": 2,
+     "resource": null,
+     "message": "\"name\" changed from \"prod-pg\" to \"prod-pg-eu\" \u2014 this attribute is ForceNew on google_sql_database_instance and will destroy + recreate the resource on apply",
+     "on_target": true
+    },
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "google_sql_database_instance is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "gcp-gke-hallucinated-argument": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_GCP_61",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Enable VPC Flow Logs and Intranode Visibility",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_70",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure the GKE Release Channel is set",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_25",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure Kubernetes Cluster is created with Private cluster enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_23",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure Kubernetes Cluster is created with Alias IP ranges enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_20",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure master authorized networks is set to enabled in GKE clusters",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_21",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure Kubernetes Clusters are configured with Labels",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_13",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure client certificate authentication to Kubernetes Engine Clusters is disabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_65",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Manage Kubernetes RBAC users with Google Groups for GKE",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_64",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure clusters are created with Private Nodes",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_66",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure use of Binary Authorization",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_69",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure the GKE Metadata Server is Enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_GCP_12",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Ensure Network Policy is enabled on Kubernetes Engine Clusters",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.72,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "GCP-0049",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Clusters should have IP aliasing enabled",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0050",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Checks for service account defined for GKE nodes",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0051",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Clusters should be configured with Labels",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0056",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Network Policy should be enabled on GKE clusters",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0059",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Clusters should be set to private",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0061",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_container_cluster.main",
+     "message": "Master authorized networks should be configured on GKE clusters",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.15,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [
+    {
+     "id": "Unsupported argument",
+     "level": "error",
+     "file": "main.tf",
+     "line": 4,
+     "resource": null,
+     "message": "An argument named \"enable_autopilot_mode\" is not expected here.",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.84,
+   "exit": 1,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "unknown_attribute",
+     "level": "error",
+     "file": "main.tf",
+     "line": 4,
+     "resource": null,
+     "message": "attribute \"enable_autopilot_mode\" is not a known argument of google_container_cluster \u2014 likely hallucinated or deprecated; verify against the provider docs",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "gcp-firewall-ssh-open": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_GCP_2",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_compute_firewall.ssh",
+     "message": "Ensure Google compute firewall ingress does not allow unrestricted ssh access",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.73,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "GCP-0027",
+     "level": "CRITICAL",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "google_compute_firewall.ssh",
+     "message": "A firewall rule should not allow unrestricted ingress from any IP address.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0071",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "google_compute_firewall.ssh",
+     "message": "SSH Access Is Not Restricted",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0073",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_compute_firewall.ssh",
+     "message": "Disable Default Firewall Rules",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.34,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 2.75,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "\"source_ranges\" includes 0.0.0.0/0 on google_compute_firewall.ssh \u2014 this firewall rule admits the whole internet; narrow it to the ranges that need access, or to 35.235.240.0/20 for SSH through IAP",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "gcp-bucket-all-users": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_GCP_114",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Ensure public access prevention is enforced on Cloud Storage bucket",
+     "on_target": false
+    },
+    {
+     "id": "CKV_GCP_62",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Bucket should log access",
+     "on_target": false
+    },
+    {
+     "id": "CKV_GCP_78",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Ensure Cloud storage has versioning enabled",
+     "on_target": false
+    },
+    {
+     "id": "CKV_GCP_28",
+     "file": "/main.tf",
+     "line": 7,
+     "resource": "google_storage_bucket_iam_member.public",
+     "message": "Ensure that Cloud Storage bucket is not anonymously or publicly accessible",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.67,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "GCP-0001",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 10,
+     "resource": "google_storage_bucket_iam_member.public",
+     "message": "Ensure that Cloud Storage bucket is not anonymously or publicly accessible.",
+     "on_target": true
+    },
+    {
+     "id": "GCP-0066",
+     "level": "LOW",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Cloud Storage buckets should be encrypted with a customer-managed key.",
+     "on_target": false
+    },
+    {
+     "id": "GCP-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Cloud Storage Bucket Logging Not Enabled",
+     "on_target": false
+    },
+    {
+     "id": "GCP-0078",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "google_storage_bucket.reports",
+     "message": "Cloud Storage Bucket Versioning Disabled",
+     "on_target": false
+    }
+   ],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.13,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 2.8,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "google_storage_bucket is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": false
+    },
+    {
+     "id": "public_exposure",
+     "level": "error",
+     "file": "main.tf",
+     "line": 10,
+     "resource": null,
+     "message": "member = \"allUsers\" on google_storage_bucket_iam_member.public grants the role to allUsers (anyone on the internet) or allAuthenticatedUsers (anyone with a Google account) \u2014 neither means your organisation",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "cloud-run-secret-reference": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_SECRET_6",
+     "file": "/main.tf",
+     "line": 13,
+     "resource": "7875cece6721a517e5a07b61ef98a98dc7f9f329",
+     "message": "Base64 High Entropy String",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.66,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 2.8,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [],
+   "seconds": 0.22,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "efs-creation-token": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_184",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_efs_file_system.shared",
+     "message": "Ensure resource is encrypted by KMS using a customer managed Key (CMK)",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.75,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [],
+   "seconds": 0.35,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.68,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_efs_file_system is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "rds-cluster-default-key-encryption": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_313",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster configured to copy tags to snapshots",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_162",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS cluster has IAM authentication enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_327",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure RDS Clusters are encrypted using KMS CMKs",
+     "on_target": true
+    },
+    {
+     "id": "CKV_AWS_324",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS Cluster log capture is enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_27",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure Postgres RDS as aws_rds_cluster has Query Logging enabled",
+     "on_target": true
+    },
+    {
+     "id": "CKV2_AWS_8",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "Ensure that RDS clusters has backup plan of AWS Backup",
+     "on_target": true
+    }
+   ],
+   "seconds": 2.76,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0077",
+     "level": "MEDIUM",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "RDS Cluster and RDS instance should have backup retention longer than default 1 day",
+     "on_target": true
+    },
+    {
+     "id": "AWS-0079",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_rds_cluster.main",
+     "message": "There is no encryption specified or encryption is disabled on the RDS Cluster.",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.32,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.14,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 12.33,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_rds_cluster is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.21,
+   "exit": 0,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ },
+ "provider-access-keys": {
+  "checkov": {
+   "findings": [
+    {
+     "id": "CKV_AWS_27",
+     "file": "/main.tf",
+     "line": 1,
+     "resource": "aws_sqs_queue.jobs",
+     "message": "Ensure all data stored in the SQS queue is encrypted",
+     "on_target": false
+    },
+    {
+     "id": "CKV_AWS_41",
+     "file": "/versions.tf",
+     "line": 11,
+     "resource": "aws.default",
+     "message": "Ensure no hard coded AWS access key and secret key exists in provider",
+     "on_target": true
+    },
+    {
+     "id": "CKV_SECRET_2",
+     "file": "/versions.tf",
+     "line": 13,
+     "resource": "1b310ab6fb79ea0a181cdf875639340b9f2cbf2a",
+     "message": "AWS Access Key",
+     "on_target": true
+    },
+    {
+     "id": "CKV_SECRET_6",
+     "file": "/versions.tf",
+     "line": 14,
+     "resource": "c60d70aeab5f9efd9a7c1e6b17931377e2ea48bb",
+     "message": "Base64 High Entropy String",
+     "on_target": true
+    }
+   ],
+   "seconds": 3.4,
+   "exit": 1,
+   "stderr": ""
+  },
+  "trivy": {
+   "findings": [
+    {
+     "id": "AWS-0096",
+     "level": "HIGH",
+     "file": "main.tf",
+     "line": 1,
+     "resource": "aws_sqs_queue.jobs",
+     "message": "Unencrypted SQS queue.",
+     "on_target": false
+    },
+    {
+     "id": "aws-access-key-id",
+     "level": "CRITICAL",
+     "file": "versions.tf",
+     "line": 13,
+     "resource": null,
+     "message": "AWS Access Key ID",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.49,
+   "exit": 0,
+   "stderr": ""
+  },
+  "tflint": {
+   "findings": [],
+   "seconds": 0.3,
+   "exit": 0,
+   "stderr": ""
+  },
+  "validate": {
+   "findings": [],
+   "seconds": 11.56,
+   "exit": 0,
+   "stderr": ""
+  },
+  "ours": {
+   "findings": [
+    {
+     "id": "missing_lifecycle",
+     "level": "warning",
+     "file": "main.tf",
+     "line": 1,
+     "resource": null,
+     "message": "aws_sqs_queue is a stateful/critical resource with no lifecycle { prevent_destroy = true } guard",
+     "on_target": false
+    },
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "versions.tf",
+     "line": 13,
+     "resource": null,
+     "message": "\"access_key\" resolves to a hardcoded string literal, not a secret reference \u2014 credentials must not be committed in plain text",
+     "on_target": true
+    },
+    {
+     "id": "tutorial_pattern",
+     "level": "error",
+     "file": "versions.tf",
+     "line": 14,
+     "resource": null,
+     "message": "\"secret_key\" resolves to a hardcoded string literal, not a secret reference \u2014 credentials must not be committed in plain text",
+     "on_target": true
+    }
+   ],
+   "seconds": 0.22,
+   "exit": 1,
+   "stderr": "tf-predeploy-firewall: rule packs [aws-base azurerm-base google-base] (aws 6.65.0, azurerm 5.6.0, google 8.12.0; 122 resource types)\n"
+  }
+ }
+}

@@ -4,3 +4,4 @@
 ignore_paths:
   - path: "tests/data/**"
   - path: "benchmarks/cases/**"
+  - path: "benchmarks/comparison/corpus/**"

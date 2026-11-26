@@ -1,0 +1,352 @@
+[
+  {
+    "name": "rds-db-name-rename",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "db_name is ForceNew: the instance is destroyed and recreated empty"
+  },
+  {
+    "name": "dynamodb-hash-key-change",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "aws_dynamodb_table.sessions",
+    "note": "hash_key is ForceNew: the table and its items are destroyed"
+  },
+  {
+    "name": "s3-bucket-rename",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "aws_s3_bucket.uploads",
+    "note": "bucket is ForceNew: the bucket is replaced"
+  },
+  {
+    "name": "efs-enable-encryption",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "aws_efs_file_system.shared",
+    "note": "encrypted is ForceNew on EFS: turning it on replaces the file system"
+  },
+  {
+    "name": "azure-storage-account-rename",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "azurerm_storage_account.data",
+    "note": "name is ForceNew on a storage account"
+  },
+  {
+    "name": "prevent-destroy-removed",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "aws_rds_cluster.main",
+    "note": "the guard that stopped a destroy is removed in this change"
+  },
+  {
+    "name": "rds-engine-version-bump",
+    "category": "destroy",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "engine_version updates in place"
+  },
+  {
+    "name": "rds-identifier-rename",
+    "category": "destroy",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "identifier renames in place"
+  },
+  {
+    "name": "rds-instance-class-change",
+    "category": "destroy",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "instance_class modifies in place"
+  },
+  {
+    "name": "dynamodb-billing-mode-change",
+    "category": "destroy",
+    "kind": "near-miss",
+    "target": "aws_dynamodb_table.sessions",
+    "note": "billing_mode updates in place"
+  },
+  {
+    "name": "rds-hallucinated-deletion-protection",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "the argument is deletion_protection"
+  },
+  {
+    "name": "lambda-memory-typo",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "aws_lambda_function.worker",
+    "note": "the argument is memory_size"
+  },
+  {
+    "name": "s3-hallucinated-versioning",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "aws_s3_bucket.audit",
+    "note": "versioning is a separate resource, aws_s3_bucket_versioning"
+  },
+  {
+    "name": "security-group-nested-typo",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "aws_security_group.api",
+    "note": "the nested argument is cidr_blocks, a list"
+  },
+  {
+    "name": "aks-removed-argument",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "azurerm_kubernetes_cluster.main",
+    "note": "azurerm 4 renamed it auto_scaling_enabled; the old name is gone in 4 and 5"
+  },
+  {
+    "name": "ec2-rare-valid-arguments",
+    "category": "invalid-argument",
+    "kind": "near-miss",
+    "target": "aws_instance.batch",
+    "note": "every argument here is valid, if rarely used"
+  },
+  {
+    "name": "lambda-valid-arguments",
+    "category": "invalid-argument",
+    "kind": "near-miss",
+    "target": "aws_lambda_function.worker",
+    "note": "every argument here is valid"
+  },
+  {
+    "name": "rds-valid-deletion-protection",
+    "category": "invalid-argument",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "the real argument, deletion_protection"
+  },
+  {
+    "name": "rds-literal-password",
+    "category": "secret",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "the password is written in the file"
+  },
+  {
+    "name": "variable-default-password",
+    "category": "secret",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "the value comes from a variable default one indirection away"
+  },
+  {
+    "name": "tfvars-api-key",
+    "category": "secret",
+    "kind": "positive",
+    "target": "file:terraform.tfvars",
+    "note": "a committed terraform.tfvars holds the key"
+  },
+  {
+    "name": "provider-access-keys",
+    "category": "secret",
+    "kind": "positive",
+    "target": "file:versions.tf",
+    "note": "static AWS keys in the provider block; the target file is versions.tf"
+  },
+  {
+    "name": "module-input-github-token",
+    "category": "secret",
+    "kind": "positive",
+    "target": "file:main.tf",
+    "note": "a GitHub token passed to a module"
+  },
+  {
+    "name": "password-from-random-password",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "the password is generated, never written"
+  },
+  {
+    "name": "password-from-secrets-manager",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "the password is read from Secrets Manager"
+  },
+  {
+    "name": "sensitive-variable-no-default",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "aws_db_instance.primary",
+    "note": "the value is supplied at apply time, outside the repository"
+  },
+  {
+    "name": "rds-managed-master-password",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "aws_rds_cluster.main",
+    "note": "RDS generates and stores the password"
+  },
+  {
+    "name": "ssh-open-to-internet",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "aws_security_group.bastion",
+    "note": "port 22 open to the whole internet"
+  },
+  {
+    "name": "rds-publicly-accessible",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "the database gets a public endpoint"
+  },
+  {
+    "name": "s3-public-read-acl",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "aws_s3_bucket_acl.assets",
+    "note": "every object readable by anyone"
+  },
+  {
+    "name": "s3-public-access-block-off",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "aws_s3_bucket_public_access_block.assets",
+    "note": "the account-level safety net is switched off"
+  },
+  {
+    "name": "https-from-private-range",
+    "category": "exposure",
+    "kind": "near-miss",
+    "target": "aws_security_group.internal",
+    "note": "HTTPS from the private network only"
+  },
+  {
+    "name": "iam-admin-wildcard",
+    "category": "iam",
+    "kind": "positive",
+    "target": "aws_iam_policy.ci",
+    "note": "full admin on everything"
+  },
+  {
+    "name": "iam-trust-anyone",
+    "category": "iam",
+    "kind": "positive",
+    "target": "aws_iam_role.deployer",
+    "note": "any AWS account can assume the role"
+  },
+  {
+    "name": "iam-scoped-read",
+    "category": "iam",
+    "kind": "near-miss",
+    "target": "aws_iam_policy.reader",
+    "note": "one action on one bucket"
+  },
+  {
+    "name": "ebs-unencrypted",
+    "category": "encryption",
+    "kind": "positive",
+    "target": "aws_ebs_volume.data",
+    "note": "volume stored unencrypted"
+  },
+  {
+    "name": "rds-storage-unencrypted",
+    "category": "encryption",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "database storage unencrypted"
+  },
+  {
+    "name": "rds-skip-final-snapshot",
+    "category": "data-loss",
+    "kind": "positive",
+    "target": "aws_db_instance.primary",
+    "note": "a destroy leaves no snapshot behind"
+  },
+  {
+    "name": "s3-force-destroy",
+    "category": "data-loss",
+    "kind": "positive",
+    "target": "aws_s3_bucket.backups",
+    "note": "a destroy deletes every object, no questions asked"
+  },
+  {
+    "name": "module-without-version",
+    "category": "supply-chain",
+    "kind": "positive",
+    "target": "module.vpc",
+    "note": "the newest release is taken at every init"
+  },
+  {
+    "name": "module-git-branch-ref",
+    "category": "supply-chain",
+    "kind": "positive",
+    "target": "module.vpc",
+    "note": "a branch anyone with push access can move"
+  },
+  {
+    "name": "module-git-commit-ref",
+    "category": "supply-chain",
+    "kind": "near-miss",
+    "target": "module.vpc",
+    "note": "a full commit hash cannot move"
+  },
+  {
+    "name": "imds-v1-allowed",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "aws_instance.web",
+    "note": "IMDSv1 left on, the SSRF-to-credentials path"
+  },
+  {
+    "name": "gcp-sql-instance-rename",
+    "category": "destroy",
+    "kind": "positive",
+    "target": "google_sql_database_instance.main",
+    "note": "name is ForceNew on a Cloud SQL instance"
+  },
+  {
+    "name": "gcp-gke-hallucinated-argument",
+    "category": "invalid-argument",
+    "kind": "positive",
+    "target": "google_container_cluster.main",
+    "note": "the argument is enable_autopilot"
+  },
+  {
+    "name": "gcp-firewall-ssh-open",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "google_compute_firewall.ssh",
+    "note": "port 22 open to the whole internet"
+  },
+  {
+    "name": "gcp-bucket-all-users",
+    "category": "exposure",
+    "kind": "positive",
+    "target": "google_storage_bucket_iam_member.public",
+    "note": "every object readable by anyone"
+  },
+  {
+    "name": "cloud-run-secret-reference",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "google_cloud_run_v2_service.api",
+    "note": "the value is the name of a Secret Manager secret, which is the recommended way"
+  },
+  {
+    "name": "efs-creation-token",
+    "category": "secret",
+    "kind": "near-miss",
+    "target": "aws_efs_file_system.shared",
+    "note": "creation_token is an idempotency key, not a credential"
+  },
+  {
+    "name": "rds-cluster-default-key-encryption",
+    "category": "encryption",
+    "kind": "near-miss",
+    "target": "aws_rds_cluster.main",
+    "note": "storage is encrypted with the AWS-managed key"
+  }
+]
