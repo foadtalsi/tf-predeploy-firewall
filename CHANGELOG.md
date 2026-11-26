@@ -3,6 +3,33 @@
 Notable changes to the scanner. Historical entries describe behavior at the time of
 release; see the [usage guide](docs/usage.md) for current behavior.
 
+## Unreleased
+
+### Fixed
+
+- Static credentials in a `provider` block (`access_key`, `secret_key`, `client_secret`)
+  are reported. Provider blocks were not parsed at all, so a key written there was found by
+  nothing. They are now parsed as their own kind, `provider.aws` or `provider.aws.<alias>`,
+  and only the credential rules look at them; custom rules see them only if their `match`
+  lists the `provider` kind.
+- The name of a Secret Manager secret is no longer reported as a hardcoded password:
+  `secret` inside `secret_key_ref`, `secret_environment_variables`, `secret_volumes` or a
+  Cloud Run volume's `secret` block, and `secret` on
+  `google_secret_manager_secret_version`. Passing a secret this way is the recommended fix,
+  and it blocked the merge at severity critical.
+- `creation_token`, `client_token` and `idempotency_token` are no longer reported as
+  credentials: they are idempotency keys, and EFS's `creation_token` blocked the merge.
+- Arguments inside an attribute written with block syntax are checked against the schema,
+  such as `cidr_block` for `cidr_blocks` in a security group's `ingress`. The embedded
+  packs, regenerated at the same provider versions, now record the fields of attributes
+  whose type is a list or set of objects; 28 resource types across the three packs gain
+  such paths.
+
+### Added
+
+- The rule format accepts `skip_when_inside_block_types` in a `match` block: a nested
+  attribute is skipped when a block around it is of one of the listed types.
+
 ## [v1.5.0] — 2026-11-22
 
 ### Added

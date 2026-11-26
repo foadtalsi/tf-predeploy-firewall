@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .. import cloudname
-from ..parser import Attribute, NestedBlock, Resource
+from ..parser import Attribute, Kind, NestedBlock, Resource
 from ..report.finding import Category, Finding, Fix, Severity
 from ..ruledef import Match, Rule
 from ..schema import KnowledgeBase
@@ -206,6 +206,8 @@ def skipped_by_enclosing_blocks(m: Match, enclosing: tuple[NestedBlock, ...]) ->
                 return True
         if any(child.type in m.skip_when_block_contains for child in block.blocks):
             return True
+        if block.type in m.skip_when_inside_block_types:
+            return True
     return False
 
 
@@ -224,8 +226,11 @@ def base_vars(res: Resource) -> dict[str, str]:
 
 
 def matches_resource(m: Match, res: Resource) -> bool:
-    """Apply block-level filters. Empty filters impose no restrictions."""
+    """Apply block-level filters. Empty filters impose no restrictions, except that a provider
+    configuration block is only matched by a rule that lists the `provider` kind."""
     if m.kinds and str(res.kind) not in m.kinds:
+        return False
+    if res.kind is Kind.PROVIDER and "provider" not in m.kinds:
         return False
     if m.resource_types and res.type not in m.resource_types:
         return False

@@ -37,6 +37,7 @@ _MATCH_KEYS = (
     "skip_when_attribute_equals",
     "skip_when_block_attribute_equals",
     "skip_when_block_contains",
+    "skip_when_inside_block_types",
     "skip_when_resource_contains",
     "attr_names",
     "attr_name_matches",

@@ -206,3 +206,27 @@ def test_type_from_address_round_trips_with_address() -> None:
     module = Resource(kind=Kind.MODULE, type="module", name="rds", file="f.tf")
     _, _, ok = type_from_address(module.address())
     assert not ok, "a module call must not resolve to a resource type"
+
+
+def test_parse_file_reads_provider_configuration_blocks() -> None:
+    """A provider block is parsed as its own kind, addressed the way Terraform names it, so
+    the credential rules can report static keys written in it."""
+    resources = parse_file(
+        "versions.tf",
+        b"""
+provider "aws" {
+  region = "eu-west-3"
+}
+
+provider "aws" {
+  alias      = "legacy"
+  access_key = "AKIA4QWX7N2LJ5RTP3KD"
+}
+""",
+    )
+    assert [(r.kind, r.address()) for r in resources] == [
+        (Kind.PROVIDER, "provider.aws"),
+        (Kind.PROVIDER, "provider.aws.legacy"),
+    ]
+    assert resources[1].attributes["access_key"].raw_value == "AKIA4QWX7N2LJ5RTP3KD"
+

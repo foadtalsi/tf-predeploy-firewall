@@ -85,3 +85,38 @@ resource "google_compute_disk" "beta_arguments" {
   zone         = "europe-west1-b"
   multi_writer = true
 }
+
+# aws_security_group declares ingress as a set of objects; Terraform accepts the block
+# syntax, so its fields are checked like a block's.
+resource "aws_security_group" "nested_typo" {
+  name   = "api"
+  vpc_id = "vpc-0abc1234"
+
+  ingress {
+    from_port  = 443
+    to_port    = 443
+    protocol   = "tcp"
+    cidr_block = "10.0.0.0/8"
+  }
+}
+
+resource "aws_security_group" "nested_valid" {
+  name   = "internal"
+  vpc_id = "vpc-0abc1234"
+
+  ingress {
+    description     = "HTTPS from the private network"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    cidr_blocks     = ["10.0.0.0/8"]
+    security_groups = ["sg-0abc1234"]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}

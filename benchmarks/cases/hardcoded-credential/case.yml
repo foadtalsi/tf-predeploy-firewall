@@ -8,7 +8,12 @@ expect:
   - {rule: hardcoded_credential, target: aws_db_instance.weak_password}
   - {rule: hardcoded_credential, target: aws_db_instance.weak_default}
   - {rule: hardcoded_credential, target: aws_db_instance.word_secret}
+  - {rule: hardcoded_credential, target: provider.aws.legacy, count: 2}
 must_not_report:
+  - {rule: hardcoded_credential, target: provider.aws.from_variables}
+  - {rule: hardcoded_credential, target: google_cloud_run_v2_service.secret_reference}
+  - {rule: hardcoded_credential, target: google_cloudfunctions2_function.secret_reference}
+  - {rule: hardcoded_credential, target: aws_efs_file_system.creation_token}
   - {rule: hardcoded_credential, target: aws_db_instance.from_variable}
   - {rule: hardcoded_credential, target: aws_rds_cluster.managed}
   - {rule: hardcoded_credential, target: aws_db_instance.generated}

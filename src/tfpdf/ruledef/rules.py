@@ -20,6 +20,26 @@ _CREDENTIAL_NAME_BODY = (
 
 CREDENTIAL_ATTRIBUTE_NAMES = "(?i)" + _CREDENTIAL_NAME_BODY
 
+# Names the credential pattern catches that never hold a credential. EFS's creation_token
+# and the client_token or idempotency_token of other APIs are idempotency keys: a caller
+# picks a readable string so that a retried create does not create twice.
+NOT_A_CREDENTIAL_DESPITE_NAME = r"(?i)^(creation_token|client_token|idempotency_token)$"
+
+# Blocks whose `secret` argument is the NAME of a secret in a secret manager, the way Cloud
+# Run and Cloud Functions are told where to read one: `secret_key_ref { secret = "db" }`.
+# That is the recommended way to pass a secret, so reporting it would punish the fix.
+SECRET_REFERENCE_BLOCKS = [
+    "secret_key_ref",
+    "secret_environment_variables",
+    "secret_volumes",
+    "secret",
+]
+
+# The kinds of block the credential rules read. Provider configuration blocks are among
+# them because static keys written there are a leak like any other; no other built-in
+# rule looks at a provider block.
+CREDENTIAL_KINDS = ["resource", "data", "module", "provider"]
+
 # Public attributes can contain high-entropy text without being secrets: keys, fingerprints, DNS
 # records, policy statement IDs, and digests of content (an S3 object's etag is the MD5 of its
 # body, a Lambda's source_code_hash the SHA-256 of its package).
@@ -50,6 +70,7 @@ def credential_value_match(**conditions: object) -> Match:
     """
     return Match(
         scope="any_attribute",
+        kinds=CREDENTIAL_KINDS,
         literal=True,
         # Shorter strings provide insufficient evidence.
         min_length=16,
@@ -100,7 +121,13 @@ RULES: list[Rule] = [
             # having a credential name, and never checked by name for being nested.
             # A literal AWS key sitting in one was found by nothing at all.
             scope="any_attribute",
+            kinds=CREDENTIAL_KINDS,
             attr_name_matches=CREDENTIAL_ATTRIBUTE_NAMES,
+            attr_name_not_matches=NOT_A_CREDENTIAL_DESPITE_NAME,
+            skip_when_inside_block_types=SECRET_REFERENCE_BLOCKS,
+            # A google_secret_manager_secret_version's `secret` is the id of the secret it
+            # adds a version to; the value itself is in secret_data.
+            skip_resource_types=["google_secret_manager_secret_version"],
             literal=True,
             # Bools and empties are never credentials.
             # manage_master_user_password = true is the opposite of a leak.

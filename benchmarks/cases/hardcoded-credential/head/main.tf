@@ -157,3 +157,67 @@ resource "aws_db_instance" "word_secret" {
   identifier = "word-secret"
   password   = "secret"
 }
+
+# Static keys in a provider configuration are a credential leak like any other.
+provider "aws" {
+  alias      = "legacy"
+  region     = "eu-west-3"
+  access_key = "AKIA4QWX7N2LJ5RTP3KD"
+  secret_key = "u7Fq2Lw9Zr4Xk8Pn1Vb6Hy3T"
+}
+
+# Keys read from variables are not.
+provider "aws" {
+  alias      = "from_variables"
+  region     = "eu-west-3"
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
+}
+
+# The name of a Secret Manager secret, which is how Cloud Run is told where to read one.
+resource "google_cloud_run_v2_service" "secret_reference" {
+  name     = "api"
+  location = "europe-west1"
+
+  template {
+    containers {
+      image = "europe-docker.pkg.dev/acme/api/api:1.4.2"
+
+      env {
+        name = "DB_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = "db-password"
+            version = "latest"
+          }
+        }
+      }
+    }
+
+    volumes {
+      name = "config"
+      secret {
+        secret = "api-config"
+      }
+    }
+  }
+}
+
+resource "google_cloudfunctions2_function" "secret_reference" {
+  name     = "worker"
+  location = "europe-west1"
+
+  service_config {
+    secret_environment_variables {
+      key        = "API_KEY"
+      project_id = "acme-prod"
+      secret     = "worker-api-key"
+      version    = "latest"
+    }
+  }
+}
+
+# An idempotency key, not a credential.
+resource "aws_efs_file_system" "creation_token" {
+  creation_token = "shared-data"
+}

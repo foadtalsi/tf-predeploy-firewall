@@ -26,6 +26,13 @@ class Kind(StrEnum):
     #: arguments can still carry credentials.
     DATA = "data"
 
+    #: A `provider "aws" { … }` configuration block. It configures how Terraform
+    #: talks to an API rather than declaring anything, so only the rules that ask
+    #: for it by kind look at it: the credential rules, because static keys
+    #: written here (access_key, secret_key, client_secret) are the most common
+    #: way a cloud credential ends up in a repository.
+    PROVIDER = "provider"
+
 
 @dataclass(slots=True)
 class Attribute:
@@ -113,6 +120,9 @@ class Resource:
             return "module." + self.name
         if self.kind is Kind.DATA:
             return "data." + self.type + "." + self.name
+        if self.kind is Kind.PROVIDER:
+            # provider.aws, or provider.aws.west for an aliased configuration.
+            return "provider." + self.type + ("." + self.name if self.name else "")
         return self.type + "." + self.name
 
 

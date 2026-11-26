@@ -13,7 +13,7 @@ precision ≥ 95% and recall ≥ 90%.
 
 | Rule | Maturity | Cases | Positives | Near misses | TP | FP | FN | Precision | Recall |
 |---|---|---|---|---|---|---|---|---|---|
-| `hardcoded_credential` | stable | 1 | 8 | 19 | 8 | 0 | 0 | 100% | 100% |
+| `hardcoded_credential` | stable | 1 | 10 | 23 | 10 | 0 | 0 | 100% | 100% |
 | `credential_value_aws_access_key` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_pem` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `credential_value_jwt` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
@@ -25,7 +25,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `open_cidr_in_block` | stable | 2 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
 | `placeholder_resource_name` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
 | `placeholder_attribute_value` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
-| `unknown_attribute` | stable | 1 | 6 | 5 | 6 | 0 | 0 | 100% | 100% |
+| `unknown_attribute` | stable | 1 | 7 | 6 | 7 | 0 | 0 | 100% | 100% |
 | `force_new_change` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `missing_lifecycle` | stable | 1 | 5 | 4 | 5 | 0 | 0 | 100% | 100% |
 | `unpinned_version` | stable | 1 | 5 | 5 | 5 | 0 | 0 | 100% | 100% |
@@ -58,7 +58,7 @@ precision ≥ 95% and recall ≥ 90%.
 | `unsupported_file_format` | stable | 1 | 5 | 3 | 5 | 0 | 0 | 100% | 100% |
 | `unresolved_guard_value` | experimental | 1 | 6 | 4 | 6 | 0 | 0 | 100% | 100% |
 
-All rules: 234 positives, 201 near misses, 234 true positives, 0 false positives, 0 false negatives.
+All rules: 237 positives, 206 near misses, 237 true positives, 0 false positives, 0 false negatives.
 
 ## Known misses
 

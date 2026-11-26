@@ -6,7 +6,9 @@ expect:
   - {rule: unknown_attribute, target: aws_dynamodb_table.invented}
   - {rule: unknown_attribute, target: azurerm_storage_account.invented}
   - {rule: unknown_attribute, target: google_storage_bucket.invented}
+  - {rule: unknown_attribute, target: aws_security_group.nested_typo}
 must_not_report:
+  - {rule: unknown_attribute, target: aws_security_group.nested_valid}
   - {rule: unknown_attribute, target: aws_s3_bucket.valid}
   - {rule: unknown_attribute, target: aws_instance.meta_arguments}
   - {rule: unknown_attribute, target: aws_instance.recent_arguments}

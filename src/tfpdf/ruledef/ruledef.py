@@ -97,6 +97,9 @@ class Match:
     #: Skips a nested attribute when a block enclosing it contains a block of one of these
     #: types, such as a `condition` block in a policy statement.
     skip_when_block_contains: list[str] = field(default_factory=list)
+    #: Skips a nested attribute when a block around it is of one of these types, such as
+    #: `secret_key_ref`, whose `secret` argument names a secret instead of holding one.
+    skip_when_inside_block_types: list[str] = field(default_factory=list)
     #: Skips a resource when it has a top-level block of one of these types, such as a `deny`
     #: block on a firewall rule: the same source range then closes the network instead of
     #: opening it.
@@ -447,6 +450,7 @@ def _match_from_dict(d: dict[str, Any]) -> Match:
             for name, value in (d.get("skip_when_block_attribute_equals") or {}).items()
         },
         skip_when_block_contains=_as_str_list(d.get("skip_when_block_contains")),
+        skip_when_inside_block_types=_as_str_list(d.get("skip_when_inside_block_types")),
         skip_when_resource_contains=_as_str_list(d.get("skip_when_resource_contains")),
         attr_names=_as_str_list(d.get("attr_names")),
         attr_name_matches=str(d.get("attr_name_matches", "")),

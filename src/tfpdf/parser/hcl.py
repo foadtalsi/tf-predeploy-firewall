@@ -40,6 +40,16 @@ def parse_file_with_context(
             resources.append(
                 _block_to_resource(filename, block, Kind.MODULE, "module", block.labels[0], context)
             )
+        elif block.type == "provider" and len(block.labels) == 1:
+            # The type is the provider's local name; the name is its alias, empty
+            # for the default configuration.
+            alias = block.body.attributes.get("alias")
+            resource = _block_to_resource(
+                filename, block, Kind.PROVIDER, block.labels[0], "", context
+            )
+            if alias is not None and resource.attributes["alias"].is_literal:
+                resource.name = resource.attributes["alias"].raw_value
+            resources.append(resource)
     return resources
 
 
