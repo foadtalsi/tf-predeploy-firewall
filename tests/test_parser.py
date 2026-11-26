@@ -229,4 +229,3 @@ provider "aws" {
         (Kind.PROVIDER, "provider.aws.legacy"),
     ]
     assert resources[1].attributes["access_key"].raw_value == "AKIA4QWX7N2LJ5RTP3KD"
-

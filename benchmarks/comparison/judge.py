@@ -103,15 +103,21 @@ def main():
             if run is None:
                 continue
             hits = [finding for finding in run["findings"] if counts(label, tool, finding)]
-            row[tool] = dict(hit=bool(hits), ids=sorted({finding["id"] for finding in hits}),
-                             alerts=len(run["findings"]), seconds=run["seconds"])
+            row[tool] = {
+                "hit": bool(hits),
+                "ids": sorted({finding["id"] for finding in hits}),
+                "alerts": len(run["findings"]),
+                "seconds": run["seconds"],
+            }
         verdicts[label["name"]] = row
     (BENCH / "verdicts.json").write_text(json.dumps(verdicts, indent=1))
 
     if "--cases" in sys.argv:
         for label in labels:
-            marks = "  ".join(f"{tool}:{'Y' if verdicts[label['name']].get(tool, {}).get('hit') else '.'}"
-                              for tool in tools)
+            marks = "  ".join(
+                f"{tool}:{'Y' if verdicts[label['name']].get(tool, {}).get('hit') else '.'}"
+                for tool in tools
+            )
             print(f"{label['kind'][:4]} {label['category']:17} {label['name']:38} {marks}")
 
     summary = defaultdict(lambda: defaultdict(lambda: [0, 0]))
@@ -126,8 +132,10 @@ def main():
     print(f"\n{'':18}" + "".join(f"{tool:>10}" for tool in tools))
     for key, row in summary.items():
         print(f"{key:18}" + "".join(f"{row[tool][0]:>6}/{row[tool][1]:<3}" for tool in tools))
-    alerts = {tool: sum(verdicts[label['name']].get(tool, {}).get("alerts", 0) for label in labels)
-              for tool in tools}
+    alerts = {
+        tool: sum(verdicts[label["name"]].get(tool, {}).get("alerts", 0) for label in labels)
+        for tool in tools
+    }
     print(f"{'alerts (any kind)':18}" + "".join(f"{alerts[tool]:>10}" for tool in tools))
 
 

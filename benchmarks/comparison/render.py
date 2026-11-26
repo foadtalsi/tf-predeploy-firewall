@@ -42,17 +42,21 @@ WHAT_WENT_WRONG = {
     "security-group-nested-typo": (
         "<code>cidr_block</code> inside a security group's <code>ingress</code> was not reported.",
         "The AWS provider declares <code>ingress</code> as an attribute rather than a block, so the "
-        "schema the scanner carried had nothing to check inside it."),
+        "schema the scanner carried had nothing to check inside it.",
+    ),
     "provider-access-keys": (
         "AWS keys written in the <code>provider</code> block were not reported.",
-        "The scanner did not read <code>provider</code> blocks."),
+        "The scanner did not read <code>provider</code> blocks.",
+    ),
     "cloud-run-secret-reference": (
         "The name of a Secret Manager secret was reported as a hardcoded password.",
         "Any literal under an argument named <code>secret</code> was treated as one, including the "
-        "reference Cloud Run asks for."),
+        "reference Cloud Run asks for.",
+    ),
     "efs-creation-token": (
         "EFS's <code>creation_token</code> was reported as a hardcoded credential.",
-        "The name ends in <code>_token</code>; the value is an idempotency key."),
+        "The name ends in <code>_token</code>; the value is an idempotency key.",
+    ),
 }
 
 
@@ -62,8 +66,10 @@ def us(tool):
 
 def score_cell(tool, caught, total):
     share = round(100 * caught / total) if total else 0
-    return (f'<td{us(tool)}><span class="score">{caught}<small>/{total}</small></span>'
-            f'<span class="meter" aria-hidden="true"><i style="width:{share}%"></i></span></td>')
+    return (
+        f'<td{us(tool)}><span class="score">{caught}<small>/{total}</small></span>'
+        f'<span class="meter" aria-hidden="true"><i style="width:{share}%"></i></span></td>'
+    )
 
 
 def main():
@@ -81,13 +87,14 @@ def main():
     for family, title in FAMILIES:
         cases = [label for label in positives if label["category"] == family]
         cells = "".join(score_cell(tool, caught(tool, cases), len(cases)) for tool, _ in TOOLS)
-        body.append(f"          <tr><th scope=\"row\">{title}</th>{cells}</tr>")
+        body.append(f'          <tr><th scope="row">{title}</th>{cells}</tr>')
 
     total = "".join(score_cell(tool, caught(tool, positives), len(positives)) for tool, _ in TOOLS)
     false_alarms = "".join(f"<td{us(tool)}>{caught(tool, near_misses)}</td>" for tool, _ in TOOLS)
     alerts = "".join(
         f"<td{us(tool)}>{sum(verdicts[label['name']][tool]['alerts'] for label in labels):,}</td>"
-        for tool, _ in TOOLS)
+        for tool, _ in TOOLS
+    )
     needs = {
         "ours": "nothing",
         "validate": "<code>terraform init</code>: providers and modules downloaded",
@@ -102,32 +109,45 @@ def main():
     speed_head = "".join(f'<th scope="col"{us(tool)}>{name}</th>' for tool, name in timed)
     speed_rows = []
     for repository, timings in repositories.items():
-        cells = "".join(f"<td{us(tool)}>{timings[tool]['seconds']:.1f}&nbsp;s</td>" for tool, _ in timed)
+        cells = "".join(
+            f"<td{us(tool)}>{timings[tool]['seconds']:.1f}&nbsp;s</td>" for tool, _ in timed
+        )
         size = f"{timings['tf_files']} files, {timings['tf_lines']:,} lines"
         speed_rows.append(
-            f"          <tr><th scope=\"row\">{escape(REPOSITORY_NAMES.get(repository, repository))}"
-            f"<span class=\"repo-size\">{size}</span></th>{cells}</tr>")
+            f'          <tr><th scope="row">{escape(REPOSITORY_NAMES.get(repository, repository))}'
+            f'<span class="repo-size">{size}</span></th>{cells}</tr>'
+        )
 
     wrong = [label for label in positives if not verdicts[label["name"]]["ours"]["hit"]]
     wrong += [label for label in near_misses if verdicts[label["name"]]["ours"]["hit"]]
     # The run that found them: the cases the previous release got wrong stay listed, with the
     # release that fixed them, so a clean score is not read as a corpus fitted after the fact.
     previous = json.loads((BENCH / "verdicts-1.5.0.json").read_text())
-    fixed = [label for label in positives if not previous[label["name"]]["ours"]["hit"]
-             and verdicts[label["name"]]["ours"]["hit"]]
-    fixed += [label for label in near_misses if previous[label["name"]]["ours"]["hit"]
-              and not verdicts[label["name"]]["ours"]["hit"]]
+    fixed = [
+        label
+        for label in positives
+        if not previous[label["name"]]["ours"]["hit"] and verdicts[label["name"]]["ours"]["hit"]
+    ]
+    fixed += [
+        label
+        for label in near_misses
+        if previous[label["name"]]["ours"]["hit"] and not verdicts[label["name"]]["ours"]["hit"]
+    ]
     if wrong:
         wrong_title = "What this scanner got wrong"
         wrong_lead = ""
     else:
         wrong, wrong_title = fixed, "What this benchmark found in this scanner"
-        wrong_lead = (f"<p>Version 1.5.0 got {len(fixed)} of these pull requests wrong. "
-                      f"{versions['ours']} fixes all {len(fixed)}, and the cases stay in the corpus "
-                      "so a regression would show here.</p>")
+        wrong_lead = (
+            f"<p>Version 1.5.0 got {len(fixed)} of these pull requests wrong. "
+            f"{versions['ours']} fixes all {len(fixed)}, and the cases stay in the corpus "
+            "so a regression would show here.</p>"
+        )
     wrong_items = "\n".join(
         f"            <li><strong>{WHAT_WENT_WRONG[label['name']][0]}</strong> "
-        f"{WHAT_WENT_WRONG[label['name']][1]}</li>" for label in wrong)
+        f"{WHAT_WENT_WRONG[label['name']][1]}</li>"
+        for label in wrong
+    )
 
     section = f'''<!-- BENCHMARK:START: generated by the comparison benchmark's render.py, do not edit by hand -->
   <section id="benchmark" class="band">
@@ -234,8 +254,10 @@ def main():
     start = text.index("<!-- BENCHMARK:START")
     end = text.index("<!-- BENCHMARK:END -->") + len("<!-- BENCHMARK:END -->")
     INDEX.write_text(text[:start] + section + text[end:])
-    print(f"section written: {len(positives)} problems, {len(near_misses)} correct changes, "
-          f"{len(wrong)} cases this scanner got wrong")
+    print(
+        f"section written: {len(positives)} problems, {len(near_misses)} correct changes, "
+        f"{len(wrong)} cases this scanner got wrong"
+    )
 
 
 CORPUS_URL = "https://github.com/foadtalsi/tf-predeploy-firewall/tree/main/benchmarks/comparison"

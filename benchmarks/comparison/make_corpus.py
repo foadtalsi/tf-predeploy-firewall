@@ -13,7 +13,7 @@ from pathlib import Path
 
 CORPUS = Path(sys.argv[1])
 
-AWS_VERSIONS = '''terraform {
+AWS_VERSIONS = """terraform {
   required_version = ">= 1.5"
   required_providers {
     aws = {
@@ -30,9 +30,9 @@ AWS_VERSIONS = '''terraform {
 provider "aws" {
   region = "eu-west-3"
 }
-'''
+"""
 
-AZURE_VERSIONS = '''terraform {
+AZURE_VERSIONS = """terraform {
   required_version = ">= 1.5"
   required_providers {
     azurerm = {
@@ -45,9 +45,9 @@ AZURE_VERSIONS = '''terraform {
 provider "azurerm" {
   features {}
 }
-'''
+"""
 
-GOOGLE_VERSIONS = '''terraform {
+GOOGLE_VERSIONS = """terraform {
   required_version = ">= 1.5"
   required_providers {
     google = {
@@ -61,9 +61,9 @@ provider "google" {
   project = "acme-prod"
   region  = "europe-west1"
 }
-'''
+"""
 
-RDS = '''resource "aws_db_instance" "primary" {{
+RDS = """resource "aws_db_instance" "primary" {{
   identifier          = "{identifier}"
   engine              = "postgres"
   engine_version      = "{engine_version}"
@@ -81,12 +81,16 @@ resource "random_password" "db" {{
   length  = 32
   special = true
 }}
-'''
+"""
 
 
 def rds(**overrides):
-    values = dict(identifier="prod-primary", engine_version="16.4",
-                  instance_class="db.r6g.xlarge", db_name="appdb")
+    values = {
+        "identifier": "prod-primary",
+        "engine_version": "16.4",
+        "instance_class": "db.r6g.xlarge",
+        "db_name": "appdb",
+    }
     values.update(overrides)
     return RDS.format(**values)
 
@@ -94,20 +98,50 @@ def rds(**overrides):
 CASES = []
 
 
-def case(name, category, kind, target, head, base=None, versions=AWS_VERSIONS,
-         head_files=None, base_files=None, note=""):
-    CASES.append(dict(name=name, category=category, kind=kind, target=target,
-                      head=head, base=base, versions=versions,
-                      head_files=head_files or {}, base_files=base_files or {},
-                      note=note))
+def case(
+    name,
+    category,
+    kind,
+    target,
+    head,
+    base=None,
+    versions=AWS_VERSIONS,
+    head_files=None,
+    base_files=None,
+    note="",
+):
+    CASES.append(
+        {
+            "name": name,
+            "category": category,
+            "kind": kind,
+            "target": target,
+            "head": head,
+            "base": base,
+            "versions": versions,
+            "head_files": head_files or {},
+            "base_files": base_files or {},
+            "note": note,
+        }
+    )
 
 
 # ---------------------------------------------------------------- destroy on apply
-case("rds-db-name-rename", "destroy", "positive", "aws_db_instance.primary",
-     base=rds(), head=rds(db_name="app_production"),
-     note="db_name is ForceNew: the instance is destroyed and recreated empty")
-case("dynamodb-hash-key-change", "destroy", "positive", "aws_dynamodb_table.sessions",
-     base='''resource "aws_dynamodb_table" "sessions" {
+case(
+    "rds-db-name-rename",
+    "destroy",
+    "positive",
+    "aws_db_instance.primary",
+    base=rds(),
+    head=rds(db_name="app_production"),
+    note="db_name is ForceNew: the instance is destroyed and recreated empty",
+)
+case(
+    "dynamodb-hash-key-change",
+    "destroy",
+    "positive",
+    "aws_dynamodb_table.sessions",
+    base="""resource "aws_dynamodb_table" "sessions" {
   name         = "sessions"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
@@ -117,7 +151,8 @@ case("dynamodb-hash-key-change", "destroy", "positive", "aws_dynamodb_table.sess
     type = "S"
   }
 }
-''', head='''resource "aws_dynamodb_table" "sessions" {
+""",
+    head="""resource "aws_dynamodb_table" "sessions" {
   name         = "sessions"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "session_id"
@@ -127,44 +162,71 @@ case("dynamodb-hash-key-change", "destroy", "positive", "aws_dynamodb_table.sess
     type = "S"
   }
 }
-''', note="hash_key is ForceNew: the table and its items are destroyed")
-case("s3-bucket-rename", "destroy", "positive", "aws_s3_bucket.uploads",
-     base='''resource "aws_s3_bucket" "uploads" {
+""",
+    note="hash_key is ForceNew: the table and its items are destroyed",
+)
+case(
+    "s3-bucket-rename",
+    "destroy",
+    "positive",
+    "aws_s3_bucket.uploads",
+    base="""resource "aws_s3_bucket" "uploads" {
   bucket = "acme-uploads"
 }
-''', head='''resource "aws_s3_bucket" "uploads" {
+""",
+    head="""resource "aws_s3_bucket" "uploads" {
   bucket = "acme-uploads-production"
 }
-''', note="bucket is ForceNew: the bucket is replaced")
-case("efs-enable-encryption", "destroy", "positive", "aws_efs_file_system.shared",
-     base='''resource "aws_efs_file_system" "shared" {
+""",
+    note="bucket is ForceNew: the bucket is replaced",
+)
+case(
+    "efs-enable-encryption",
+    "destroy",
+    "positive",
+    "aws_efs_file_system.shared",
+    base="""resource "aws_efs_file_system" "shared" {
   creation_token = "shared"
   encrypted      = false
 }
-''', head='''resource "aws_efs_file_system" "shared" {
+""",
+    head="""resource "aws_efs_file_system" "shared" {
   creation_token = "shared"
   encrypted      = true
 }
-''', note="encrypted is ForceNew on EFS: turning it on replaces the file system")
-case("azure-storage-account-rename", "destroy", "positive", "azurerm_storage_account.data",
-     versions=AZURE_VERSIONS,
-     base='''resource "azurerm_storage_account" "data" {
+""",
+    note="encrypted is ForceNew on EFS: turning it on replaces the file system",
+)
+case(
+    "azure-storage-account-rename",
+    "destroy",
+    "positive",
+    "azurerm_storage_account.data",
+    versions=AZURE_VERSIONS,
+    base="""resource "azurerm_storage_account" "data" {
   name                     = "acmedata"
   resource_group_name      = "rg-data"
   location                 = "westeurope"
   account_tier             = "Standard"
   account_replication_type = "GRS"
 }
-''', head='''resource "azurerm_storage_account" "data" {
+""",
+    head="""resource "azurerm_storage_account" "data" {
   name                     = "acmedataprod"
   resource_group_name      = "rg-data"
   location                 = "westeurope"
   account_tier             = "Standard"
   account_replication_type = "GRS"
 }
-''', note="name is ForceNew on a storage account")
-case("prevent-destroy-removed", "destroy", "positive", "aws_rds_cluster.main",
-     base='''resource "aws_rds_cluster" "main" {
+""",
+    note="name is ForceNew on a storage account",
+)
+case(
+    "prevent-destroy-removed",
+    "destroy",
+    "positive",
+    "aws_rds_cluster.main",
+    base="""resource "aws_rds_cluster" "main" {
   cluster_identifier          = "main"
   engine                      = "aurora-postgresql"
   master_username             = "appuser"
@@ -175,25 +237,50 @@ case("prevent-destroy-removed", "destroy", "positive", "aws_rds_cluster.main",
     prevent_destroy = true
   }
 }
-''', head='''resource "aws_rds_cluster" "main" {
+""",
+    head="""resource "aws_rds_cluster" "main" {
   cluster_identifier          = "main"
   engine                      = "aurora-postgresql"
   master_username             = "appuser"
   manage_master_user_password = true
   storage_encrypted           = true
 }
-''', note="the guard that stopped a destroy is removed in this change")
-case("rds-engine-version-bump", "destroy", "near-miss", "aws_db_instance.primary",
-     base=rds(), head=rds(engine_version="16.6"),
-     note="engine_version updates in place")
-case("rds-identifier-rename", "destroy", "near-miss", "aws_db_instance.primary",
-     base=rds(), head=rds(identifier="prod-primary-eu"),
-     note="identifier renames in place")
-case("rds-instance-class-change", "destroy", "near-miss", "aws_db_instance.primary",
-     base=rds(), head=rds(instance_class="db.r6g.2xlarge"),
-     note="instance_class modifies in place")
-case("dynamodb-billing-mode-change", "destroy", "near-miss", "aws_dynamodb_table.sessions",
-     base='''resource "aws_dynamodb_table" "sessions" {
+""",
+    note="the guard that stopped a destroy is removed in this change",
+)
+case(
+    "rds-engine-version-bump",
+    "destroy",
+    "near-miss",
+    "aws_db_instance.primary",
+    base=rds(),
+    head=rds(engine_version="16.6"),
+    note="engine_version updates in place",
+)
+case(
+    "rds-identifier-rename",
+    "destroy",
+    "near-miss",
+    "aws_db_instance.primary",
+    base=rds(),
+    head=rds(identifier="prod-primary-eu"),
+    note="identifier renames in place",
+)
+case(
+    "rds-instance-class-change",
+    "destroy",
+    "near-miss",
+    "aws_db_instance.primary",
+    base=rds(),
+    head=rds(instance_class="db.r6g.2xlarge"),
+    note="instance_class modifies in place",
+)
+case(
+    "dynamodb-billing-mode-change",
+    "destroy",
+    "near-miss",
+    "aws_dynamodb_table.sessions",
+    base="""resource "aws_dynamodb_table" "sessions" {
   name           = "sessions"
   billing_mode   = "PROVISIONED"
   read_capacity  = 5
@@ -205,7 +292,8 @@ case("dynamodb-billing-mode-change", "destroy", "near-miss", "aws_dynamodb_table
     type = "S"
   }
 }
-''', head='''resource "aws_dynamodb_table" "sessions" {
+""",
+    head="""resource "aws_dynamodb_table" "sessions" {
   name         = "sessions"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
@@ -215,15 +303,25 @@ case("dynamodb-billing-mode-change", "destroy", "near-miss", "aws_dynamodb_table
     type = "S"
   }
 }
-''', note="billing_mode updates in place")
+""",
+    note="billing_mode updates in place",
+)
 
 # ---------------------------------------------------------------- arguments that do not exist
-case("rds-hallucinated-deletion-protection", "invalid-argument", "positive",
-     "aws_db_instance.primary",
-     head=rds().replace("deletion_protection = true", "enable_deletion_protection = true"),
-     note="the argument is deletion_protection")
-case("lambda-memory-typo", "invalid-argument", "positive", "aws_lambda_function.worker",
-     head='''resource "aws_lambda_function" "worker" {
+case(
+    "rds-hallucinated-deletion-protection",
+    "invalid-argument",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("deletion_protection = true", "enable_deletion_protection = true"),
+    note="the argument is deletion_protection",
+)
+case(
+    "lambda-memory-typo",
+    "invalid-argument",
+    "positive",
+    "aws_lambda_function.worker",
+    head="""resource "aws_lambda_function" "worker" {
   function_name = "worker"
   role          = "arn:aws:iam::123456789012:role/worker"
   runtime       = "python3.12"
@@ -232,15 +330,27 @@ case("lambda-memory-typo", "invalid-argument", "positive", "aws_lambda_function.
   memory        = 512
   timeout       = 30
 }
-''', note="the argument is memory_size")
-case("s3-hallucinated-versioning", "invalid-argument", "positive", "aws_s3_bucket.audit",
-     head='''resource "aws_s3_bucket" "audit" {
+""",
+    note="the argument is memory_size",
+)
+case(
+    "s3-hallucinated-versioning",
+    "invalid-argument",
+    "positive",
+    "aws_s3_bucket.audit",
+    head="""resource "aws_s3_bucket" "audit" {
   bucket             = "acme-audit"
   versioning_enabled = true
 }
-''', note="versioning is a separate resource, aws_s3_bucket_versioning")
-case("security-group-nested-typo", "invalid-argument", "positive", "aws_security_group.api",
-     head='''resource "aws_security_group" "api" {
+""",
+    note="versioning is a separate resource, aws_s3_bucket_versioning",
+)
+case(
+    "security-group-nested-typo",
+    "invalid-argument",
+    "positive",
+    "aws_security_group.api",
+    head="""resource "aws_security_group" "api" {
   name   = "api"
   vpc_id = "vpc-0abc1234"
 
@@ -251,9 +361,16 @@ case("security-group-nested-typo", "invalid-argument", "positive", "aws_security
     cidr_block = "10.0.0.0/8"
   }
 }
-''', note="the nested argument is cidr_blocks, a list")
-case("aks-removed-argument", "invalid-argument", "positive", "azurerm_kubernetes_cluster.main",
-     versions=AZURE_VERSIONS, head='''resource "azurerm_kubernetes_cluster" "main" {
+""",
+    note="the nested argument is cidr_blocks, a list",
+)
+case(
+    "aks-removed-argument",
+    "invalid-argument",
+    "positive",
+    "azurerm_kubernetes_cluster.main",
+    versions=AZURE_VERSIONS,
+    head="""resource "azurerm_kubernetes_cluster" "main" {
   name                = "aks-main"
   location            = "westeurope"
   resource_group_name = "rg-aks"
@@ -271,9 +388,15 @@ case("aks-removed-argument", "invalid-argument", "positive", "azurerm_kubernetes
     type = "SystemAssigned"
   }
 }
-''', note="azurerm 4 renamed it auto_scaling_enabled; the old name is gone in 4 and 5")
-case("ec2-rare-valid-arguments", "invalid-argument", "near-miss", "aws_instance.batch",
-     head='''resource "aws_instance" "batch" {
+""",
+    note="azurerm 4 renamed it auto_scaling_enabled; the old name is gone in 4 and 5",
+)
+case(
+    "ec2-rare-valid-arguments",
+    "invalid-argument",
+    "near-miss",
+    "aws_instance.batch",
+    head="""resource "aws_instance" "batch" {
   ami         = "ami-0c55b159cbfafe1f0"
   hibernation = true
 
@@ -295,9 +418,15 @@ case("ec2-rare-valid-arguments", "invalid-argument", "near-miss", "aws_instance.
     encrypted = true
   }
 }
-''', note="every argument here is valid, if rarely used")
-case("lambda-valid-arguments", "invalid-argument", "near-miss", "aws_lambda_function.worker",
-     head='''resource "aws_lambda_function" "worker" {
+""",
+    note="every argument here is valid, if rarely used",
+)
+case(
+    "lambda-valid-arguments",
+    "invalid-argument",
+    "near-miss",
+    "aws_lambda_function.worker",
+    head="""resource "aws_lambda_function" "worker" {
   function_name = "worker"
   role          = "arn:aws:iam::123456789012:role/worker"
   runtime       = "java21"
@@ -314,23 +443,47 @@ case("lambda-valid-arguments", "invalid-argument", "near-miss", "aws_lambda_func
     apply_on = "PublishedVersions"
   }
 }
-''', note="every argument here is valid")
-case("rds-valid-deletion-protection", "invalid-argument", "near-miss", "aws_db_instance.primary",
-     head=rds(), note="the real argument, deletion_protection")
+""",
+    note="every argument here is valid",
+)
+case(
+    "rds-valid-deletion-protection",
+    "invalid-argument",
+    "near-miss",
+    "aws_db_instance.primary",
+    head=rds(),
+    note="the real argument, deletion_protection",
+)
 
 # ---------------------------------------------------------------- secrets
-case("rds-literal-password", "secret", "positive", "aws_db_instance.primary",
-     head=rds().replace("random_password.db.result", '"Wq7!rTz2#Lp9vXc4"'),
-     note="the password is written in the file")
-case("variable-default-password", "secret", "positive", "aws_db_instance.primary",
-     head=rds().replace("random_password.db.result", "var.db_password") + '''
+case(
+    "rds-literal-password",
+    "secret",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("random_password.db.result", '"Wq7!rTz2#Lp9vXc4"'),
+    note="the password is written in the file",
+)
+case(
+    "variable-default-password",
+    "secret",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("random_password.db.result", "var.db_password")
+    + """
 variable "db_password" {
   type    = string
   default = "Vh3$kP8m!Qz2Ld7w"
 }
-''', note="the value comes from a variable default one indirection away")
-case("tfvars-api-key", "secret", "positive", "file:terraform.tfvars",
-     head='''variable "datadog_api_key" {
+""",
+    note="the value comes from a variable default one indirection away",
+)
+case(
+    "tfvars-api-key",
+    "secret",
+    "positive",
+    "file:terraform.tfvars",
+    head="""variable "datadog_api_key" {
   type      = string
   sensitive = true
 }
@@ -340,10 +493,16 @@ resource "aws_ssm_parameter" "datadog" {
   type  = "SecureString"
   value = var.datadog_api_key
 }
-''', head_files={"terraform.tfvars": 'datadog_api_key = "9f3b2c7e81d64a0fb5e2c19d7a4f6083"\n'},
-     note="a committed terraform.tfvars holds the key")
-case("provider-access-keys", "secret", "positive", "file:versions.tf",
-     versions='''terraform {
+""",
+    head_files={"terraform.tfvars": 'datadog_api_key = "9f3b2c7e81d64a0fb5e2c19d7a4f6083"\n'},
+    note="a committed terraform.tfvars holds the key",
+)
+case(
+    "provider-access-keys",
+    "secret",
+    "positive",
+    "file:versions.tf",
+    versions="""terraform {
   required_version = ">= 1.5"
   required_providers {
     aws = {
@@ -358,36 +517,71 @@ provider "aws" {
   access_key = "AKIA4QWX7N2LJ5RTP3KD"
   secret_key = "u7Fq2Lw9Zr4Xk8Pn1Vb6Hy3T"
 }
-''', head='''resource "aws_sqs_queue" "jobs" {
+""",
+    head="""resource "aws_sqs_queue" "jobs" {
   name = "jobs"
 }
-''', note="static AWS keys in the provider block; the target file is versions.tf")
-case("module-input-github-token", "secret", "positive", "file:main.tf",
-     head='''module "runner" {
+""",
+    note="static AWS keys in the provider block; the target file is versions.tf",
+)
+case(
+    "module-input-github-token",
+    "secret",
+    "positive",
+    "file:main.tf",
+    head="""module "runner" {
   source  = "cloudposse/github-runners/aws"
   version = "0.1.0"
 
   github_token = "ghp_R4nD0mT0k3nV4lu3F0rT3st1ngX9q2Lk7Mw"
 }
-''', note="a GitHub token passed to a module")
-case("password-from-random-password", "secret", "near-miss", "aws_db_instance.primary",
-     head=rds(), note="the password is generated, never written")
-case("password-from-secrets-manager", "secret", "near-miss", "aws_db_instance.primary",
-     head=rds().replace("random_password.db.result",
-                        "data.aws_secretsmanager_secret_version.db.secret_string")
-     .replace('resource "random_password" "db" {\n  length  = 32\n  special = true\n}\n', '''data "aws_secretsmanager_secret_version" "db" {
+""",
+    note="a GitHub token passed to a module",
+)
+case(
+    "password-from-random-password",
+    "secret",
+    "near-miss",
+    "aws_db_instance.primary",
+    head=rds(),
+    note="the password is generated, never written",
+)
+case(
+    "password-from-secrets-manager",
+    "secret",
+    "near-miss",
+    "aws_db_instance.primary",
+    head=rds()
+    .replace("random_password.db.result", "data.aws_secretsmanager_secret_version.db.secret_string")
+    .replace(
+        'resource "random_password" "db" {\n  length  = 32\n  special = true\n}\n',
+        """data "aws_secretsmanager_secret_version" "db" {
   secret_id = "prod/db/password"
 }
-'''), note="the password is read from Secrets Manager")
-case("sensitive-variable-no-default", "secret", "near-miss", "aws_db_instance.primary",
-     head=rds().replace("random_password.db.result", "var.db_password") + '''
+""",
+    ),
+    note="the password is read from Secrets Manager",
+)
+case(
+    "sensitive-variable-no-default",
+    "secret",
+    "near-miss",
+    "aws_db_instance.primary",
+    head=rds().replace("random_password.db.result", "var.db_password")
+    + """
 variable "db_password" {
   type      = string
   sensitive = true
 }
-''', note="the value is supplied at apply time, outside the repository")
-case("rds-managed-master-password", "secret", "near-miss", "aws_rds_cluster.main",
-     head='''resource "aws_rds_cluster" "main" {
+""",
+    note="the value is supplied at apply time, outside the repository",
+)
+case(
+    "rds-managed-master-password",
+    "secret",
+    "near-miss",
+    "aws_rds_cluster.main",
+    head="""resource "aws_rds_cluster" "main" {
   cluster_identifier          = "main"
   engine                      = "aurora-postgresql"
   master_username             = "appuser"
@@ -395,11 +589,17 @@ case("rds-managed-master-password", "secret", "near-miss", "aws_rds_cluster.main
   storage_encrypted           = true
   deletion_protection         = true
 }
-''', note="RDS generates and stores the password")
+""",
+    note="RDS generates and stores the password",
+)
 
 # ---------------------------------------------------------------- public exposure
-case("ssh-open-to-internet", "exposure", "positive", "aws_security_group.bastion",
-     head='''resource "aws_security_group" "bastion" {
+case(
+    "ssh-open-to-internet",
+    "exposure",
+    "positive",
+    "aws_security_group.bastion",
+    head="""resource "aws_security_group" "bastion" {
   name   = "bastion"
   vpc_id = "vpc-0abc1234"
 
@@ -411,12 +611,23 @@ case("ssh-open-to-internet", "exposure", "positive", "aws_security_group.bastion
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-''', note="port 22 open to the whole internet")
-case("rds-publicly-accessible", "exposure", "positive", "aws_db_instance.primary",
-     head=rds().replace("  storage_encrypted", "  publicly_accessible = true\n  storage_encrypted"),
-     note="the database gets a public endpoint")
-case("s3-public-read-acl", "exposure", "positive", "aws_s3_bucket_acl.assets",
-     head='''resource "aws_s3_bucket" "assets" {
+""",
+    note="port 22 open to the whole internet",
+)
+case(
+    "rds-publicly-accessible",
+    "exposure",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("  storage_encrypted", "  publicly_accessible = true\n  storage_encrypted"),
+    note="the database gets a public endpoint",
+)
+case(
+    "s3-public-read-acl",
+    "exposure",
+    "positive",
+    "aws_s3_bucket_acl.assets",
+    head="""resource "aws_s3_bucket" "assets" {
   bucket = "acme-assets"
 }
 
@@ -424,10 +635,15 @@ resource "aws_s3_bucket_acl" "assets" {
   bucket = aws_s3_bucket.assets.id
   acl    = "public-read"
 }
-''', note="every object readable by anyone")
-case("s3-public-access-block-off", "exposure", "positive",
-     "aws_s3_bucket_public_access_block.assets",
-     head='''resource "aws_s3_bucket" "assets" {
+""",
+    note="every object readable by anyone",
+)
+case(
+    "s3-public-access-block-off",
+    "exposure",
+    "positive",
+    "aws_s3_bucket_public_access_block.assets",
+    head="""resource "aws_s3_bucket" "assets" {
   bucket = "acme-assets"
 }
 
@@ -438,9 +654,15 @@ resource "aws_s3_bucket_public_access_block" "assets" {
   ignore_public_acls      = false
   restrict_public_buckets = false
 }
-''', note="the account-level safety net is switched off")
-case("https-from-private-range", "exposure", "near-miss", "aws_security_group.internal",
-     head='''resource "aws_security_group" "internal" {
+""",
+    note="the account-level safety net is switched off",
+)
+case(
+    "https-from-private-range",
+    "exposure",
+    "near-miss",
+    "aws_security_group.internal",
+    head="""resource "aws_security_group" "internal" {
   name   = "internal"
   vpc_id = "vpc-0abc1234"
 
@@ -451,20 +673,32 @@ case("https-from-private-range", "exposure", "near-miss", "aws_security_group.in
     cidr_blocks = ["10.0.0.0/8"]
   }
 }
-''', note="HTTPS from the private network only")
+""",
+    note="HTTPS from the private network only",
+)
 
 # ---------------------------------------------------------------- IAM
-case("iam-admin-wildcard", "iam", "positive", "aws_iam_policy.ci",
-     head='''resource "aws_iam_policy" "ci" {
+case(
+    "iam-admin-wildcard",
+    "iam",
+    "positive",
+    "aws_iam_policy.ci",
+    head="""resource "aws_iam_policy" "ci" {
   name = "ci"
   policy = jsonencode({
     Version   = "2012-10-17"
     Statement = [{ Effect = "Allow", Action = "*", Resource = "*" }]
   })
 }
-''', note="full admin on everything")
-case("iam-trust-anyone", "iam", "positive", "aws_iam_role.deployer",
-     head='''resource "aws_iam_role" "deployer" {
+""",
+    note="full admin on everything",
+)
+case(
+    "iam-trust-anyone",
+    "iam",
+    "positive",
+    "aws_iam_role.deployer",
+    head="""resource "aws_iam_role" "deployer" {
   name = "deployer"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -475,9 +709,15 @@ case("iam-trust-anyone", "iam", "positive", "aws_iam_role.deployer",
     }]
   })
 }
-''', note="any AWS account can assume the role")
-case("iam-scoped-read", "iam", "near-miss", "aws_iam_policy.reader",
-     head='''resource "aws_iam_policy" "reader" {
+""",
+    note="any AWS account can assume the role",
+)
+case(
+    "iam-scoped-read",
+    "iam",
+    "near-miss",
+    "aws_iam_policy.reader",
+    head="""resource "aws_iam_policy" "reader" {
   name = "reader"
   policy = jsonencode({
     Version = "2012-10-17"
@@ -488,58 +728,104 @@ case("iam-scoped-read", "iam", "near-miss", "aws_iam_policy.reader",
     }]
   })
 }
-''', note="one action on one bucket")
+""",
+    note="one action on one bucket",
+)
 
 # ---------------------------------------------------------------- encryption and data loss
-case("ebs-unencrypted", "encryption", "positive", "aws_ebs_volume.data",
-     head='''resource "aws_ebs_volume" "data" {
+case(
+    "ebs-unencrypted",
+    "encryption",
+    "positive",
+    "aws_ebs_volume.data",
+    head="""resource "aws_ebs_volume" "data" {
   availability_zone = "eu-west-3a"
   size              = 200
   encrypted         = false
 }
-''', note="volume stored unencrypted")
-case("rds-storage-unencrypted", "encryption", "positive", "aws_db_instance.primary",
-     head=rds().replace("storage_encrypted   = true", "storage_encrypted   = false"),
-     note="database storage unencrypted")
-case("rds-skip-final-snapshot", "data-loss", "positive", "aws_db_instance.primary",
-     head=rds().replace("skip_final_snapshot = false", "skip_final_snapshot = true"),
-     note="a destroy leaves no snapshot behind")
-case("s3-force-destroy", "data-loss", "positive", "aws_s3_bucket.backups",
-     head='''resource "aws_s3_bucket" "backups" {
+""",
+    note="volume stored unencrypted",
+)
+case(
+    "rds-storage-unencrypted",
+    "encryption",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("storage_encrypted   = true", "storage_encrypted   = false"),
+    note="database storage unencrypted",
+)
+case(
+    "rds-skip-final-snapshot",
+    "data-loss",
+    "positive",
+    "aws_db_instance.primary",
+    head=rds().replace("skip_final_snapshot = false", "skip_final_snapshot = true"),
+    note="a destroy leaves no snapshot behind",
+)
+case(
+    "s3-force-destroy",
+    "data-loss",
+    "positive",
+    "aws_s3_bucket.backups",
+    head="""resource "aws_s3_bucket" "backups" {
   bucket        = "acme-backups"
   force_destroy = true
 }
-''', note="a destroy deletes every object, no questions asked")
+""",
+    note="a destroy deletes every object, no questions asked",
+)
 
 # ---------------------------------------------------------------- supply chain
-case("module-without-version", "supply-chain", "positive", "module.vpc",
-     head='''module "vpc" {
+case(
+    "module-without-version",
+    "supply-chain",
+    "positive",
+    "module.vpc",
+    head="""module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
   name = "main"
   cidr = "10.0.0.0/16"
 }
-''', note="the newest release is taken at every init")
-case("module-git-branch-ref", "supply-chain", "positive", "module.vpc",
-     head='''module "vpc" {
+""",
+    note="the newest release is taken at every init",
+)
+case(
+    "module-git-branch-ref",
+    "supply-chain",
+    "positive",
+    "module.vpc",
+    head="""module "vpc" {
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=master"
 
   name = "main"
   cidr = "10.0.0.0/16"
 }
-''', note="a branch anyone with push access can move")
-case("module-git-commit-ref", "supply-chain", "near-miss", "module.vpc",
-     head='''module "vpc" {
+""",
+    note="a branch anyone with push access can move",
+)
+case(
+    "module-git-commit-ref",
+    "supply-chain",
+    "near-miss",
+    "module.vpc",
+    head="""module "vpc" {
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-vpc.git?ref=a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"
 
   name = "main"
   cidr = "10.0.0.0/16"
 }
-''', note="a full commit hash cannot move")
+""",
+    note="a full commit hash cannot move",
+)
 
 # ---------------------------------------------------------------- instance metadata
-case("imds-v1-allowed", "exposure", "positive", "aws_instance.web",
-     head='''resource "aws_instance" "web" {
+case(
+    "imds-v1-allowed",
+    "exposure",
+    "positive",
+    "aws_instance.web",
+    head="""resource "aws_instance" "web" {
   ami           = "ami-0c55b159cbfafe1f0"
   instance_type = "t3.small"
 
@@ -551,13 +837,19 @@ case("imds-v1-allowed", "exposure", "positive", "aws_instance.web",
     encrypted = true
   }
 }
-''', note="IMDSv1 left on, the SSRF-to-credentials path")
+""",
+    note="IMDSv1 left on, the SSRF-to-credentials path",
+)
 
 
 # ---------------------------------------------------------------- Google Cloud
-case("gcp-sql-instance-rename", "destroy", "positive", "google_sql_database_instance.main",
-     versions=GOOGLE_VERSIONS,
-     base='''resource "google_sql_database_instance" "main" {
+case(
+    "gcp-sql-instance-rename",
+    "destroy",
+    "positive",
+    "google_sql_database_instance.main",
+    versions=GOOGLE_VERSIONS,
+    base="""resource "google_sql_database_instance" "main" {
   name             = "prod-pg"
   database_version = "POSTGRES_16"
   region           = "europe-west1"
@@ -566,7 +858,8 @@ case("gcp-sql-instance-rename", "destroy", "positive", "google_sql_database_inst
     tier = "db-custom-2-7680"
   }
 }
-''', head='''resource "google_sql_database_instance" "main" {
+""",
+    head="""resource "google_sql_database_instance" "main" {
   name             = "prod-pg-eu"
   database_version = "POSTGRES_16"
   region           = "europe-west1"
@@ -575,17 +868,30 @@ case("gcp-sql-instance-rename", "destroy", "positive", "google_sql_database_inst
     tier = "db-custom-2-7680"
   }
 }
-''', note="name is ForceNew on a Cloud SQL instance")
-case("gcp-gke-hallucinated-argument", "invalid-argument", "positive",
-     "google_container_cluster.main", versions=GOOGLE_VERSIONS,
-     head='''resource "google_container_cluster" "main" {
+""",
+    note="name is ForceNew on a Cloud SQL instance",
+)
+case(
+    "gcp-gke-hallucinated-argument",
+    "invalid-argument",
+    "positive",
+    "google_container_cluster.main",
+    versions=GOOGLE_VERSIONS,
+    head="""resource "google_container_cluster" "main" {
   name                  = "main"
   location              = "europe-west1"
   enable_autopilot_mode = true
 }
-''', note="the argument is enable_autopilot")
-case("gcp-firewall-ssh-open", "exposure", "positive", "google_compute_firewall.ssh",
-     versions=GOOGLE_VERSIONS, head='''resource "google_compute_firewall" "ssh" {
+""",
+    note="the argument is enable_autopilot",
+)
+case(
+    "gcp-firewall-ssh-open",
+    "exposure",
+    "positive",
+    "google_compute_firewall.ssh",
+    versions=GOOGLE_VERSIONS,
+    head="""resource "google_compute_firewall" "ssh" {
   name    = "allow-ssh"
   network = "default"
 
@@ -596,9 +902,16 @@ case("gcp-firewall-ssh-open", "exposure", "positive", "google_compute_firewall.s
 
   source_ranges = ["0.0.0.0/0"]
 }
-''', note="port 22 open to the whole internet")
-case("gcp-bucket-all-users", "exposure", "positive", "google_storage_bucket_iam_member.public",
-     versions=GOOGLE_VERSIONS, head='''resource "google_storage_bucket" "reports" {
+""",
+    note="port 22 open to the whole internet",
+)
+case(
+    "gcp-bucket-all-users",
+    "exposure",
+    "positive",
+    "google_storage_bucket_iam_member.public",
+    versions=GOOGLE_VERSIONS,
+    head="""resource "google_storage_bucket" "reports" {
   name                        = "acme-reports"
   location                    = "EU"
   uniform_bucket_level_access = true
@@ -609,9 +922,16 @@ resource "google_storage_bucket_iam_member" "public" {
   role   = "roles/storage.objectViewer"
   member = "allUsers"
 }
-''', note="every object readable by anyone")
-case("cloud-run-secret-reference", "secret", "near-miss", "google_cloud_run_v2_service.api",
-     versions=GOOGLE_VERSIONS, head='''resource "google_cloud_run_v2_service" "api" {
+""",
+    note="every object readable by anyone",
+)
+case(
+    "cloud-run-secret-reference",
+    "secret",
+    "near-miss",
+    "google_cloud_run_v2_service.api",
+    versions=GOOGLE_VERSIONS,
+    head="""resource "google_cloud_run_v2_service" "api" {
   name     = "api"
   location = "europe-west1"
 
@@ -631,15 +951,27 @@ case("cloud-run-secret-reference", "secret", "near-miss", "google_cloud_run_v2_s
     }
   }
 }
-''', note="the value is the name of a Secret Manager secret, which is the recommended way")
-case("efs-creation-token", "secret", "near-miss", "aws_efs_file_system.shared",
-     head='''resource "aws_efs_file_system" "shared" {
+""",
+    note="the value is the name of a Secret Manager secret, which is the recommended way",
+)
+case(
+    "efs-creation-token",
+    "secret",
+    "near-miss",
+    "aws_efs_file_system.shared",
+    head="""resource "aws_efs_file_system" "shared" {
   creation_token = "shared-data"
   encrypted      = true
 }
-''', note="creation_token is an idempotency key, not a credential")
-case("rds-cluster-default-key-encryption", "encryption", "near-miss", "aws_rds_cluster.main",
-     head='''resource "aws_rds_cluster" "main" {
+""",
+    note="creation_token is an idempotency key, not a credential",
+)
+case(
+    "rds-cluster-default-key-encryption",
+    "encryption",
+    "near-miss",
+    "aws_rds_cluster.main",
+    head="""resource "aws_rds_cluster" "main" {
   cluster_identifier          = "main"
   engine                      = "aurora-postgresql"
   master_username             = "appuser"
@@ -647,7 +979,9 @@ case("rds-cluster-default-key-encryption", "encryption", "near-miss", "aws_rds_c
   storage_encrypted           = true
   deletion_protection         = true
 }
-''', note="storage is encrypted with the AWS-managed key")
+""",
+    note="storage is encrypted with the AWS-managed key",
+)
 
 
 def write(directory, versions, main, files):
@@ -669,7 +1003,11 @@ for entry in CASES:
         base_versions = entry["versions"]
     else:
         # The repository before the PR: the same provider, nothing else.
-        base_versions = entry["versions"] if entry["versions"] in (AZURE_VERSIONS, GOOGLE_VERSIONS) else AWS_VERSIONS
+        base_versions = (
+            entry["versions"]
+            if entry["versions"] in (AZURE_VERSIONS, GOOGLE_VERSIONS)
+            else AWS_VERSIONS
+        )
     write(case_dir / "base", base_versions, base_main, entry["base_files"])
     write(case_dir / "head", entry["versions"], entry["head"], entry["head_files"])
     labels.append({key: entry[key] for key in ("name", "category", "kind", "target", "note")})

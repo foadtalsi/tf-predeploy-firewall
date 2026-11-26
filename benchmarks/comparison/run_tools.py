@@ -24,14 +24,20 @@ TFLINT_CONFIG = BENCH / "tflint.hcl"
 CHECKOV = Path.home() / ".local/bin/checkov"
 PLUGIN_CACHE = BENCH / "plugin-cache"
 
-ENV = dict(os.environ, TF_PLUGIN_CACHE_DIR=str(PLUGIN_CACHE), CHECKOV_RUN_SCA_PACKAGE_SCAN_V2="false",
-           BC_SKIP_MAPPING="TRUE", TFLINT_PLUGIN_DIR=str(BENCH / "tflint-plugins"))
+ENV = dict(
+    os.environ,
+    TF_PLUGIN_CACHE_DIR=str(PLUGIN_CACHE),
+    CHECKOV_RUN_SCA_PACKAGE_SCAN_V2="false",
+    BC_SKIP_MAPPING="TRUE",
+    TFLINT_PLUGIN_DIR=str(BENCH / "tflint-plugins"),
+)
 
 
 def run(command, cwd=None, timeout=600):
     started = time.perf_counter()
-    completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True, env=ENV,
-                               timeout=timeout)
+    completed = subprocess.run(
+        command, cwd=cwd, capture_output=True, text=True, env=ENV, timeout=timeout
+    )
     return completed, time.perf_counter() - started
 
 
@@ -78,10 +84,13 @@ def on_target(label, head, finding):
 def make_repository(case_dir, workspace):
     repository = workspace / "repository"
     shutil.copytree(case_dir / "base", repository)
-    for command in (["git", "init", "-q", "-b", "main"],
-                    ["git", "config", "user.email", "bench@example.com"],
-                    ["git", "config", "user.name", "bench"],
-                    ["git", "add", "-A"], ["git", "commit", "-q", "-m", "base"]):
+    for command in (
+        ["git", "init", "-q", "-b", "main"],
+        ["git", "config", "user.email", "bench@example.com"],
+        ["git", "config", "user.name", "bench"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-q", "-m", "base"],
+    ):
         subprocess.run(command, cwd=repository, check=True, capture_output=True)
     for path in repository.iterdir():
         if path.name != ".git":
@@ -89,33 +98,66 @@ def make_repository(case_dir, workspace):
     for path in (case_dir / "head").iterdir():
         shutil.copy(path, repository / path.name)
     subprocess.run(["git", "add", "-A"], cwd=repository, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-q", "-m", "head"], cwd=repository, check=True,
-                   capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "head"], cwd=repository, check=True, capture_output=True
+    )
     return repository
 
 
 def ours(case_dir, workspace):
     repository = make_repository(case_dir, workspace)
     sarif = workspace / "ours.sarif"
-    completed, seconds = run([str(SCANNER), "--repo-dir", str(repository), "--base-ref", "HEAD~1",
-                              "--head-ref", "HEAD", "--license-key", "", "--format", "text",
-                              "--sarif-output", str(sarif)])
+    completed, seconds = run(
+        [
+            str(SCANNER),
+            "--repo-dir",
+            str(repository),
+            "--base-ref",
+            "HEAD~1",
+            "--head-ref",
+            "HEAD",
+            "--license-key",
+            "",
+            "--format",
+            "text",
+            "--sarif-output",
+            str(sarif),
+        ]
+    )
     findings = []
     if sarif.exists():
         for result in json.loads(sarif.read_text())["runs"][0]["results"]:
             location = result["locations"][0]["physicalLocation"]
             logical = (result["locations"][0].get("logicalLocations") or [{}])[0]
-            findings.append(dict(id=result["ruleId"], level=result.get("level"),
-                                 file=location["artifactLocation"]["uri"],
-                                 line=location.get("region", {}).get("startLine"),
-                                 resource=logical.get("fullyQualifiedName") or logical.get("name"),
-                                 message=result["message"]["text"][:240]))
+            findings.append(
+                {
+                    "id": result["ruleId"],
+                    "level": result.get("level"),
+                    "file": location["artifactLocation"]["uri"],
+                    "line": location.get("region", {}).get("startLine"),
+                    "resource": logical.get("fullyQualifiedName") or logical.get("name"),
+                    "message": result["message"]["text"][:240],
+                }
+            )
     return findings, seconds, completed
 
 
 def checkov(head, workspace):
-    completed, seconds = run([str(CHECKOV), "-d", str(head), "--framework", "terraform", "secrets",
-                              "-o", "json", "--quiet", "--skip-download", "--compact"])
+    completed, seconds = run(
+        [
+            str(CHECKOV),
+            "-d",
+            str(head),
+            "--framework",
+            "terraform",
+            "secrets",
+            "-o",
+            "json",
+            "--quiet",
+            "--skip-download",
+            "--compact",
+        ]
+    )
     findings = []
     try:
         reports = json.loads(completed.stdout)
@@ -123,16 +165,32 @@ def checkov(head, workspace):
         reports = []
     for report in reports if isinstance(reports, list) else [reports]:
         for check in report.get("results", {}).get("failed_checks", []):
-            findings.append(dict(id=check["check_id"], file=check["file_path"],
-                                 line=(check.get("file_line_range") or [None])[0],
-                                 resource=check.get("resource"),
-                                 message=check.get("check_name", "")[:240]))
+            findings.append(
+                {
+                    "id": check["check_id"],
+                    "file": check["file_path"],
+                    "line": (check.get("file_line_range") or [None])[0],
+                    "resource": check.get("resource"),
+                    "message": check.get("check_name", "")[:240],
+                }
+            )
     return findings, seconds, completed
 
 
 def trivy(head, workspace):
-    completed, seconds = run(["trivy", "fs", "--scanners", "misconfig,secret", "--format", "json",
-                              "--quiet", "--skip-check-update", str(head)])
+    completed, seconds = run(
+        [
+            "trivy",
+            "fs",
+            "--scanners",
+            "misconfig,secret",
+            "--format",
+            "json",
+            "--quiet",
+            "--skip-check-update",
+            str(head),
+        ]
+    )
     findings = []
     try:
         report = json.loads(completed.stdout)
@@ -141,20 +199,43 @@ def trivy(head, workspace):
     for result in report.get("Results") or []:
         for item in result.get("Misconfigurations") or []:
             cause = item.get("CauseMetadata", {})
-            findings.append(dict(id=item.get("AVDID") or item.get("ID"), level=item.get("Severity"),
-                                 file=result["Target"], line=cause.get("StartLine"),
-                                 resource=cause.get("Resource"),
-                                 message=item.get("Title", "")[:240]))
+            findings.append(
+                {
+                    "id": item.get("AVDID") or item.get("ID"),
+                    "level": item.get("Severity"),
+                    "file": result["Target"],
+                    "line": cause.get("StartLine"),
+                    "resource": cause.get("Resource"),
+                    "message": item.get("Title", "")[:240],
+                }
+            )
         for item in result.get("Secrets") or []:
-            findings.append(dict(id=item.get("RuleID"), level=item.get("Severity"),
-                                 file=result["Target"], line=item.get("StartLine"),
-                                 resource=None, message=item.get("Title", "")[:240]))
+            findings.append(
+                {
+                    "id": item.get("RuleID"),
+                    "level": item.get("Severity"),
+                    "file": result["Target"],
+                    "line": item.get("StartLine"),
+                    "resource": None,
+                    "message": item.get("Title", "")[:240],
+                }
+            )
     return findings, seconds, completed
 
 
 def tflint(head, workspace):
-    completed, seconds = run([str(TFLINT), "--chdir", str(head), "--config", str(TFLINT_CONFIG),
-                              "--format", "json", "--force"])
+    completed, seconds = run(
+        [
+            str(TFLINT),
+            "--chdir",
+            str(head),
+            "--config",
+            str(TFLINT_CONFIG),
+            "--format",
+            "json",
+            "--force",
+        ]
+    )
     findings = []
     try:
         report = json.loads(completed.stdout)
@@ -162,37 +243,64 @@ def tflint(head, workspace):
         report = {}
     for issue in report.get("issues") or []:
         span = issue.get("range", {})
-        findings.append(dict(id=issue["rule"]["name"], level=issue["rule"].get("severity"),
-                             file=span.get("filename"), line=span.get("start", {}).get("line"),
-                             resource=None, message=issue.get("message", "")[:240]))
+        findings.append(
+            {
+                "id": issue["rule"]["name"],
+                "level": issue["rule"].get("severity"),
+                "file": span.get("filename"),
+                "line": span.get("start", {}).get("line"),
+                "resource": None,
+                "message": issue.get("message", "")[:240],
+            }
+        )
     for error in report.get("errors") or []:
         span = error.get("range") or {}
-        findings.append(dict(id="tflint-error", file=span.get("filename"),
-                             line=(span.get("start") or {}).get("line"), resource=None,
-                             message=error.get("message", "")[:240]))
+        findings.append(
+            {
+                "id": "tflint-error",
+                "file": span.get("filename"),
+                "line": (span.get("start") or {}).get("line"),
+                "resource": None,
+                "message": error.get("message", "")[:240],
+            }
+        )
     return findings, seconds, completed
 
 
 def validate(head, workspace):
     copy = workspace / "validate"
     shutil.copytree(head, copy)
-    init, init_seconds = run(["terraform", "init", "-backend=false", "-input=false", "-no-color"],
-                             cwd=copy)
+    init, init_seconds = run(
+        ["terraform", "init", "-backend=false", "-input=false", "-no-color"], cwd=copy
+    )
     completed, seconds = run(["terraform", "validate", "-json", "-no-color"], cwd=copy)
     findings = []
     if init.returncode != 0:
-        findings.append(dict(id="init-failed", file=None, line=None, resource=None,
-                             message=init.stderr.strip().splitlines()[-1][:240] if init.stderr else ""))
+        findings.append(
+            {
+                "id": "init-failed",
+                "file": None,
+                "line": None,
+                "resource": None,
+                "message": init.stderr.strip().splitlines()[-1][:240] if init.stderr else "",
+            }
+        )
     try:
         report = json.loads(completed.stdout)
     except json.JSONDecodeError:
         report = {}
     for diagnostic in report.get("diagnostics") or []:
         span = diagnostic.get("range") or {}
-        findings.append(dict(id=diagnostic.get("summary", "")[:80], level=diagnostic.get("severity"),
-                             file=span.get("filename"), line=(span.get("start") or {}).get("line"),
-                             resource=diagnostic.get("address"),
-                             message=diagnostic.get("detail", "")[:240]))
+        findings.append(
+            {
+                "id": diagnostic.get("summary", "")[:80],
+                "level": diagnostic.get("severity"),
+                "file": span.get("filename"),
+                "line": (span.get("start") or {}).get("line"),
+                "resource": diagnostic.get("address"),
+                "message": diagnostic.get("detail", "")[:240],
+            }
+        )
     return findings, init_seconds + seconds, completed
 
 
@@ -200,7 +308,9 @@ TOOLS = {"ours": None, "checkov": checkov, "trivy": trivy, "tflint": tflint, "va
 
 
 def main():
-    selected = [argument for argument in sys.argv[1:] if not argument.startswith("--")] or list(TOOLS)
+    selected = [argument for argument in sys.argv[1:] if not argument.startswith("--")] or list(
+        TOOLS
+    )
     labels = json.loads((CORPUS / "labels.json").read_text())
     output = BENCH / "results.json"
     results = json.loads(output.read_text()) if output.exists() else {}
@@ -218,11 +328,17 @@ def main():
                     findings, seconds, completed = TOOLS[tool](head, workspace)
             for finding in findings:
                 finding["on_target"] = on_target(label, head, finding)
-            results.setdefault(label["name"], {})[tool] = dict(
-                findings=findings, seconds=round(seconds, 2), exit=completed.returncode,
-                stderr=completed.stderr[-600:])
-            print(f"{label['name']:40} {tool:9} {len(findings):3} findings "
-                  f"{sum(f['on_target'] for f in findings):2} on target  {seconds:5.1f}s", flush=True)
+            results.setdefault(label["name"], {})[tool] = {
+                "findings": findings,
+                "seconds": round(seconds, 2),
+                "exit": completed.returncode,
+                "stderr": completed.stderr[-600:],
+            }
+            print(
+                f"{label['name']:40} {tool:9} {len(findings):3} findings "
+                f"{sum(f['on_target'] for f in findings):2} on target  {seconds:5.1f}s",
+                flush=True,
+            )
         output.write_text(json.dumps(results, indent=1))
 
 
