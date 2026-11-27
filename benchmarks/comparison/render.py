@@ -86,6 +86,15 @@ def main():
     others = [(caught(tool, positives), name) for tool, name in TOOLS if tool != "ours"]
     best_count, best_name = max(others)
 
+    mobile_rows = "\n".join(
+        f'        <li{us(tool)}><span class="tool">{name}</span>'
+        f'<span class="score">{caught(tool, positives)}<small>/{len(positives)}</small></span>'
+        f'<span class="meter"><i style="width:{round(100 * caught(tool, positives) / len(positives))}%"></i></span>'
+        f'<span class="alarms">{caught(tool, near_misses)} false alarm'
+        f"{'' if caught(tool, near_misses) == 1 else 's'}</span></li>"
+        for tool, name in TOOLS
+    )
+
     body = []
     for family, title in FAMILIES:
         cases = [label for label in positives if label["category"] == family]
@@ -167,6 +176,11 @@ def main():
         </p>
       </div>
 
+      <ul class="bench-mobile" aria-hidden="true">
+{mobile_rows}
+      </ul>
+      <p class="swipe-hint" aria-hidden="true">The full table, by kind of problem: swipe it sideways.</p>
+
       <div class="scroll-x">
       <table class="bench">
         <thead><tr><th scope="col">The pull request adds</th>{head}</tr></thead>
@@ -182,6 +196,8 @@ def main():
       </table>
       </div>
 
+      <details class="fold" open>
+        <summary>Method, limits and scan times</summary>
       <div class="bench-notes">
         <div>
           <h3>{wrong_title}</h3>
@@ -250,6 +266,7 @@ def main():
           </p>
         </div>
       </div>
+      </details>
     </div>
   </section>
   <!-- BENCHMARK:END -->'''
